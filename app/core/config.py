@@ -107,6 +107,37 @@ class Settings:
     adzuna_app_id: str | None = field(default_factory=lambda: os.getenv("ADZUNA_APP_ID"))
     adzuna_app_key: str | None = field(default_factory=lambda: os.getenv("ADZUNA_APP_KEY"))
 
+    # --- Jooble ---
+    source_jooble_enabled: bool = field(default_factory=lambda: _env_bool("SOURCE_JOOBLE_ENABLED", True))
+    source_jooble_base_url: str = field(
+        default_factory=lambda: os.getenv("SOURCE_JOOBLE_BASE_URL", "https://jooble.org/api")
+    )
+    jooble_api_key: str | None = field(default_factory=lambda: os.getenv("JOOBLE_API_KEY"))
+
+    # --- RemoteJobs.org ---
+    source_remotejobs_enabled: bool = field(default_factory=lambda: _env_bool("SOURCE_REMOTEJOBS_ENABLED", True))
+    source_remotejobs_base_url: str = field(
+        default_factory=lambda: os.getenv("SOURCE_REMOTEJOBS_BASE_URL", "https://remotejobs.org/api/v1/jobs")
+    )
+
+    # --- Arbeitnow ---
+    source_arbeitnow_enabled: bool = field(default_factory=lambda: _env_bool("SOURCE_ARBEITNOW_ENABLED", True))
+    source_arbeitnow_base_url: str = field(
+        default_factory=lambda: os.getenv("SOURCE_ARBEITNOW_BASE_URL", "https://www.arbeitnow.com/api/job-board-api")
+    )
+
+    # --- Greenhouse / Lever company job boards ---
+    source_greenhouse_enabled: bool = field(default_factory=lambda: _env_bool("SOURCE_GREENHOUSE_ENABLED", True))
+    source_greenhouse_base_url: str = field(
+        default_factory=lambda: os.getenv("SOURCE_GREENHOUSE_BASE_URL", "https://boards-api.greenhouse.io/v1/boards")
+    )
+    source_greenhouse_board_tokens: str = field(default_factory=lambda: os.getenv("SOURCE_GREENHOUSE_BOARD_TOKENS", ""))
+    source_lever_enabled: bool = field(default_factory=lambda: _env_bool("SOURCE_LEVER_ENABLED", True))
+    source_lever_base_url: str = field(
+        default_factory=lambda: os.getenv("SOURCE_LEVER_BASE_URL", "https://api.lever.co/v0/postings")
+    )
+    source_lever_company_slugs: str = field(default_factory=lambda: os.getenv("SOURCE_LEVER_COMPANY_SLUGS", ""))
+
     # --- HeadHunter ---
     source_hh_enabled: bool = field(default_factory=lambda: _env_bool("SOURCE_HH_ENABLED", True))
     source_hh_base_url: str = field(

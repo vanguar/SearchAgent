@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from typing import Any
 
@@ -98,17 +99,75 @@ class AdzunaAdapter(BaseSourceAdapter):
         }
         if search_input.query:
             params["what"] = search_input.query
-        location = _effective_location(search_input)
-        if location:
-            params["where"] = location
+        locations = _effective_locations(search_input)
         if search_input.radius_km is not None:
             params["distance"] = search_input.radius_km
 
         logger.info(
-            "adzuna_search query=%r location=%r radius=%s page=%s",
-            search_input.query, search_input.location, search_input.radius_km, page,
+            "adzuna_search query=%r location=%r effective_locations=%s radius=%s page=%s",
+            search_input.query, search_input.location, locations or None, search_input.radius_km, page,
         )
 
+        payloads = tuple(
+            self._fetch_payload(
+                endpoint,
+                params={**params, "where": location} if location else params,
+            )
+            for location in (locations or (None,))
+        )
+
+        records: list[SourceRecordPreview] = []
+        seen_external_ids: set[str] = set()
+        skipped = 0
+        total_count = 0
+        total_count_known = False
+        for payload in payloads:
+            payload_count = _to_int(payload.get("count"))
+            if payload_count is not None:
+                total_count += payload_count
+                total_count_known = True
+            for raw_job in _extract_results(payload):
+                if not isinstance(raw_job, Mapping):
+                    skipped += 1
+                    continue
+                record = _parse_record(self.source_id, self.display_name, raw_job)
+                if record is None:
+                    skipped += 1
+                    continue
+                if record.external_id in seen_external_ids:
+                    continue
+                seen_external_ids.add(record.external_id)
+                records.append(record)
+
+        warnings: list[str] = []
+        if skipped:
+            warnings.append(f"Adzuna: пропущено {skipped} записей без стабильного ID.")
+        if len(payloads) > 1:
+            warnings.append(f"Adzuna: выполнен отдельный поиск по {len(payloads)} городам.")
+
+        raw_payload: dict[str, Any]
+        if len(payloads) == 1:
+            raw_payload = dict(payloads[0])
+        else:
+            raw_payload = {
+                "count": total_count if total_count_known else None,
+                "results": [record.raw_payload for record in records],
+                "locations": locations,
+                "responses": tuple(dict(payload) for payload in payloads),
+            }
+
+        return AdapterSearchResponse(
+            source_id=self.source_id,
+            source_name=self.display_name,
+            records=tuple(records),
+            total_count=total_count if total_count_known else None,
+            page=page,
+            page_size=search_input.page_size,
+            raw_payload=raw_payload,
+            warnings=tuple(warnings),
+        )
+
+    def _fetch_payload(self, endpoint: str, *, params: Mapping[str, Any]) -> Mapping[str, Any]:
         try:
             http_response = self.http_transport.get_json(
                 endpoint,
@@ -136,43 +195,8 @@ class AdzunaAdapter(BaseSourceAdapter):
                 source_name=self.display_name,
                 message="Adzuna ответ имеет неожиданный формат верхнего уровня.",
             )
-
-        raw_results = payload.get("results", [])
-        if not isinstance(raw_results, list):
-            raise AdapterResponseError(
-                source_id=self.source_id,
-                source_name=self.display_name,
-                message="Adzuna ответ не содержит список results.",
-            )
-
-        total_count = _to_int(payload.get("count"))
-
-        records: list[SourceRecordPreview] = []
-        skipped = 0
-        for raw_job in raw_results:
-            if not isinstance(raw_job, Mapping):
-                skipped += 1
-                continue
-            record = _parse_record(self.source_id, self.display_name, raw_job)
-            if record is None:
-                skipped += 1
-                continue
-            records.append(record)
-
-        warnings: list[str] = []
-        if skipped:
-            warnings.append(f"Adzuna: пропущено {skipped} записей без стабильного ID.")
-
-        return AdapterSearchResponse(
-            source_id=self.source_id,
-            source_name=self.display_name,
-            records=tuple(records),
-            total_count=total_count,
-            page=page,
-            page_size=search_input.page_size,
-            raw_payload=dict(payload),
-            warnings=tuple(warnings),
-        )
+        _extract_results(payload)
+        return payload
 
 
 def _parse_record(
@@ -224,11 +248,33 @@ def _parse_record(
     )
 
 
-def _effective_location(search_input: SourceSearchInput) -> str | None:
-    """Adzuna treats `where` as a place, not as a remote-work mode."""
+_LOCATION_SPLIT_RE = re.compile(r"[,;|/]+")
+_COUNTRY_LOCATION_PARTS = frozenset({"de", "deutschland", "germany", "allemagne"})
+
+
+def _effective_locations(search_input: SourceSearchInput) -> tuple[str, ...]:
+    """Adzuna `where` accepts one place; split city lists into separate requests."""
     if search_input.search_mode == "remote_worldwide":
-        return None
-    return search_input.location
+        return ()
+    location = search_input.location
+    if not location or not location.strip():
+        return ()
+    parts = tuple(part.strip() for part in _LOCATION_SPLIT_RE.split(location) if part.strip())
+    city_parts = tuple(part for part in parts if part.casefold() not in _COUNTRY_LOCATION_PARTS)
+    if len(city_parts) > 1:
+        return city_parts
+    return (location.strip(),)
+
+
+def _extract_results(payload: Mapping[str, Any]) -> list[Any]:
+    raw_results = payload.get("results", [])
+    if not isinstance(raw_results, list):
+        raise AdapterResponseError(
+            source_id=AdzunaAdapter.source_id,
+            source_name=AdzunaAdapter.display_name,
+            message="Adzuna ответ не содержит список results.",
+        )
+    return raw_results
 
 
 def _build_salary_text(raw_job: Mapping[str, Any]) -> str | None:

@@ -39,6 +39,27 @@ class FixtureTransport:
         return HttpJsonResponse(url=url, status_code=self.status_code, payload=self.payload)
 
 
+class SequencedTransport:
+    """Транспорт-заглушка, возвращающий payload по порядку вызовов."""
+
+    def __init__(self, payloads: list[object], *, status_code: int = 200) -> None:
+        self.payloads = payloads
+        self.status_code = status_code
+        self.calls: list[dict[str, object]] = []
+
+    def get_json(
+        self,
+        url: str,
+        *,
+        params: dict[str, object] | None = None,
+        headers: dict[str, str] | None = None,
+        timeout_seconds: float = 10.0,
+    ) -> HttpJsonResponse:
+        self.calls.append({"url": url, "params": params or {}})
+        payload = self.payloads[min(len(self.calls) - 1, len(self.payloads) - 1)]
+        return HttpJsonResponse(url=url, status_code=self.status_code, payload=payload)
+
+
 def _load_fixture() -> object:
     return json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
 
@@ -152,6 +173,55 @@ def test_adzuna_adapter_no_location_in_query_when_not_provided() -> None:
 
     params = transport.calls[0]["params"]
     assert "where" not in params
+
+
+def test_adzuna_adapter_splits_city_list_into_separate_requests() -> None:
+    """Adzuna не понимает 'Rostock, Stralsund' как список, поэтому ищем города отдельно."""
+    payload_rostock = {
+        "count": 1,
+        "results": [
+            {
+                "id": "rostock-1",
+                "title": "Zusteller Rostock",
+                "location": {"display_name": "Rostock"},
+                "redirect_url": "https://example.de/rostock-1",
+            }
+        ],
+    }
+    payload_stralsund = {
+        "count": 1,
+        "results": [
+            {
+                "id": "stralsund-1",
+                "title": "Zusteller Stralsund",
+                "location": {"display_name": "Stralsund"},
+                "redirect_url": "https://example.de/stralsund-1",
+            }
+        ],
+    }
+    transport = SequencedTransport([payload_rostock, payload_stralsund])
+    adapter = AdzunaAdapter(settings=_settings_with_keys(), http_transport=transport)
+
+    response = adapter.search(
+        SourceSearchInput(query="zusteller", location="Rostock, Stralsund", radius_km=50, page=1, page_size=10)
+    )
+
+    assert [call["params"]["where"] for call in transport.calls] == ["Rostock", "Stralsund"]
+    assert response.total_count == 2
+    assert [record.external_id for record in response.records] == ["rostock-1", "stralsund-1"]
+    assert any("отдельный поиск" in warning for warning in response.warnings)
+
+
+def test_adzuna_adapter_keeps_city_country_location_as_single_place() -> None:
+    """'Berlin, Deutschland' — это один город с страной, а не список городов."""
+    payload = _load_fixture()
+    transport = FixtureTransport(payload)
+    adapter = AdzunaAdapter(settings=_settings_with_keys(), http_transport=transport)
+
+    adapter.search(SourceSearchInput(query="lager", location="Berlin, Deutschland", page=1, page_size=10))
+
+    assert len(transport.calls) == 1
+    assert transport.calls[0]["params"].get("where") == "Berlin, Deutschland"
 
 
 def test_adzuna_adapter_omits_remote_as_location_for_remote_worldwide_mode() -> None:

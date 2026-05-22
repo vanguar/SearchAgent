@@ -65,6 +65,7 @@ _BUCKET_PRIORITY: dict[SearchBucket, int] = {"hot": 0, "maybe": 1, "rejected": 2
 _EXPLICIT_WEAK_SCORE_CAP = HOT_BUCKET_MIN_SCORE - 1
 _EXPLICIT_IRRELEVANT_SCORE_CAP = MAYBE_BUCKET_MIN_SCORE - 1
 _RUSSIAN_LANGUAGE_SOURCE_IDS = frozenset({"hh", "dou_rss", "djinni_rss"})
+_DUAL_MODE_SOURCE_IDS = frozenset({"arbeitnow", "greenhouse", "jooble", "lever"})
 _CYRILLIC_RE = re.compile(r"[А-Яа-яЁёІіЇїЄєҐґ]")
 
 
@@ -620,6 +621,8 @@ class SearchService:
             and source.status_kind != "error"
             and source.source_id not in _RUSSIAN_LANGUAGE_SOURCE_IDS
             and (
+                source.source_id in _DUAL_MODE_SOURCE_IDS
+                or
                 (search_mode == "remote_worldwide" and source.global_remote)
                 or (search_mode != "remote_worldwide" and not source.global_remote)
             )
