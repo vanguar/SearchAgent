@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% if workspace.notice %}
+<article class="notice {{ workspace.notice.kind }}">
+  {{ workspace.notice.message_ru }}
+</article>
+{% endif %}
+
+{% if workspace.warning_message %}
+<article class="notice warning">
+  {{ workspace.warning_message }}
+</article>
+{% endif %}
+
+<section class="cards-grid email-status-grid">
+  <article class="panel">
+    <h3>Ручной рабочий поток</h3>
+    <p>
+      {% if workspace.owner_label %}
+      Профиль: <strong>{{ workspace.owner_label }}</strong>
+      {% else %}
+      Профиль для переписки пока не выбран.
+      {% endif %}
+    </p>
+    <p class="muted">
+      Этот раздел работает вручную: импорт письма, детерминированный подбор лида, явная привязка или отвязка без
+      скрытой автоматизации.
+    </p>
+  </article>
+
+  <article class="panel">
+    <h3>Gmail scaffold</h3>
+    <p>{{ workspace.gmail_state.message_ru }}</p>
+    {% if workspace.gmail_state.account_email %}
+    <p class="muted">Аккаунт: {{ workspace.gmail_state.account_email }}</p>
+    {% endif %}
+    <form method="post" action="/email/sync" class="inline-form">
+      <button type="submit" class="ghost-btn">Проверить sync scaffold</button>
+    </form>
+  </article>
+</section>
+
+<section class="split-layout email-layout">
+  <div class="content-stack">
+    {% include "email/partials/thread_list.html" %}
+    {% include "email/partials/manual_import_form.html" %}
+  </div>
+
+  <div class="content-stack">
+    {% include "email/partials/message_detail.html" %}
+    {% include "email/partials/match_panel.html" %}
+  </div>
+</section>
+{% endblock %}

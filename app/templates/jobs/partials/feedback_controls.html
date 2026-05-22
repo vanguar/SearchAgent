@@ -1,0 +1,77 @@
+{#
+  Inline relevance feedback controls for a single vacancy card.
+  Expects caller to set: item, feedback_id, profile_id
+  Uses HTMX to post and replace the acknowledgment span inline.
+#}
+{% set fb_ack_id = "fb-ack-" ~ feedback_id %}
+{% set feedback_current_query = "" %}
+{% if search_result and search_result.attempt_summary %}
+  {% set feedback_current_query = search_result.attempt_summary.final_query_used or search_result.attempt_summary.primary_query or "" %}
+{% endif %}
+{% if profile_id %}
+<div class="feedback-row">
+  <div class="feedback-row__main">
+    <span class="feedback-row__label muted">Оценить:</span>
+
+    <div class="feedback-actions">
+      <form class="inline-form feedback-form" method="post" action="/feedback/record"
+            hx-post="/feedback/record"
+            hx-target="#{{ fb_ack_id }}"
+            hx-swap="innerHTML">
+        <input type="hidden" name="profile_id" value="{{ profile_id }}" />
+        <input type="hidden" name="canonical_key" value="{{ item.canonical_group.canonical_key }}" />
+        <input type="hidden" name="source_id" value="{{ item.primary_record.source_id }}" />
+        <input type="hidden" name="source_name" value="{{ item.primary_record.source_name }}" />
+        <input type="hidden" name="normalized_title" value="{{ item.canonical_group.normalized_title or item.primary_record.original_title }}" />
+        <input type="hidden" name="company_name" value="{{ item.primary_record.original_company or item.canonical_group.company_name or '' }}" />
+        <input type="hidden" name="location_text" value="{{ item.primary_record.original_location or item.canonical_group.location_text or '' }}" />
+        <input type="hidden" name="role_family" value="{{ item.role_family or '' }}" />
+        <input type="hidden" name="current_query" value="{{ feedback_current_query }}" />
+        <input type="hidden" name="feedback_label" value="relevant" />
+        <button type="submit" class="ghost-btn ghost-btn--small btn-feedback-good">Подходит</button>
+      </form>
+
+      <form class="inline-form feedback-form" method="post" action="/feedback/record"
+            hx-post="/feedback/record"
+            hx-target="#{{ fb_ack_id }}"
+            hx-swap="innerHTML">
+        <input type="hidden" name="profile_id" value="{{ profile_id }}" />
+        <input type="hidden" name="canonical_key" value="{{ item.canonical_group.canonical_key }}" />
+        <input type="hidden" name="source_id" value="{{ item.primary_record.source_id }}" />
+        <input type="hidden" name="source_name" value="{{ item.primary_record.source_name }}" />
+        <input type="hidden" name="normalized_title" value="{{ item.canonical_group.normalized_title or item.primary_record.original_title }}" />
+        <input type="hidden" name="company_name" value="{{ item.primary_record.original_company or item.canonical_group.company_name or '' }}" />
+        <input type="hidden" name="location_text" value="{{ item.primary_record.original_location or item.canonical_group.location_text or '' }}" />
+        <input type="hidden" name="role_family" value="{{ item.role_family or '' }}" />
+        <input type="hidden" name="current_query" value="{{ feedback_current_query }}" />
+        <input type="hidden" name="feedback_label" value="weak" />
+        <button type="submit" class="ghost-btn ghost-btn--small btn-feedback-weak">Слабо</button>
+      </form>
+
+      <form class="inline-form feedback-form" method="post" action="/feedback/record"
+            hx-post="/feedback/record"
+            hx-target="#{{ fb_ack_id }}"
+            hx-swap="innerHTML">
+        <input type="hidden" name="profile_id" value="{{ profile_id }}" />
+        <input type="hidden" name="canonical_key" value="{{ item.canonical_group.canonical_key }}" />
+        <input type="hidden" name="source_id" value="{{ item.primary_record.source_id }}" />
+        <input type="hidden" name="source_name" value="{{ item.primary_record.source_name }}" />
+        <input type="hidden" name="normalized_title" value="{{ item.canonical_group.normalized_title or item.primary_record.original_title }}" />
+        <input type="hidden" name="company_name" value="{{ item.primary_record.original_company or item.canonical_group.company_name or '' }}" />
+        <input type="hidden" name="location_text" value="{{ item.primary_record.original_location or item.canonical_group.location_text or '' }}" />
+        <input type="hidden" name="role_family" value="{{ item.role_family or '' }}" />
+        <input type="hidden" name="current_query" value="{{ feedback_current_query }}" />
+        <input type="hidden" name="feedback_label" value="irrelevant" />
+        <button type="submit" class="ghost-btn ghost-btn--small btn-feedback-bad">Не подходит</button>
+      </form>
+    </div>
+  </div>
+
+  <span id="{{ fb_ack_id }}" class="inline-feedback-ack"></span>
+</div>
+{% else %}
+<div class="feedback-row">
+  <span class="feedback-row__label muted">Выберите профиль, чтобы оценивать вакансии.</span>
+  <span id="{{ fb_ack_id }}"></span>
+</div>
+{% endif %}

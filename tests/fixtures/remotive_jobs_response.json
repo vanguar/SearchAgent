@@ -1,0 +1,49 @@
+{
+  "job-count": 4,
+  "jobs": [
+    {
+      "id": 5001,
+      "url": "https://remotive.com/remote-jobs/5001",
+      "title": "Remote Logistics Coordinator",
+      "company_name": "GlobalShip GmbH",
+      "category": "Operations",
+      "candidate_required_location": "Germany",
+      "salary": "3000-4000 EUR",
+      "publication_date": "2026-04-18T10:00:00",
+      "description": "Koordination von Versandprozessen remote aus Deutschland."
+    },
+    {
+      "id": 5002,
+      "url": "https://remotive.com/remote-jobs/5002",
+      "title": "Supply Chain Analyst",
+      "company_name": "EuroLog Inc",
+      "category": "Operations",
+      "candidate_required_location": "Europe",
+      "salary": "",
+      "publication_date": "2026-04-17T08:00:00",
+      "description": "Analyse der Lieferkette, europaweit remote."
+    },
+    {
+      "id": 5003,
+      "url": "https://remotive.com/remote-jobs/5003",
+      "title": "Warehouse Software Engineer",
+      "company_name": "TechWare USA",
+      "category": "Software Development",
+      "candidate_required_location": "USA Only",
+      "salary": "120000 USD",
+      "publication_date": "2026-04-16T09:00:00",
+      "description": "Must be based in the United States."
+    },
+    {
+      "id": 5004,
+      "url": "https://remotive.com/remote-jobs/5004",
+      "title": "Operations Manager",
+      "company_name": "Worldwide Ops",
+      "category": "Operations",
+      "candidate_required_location": "Worldwide",
+      "salary": "",
+      "publication_date": "2026-04-15T12:00:00",
+      "description": "Remote operations management, open to all locations."
+    }
+  ]
+}

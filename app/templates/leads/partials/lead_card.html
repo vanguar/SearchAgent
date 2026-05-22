@@ -1,0 +1,63 @@
+<article class="panel lead-card {% if lead_card.follow_up_due %}lead-card-due{% endif %}">
+  <div class="lead-card-head">
+    <div>
+      <h3>{{ lead_card.lead.vacancy_title }}</h3>
+      {% if lead_card.lead.translated_title_ru %}
+      <p class="muted">{{ lead_card.lead.translated_title_ru }}</p>
+      {% endif %}
+      <p class="muted">
+        {{ lead_card.lead.company_name or "Компания не указана" }}
+        {% if lead_card.lead.location_text %} · {{ lead_card.lead.location_text }}{% endif %}
+        {% if lead_card.lead.source_name %} · {{ lead_card.lead.source_name }}{% endif %}
+      </p>
+    </div>
+    <span class="status-pill status-{{ lead_card.lead.status or 'new' }}">{{ lead_card.status_label_ru }}</span>
+  </div>
+
+  {% if lead_card.lead.summary_ru %}
+  <p>{{ lead_card.lead.summary_ru }}</p>
+  {% endif %}
+
+  <dl class="lead-meta-grid">
+    <div>
+      <dt>Что сделано</dt>
+      <dd>{{ lead_card.status_label_ru }}</dd>
+    </div>
+    <div>
+      <dt>Следующий шаг</dt>
+      <dd>
+        {% if lead_card.lead.next_action_at %}
+        {{ lead_card.lead.next_action_at.strftime("%d.%m.%Y %H:%M") }}
+        {% else %}
+        Пока не задан
+        {% endif %}
+      </dd>
+    </div>
+    <div>
+      <dt>Резюме</dt>
+      <dd>{{ lead_card.linked_resume_label or "Не выбрано" }}</dd>
+    </div>
+    <div>
+      <dt>Шаблон</dt>
+      <dd>{{ lead_card.linked_template_name or "Не выбран" }}</dd>
+    </div>
+  </dl>
+
+  {% if lead_card.follow_up_due %}
+  <div class="notice warning">Фоллоу-ап уже пора отправить.</div>
+  {% endif %}
+
+  {% if lead_card.latest_note %}
+  <p class="muted">Последняя заметка: {{ lead_card.latest_note }}</p>
+  {% endif %}
+
+  <div class="panel-actions">
+    <a href="/leads/{{ lead_card.lead.id }}" class="ghost-btn">Открыть карточку</a>
+    {% if lead_card.lead.original_url %}
+    <form method="post" action="/leads/{{ lead_card.lead.id }}/open-original" target="_blank" class="inline-form">
+      <input type="hidden" name="original_url" value="{{ lead_card.lead.original_url }}" />
+      <button type="submit" class="ghost-btn">Открыть оригинал</button>
+    </form>
+    {% endif %}
+  </div>
+</article>

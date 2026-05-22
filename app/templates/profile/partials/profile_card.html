@@ -1,0 +1,59 @@
+{% macro render_profile_card(entry) %}
+<article class="panel">
+  <h3>
+    {{ entry.profile.name }}
+    {% if entry.is_default %}
+    <span class="muted">(по умолчанию)</span>
+    {% endif %}
+    {% if not entry.profile.is_active %}
+    <span class="muted">(неактивный)</span>
+    {% endif %}
+  </h3>
+
+  <ul class="hint-list">
+    {% if entry.profile.desired_roles %}
+    <li>Роли: {{ entry.profile.desired_roles | join(", ") }}</li>
+    {% endif %}
+    {% if entry.profile.preferred_locations %}
+    <li>Города/регионы: {{ entry.profile.preferred_locations | join(", ") }}</li>
+    {% endif %}
+    {% if entry.profile.relocation_ready is not none %}
+    <li>Переезд: {{ "готов" if entry.profile.relocation_ready else "не готов" }}</li>
+    {% endif %}
+    {% if entry.profile.shift_ok is not none %}
+    <li>Смены: {{ "подходят" if entry.profile.shift_ok else "не подходят" }}</li>
+    {% endif %}
+    {% if entry.profile.no_german_required %}
+    <li>Язык: только без обязательного немецкого</li>
+    {% endif %}
+    {% if entry.profile.notes %}
+    <li>Заметка: {{ entry.profile.notes }}</li>
+    {% endif %}
+  </ul>
+
+  <div class="action-row">
+    {% if not entry.is_default %}
+    <form method="post" action="/profile/{{ entry.profile.id }}/set-default" class="inline-form">
+      <button type="submit" class="ghost-btn">Сделать по умолчанию</button>
+    </form>
+    {% endif %}
+
+    <form method="post" action="/profile/{{ entry.profile.id }}/duplicate" class="inline-form">
+      <button type="submit" class="ghost-btn">Дублировать</button>
+    </form>
+
+    <a class="ghost-btn" href="/profile/{{ entry.profile.id }}/edit">Редактировать</a>
+
+    <a class="ghost-btn" href="/jobs?profile_id={{ entry.profile.id }}">Искать с этим профилем</a>
+
+    <form
+      method="post"
+      action="/profile/{{ entry.profile.id }}/delete"
+      class="inline-form"
+      onsubmit='return confirm({{ ("Удалить профиль «" ~ entry.profile.name ~ "»? Это действие нельзя отменить.") | tojson }});'
+    >
+      <button type="submit" class="ghost-btn ghost-btn--stop">Удалить</button>
+    </form>
+  </div>
+</article>
+{% endmacro %}

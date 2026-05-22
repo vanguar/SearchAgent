@@ -1,0 +1,369 @@
+{% macro render_candidate_fields(item, url, profile_id=None) %}
+  <input type="hidden" name="source_id" value="{{ item.primary_record.source_id }}" />
+  <input type="hidden" name="source_name" value="{{ item.primary_record.source_name }}" />
+  <input type="hidden" name="source_external_id" value="{{ item.primary_record.external_id }}" />
+  <input type="hidden" name="canonical_key" value="{{ item.canonical_group.canonical_key }}" />
+  <input type="hidden" name="vacancy_title" value="{{ item.primary_record.original_title }}" />
+  <input type="hidden" name="translated_title_ru" value="{{ item.translated_title_ru or '' }}" />
+  <input type="hidden" name="company_name" value="{{ item.primary_record.original_company or item.canonical_group.company_name or '' }}" />
+  <input type="hidden" name="location_text" value="{{ item.primary_record.original_location or item.canonical_group.location_text or '' }}" />
+  <input type="hidden" name="summary_ru" value="{{ item.summary_ru or '' }}" />
+  <input type="hidden" name="bucket" value="{{ item.bucket }}" />
+  <input type="hidden" name="original_url" value="{{ url or '' }}" />
+  {% if profile_id %}<input type="hidden" name="profile_id" value="{{ profile_id }}" />{% endif %}
+{% endmacro %}
+
+{% macro render_bucket_body(title, items, profile_id=None) %}
+  {% if items %}
+    <section class="jobs-results-section">
+      <h3 class="jobs-results-section__title">{{ title }}</h3>
+    <ol class="jobs-result-list">
+      {% for item in items %}
+      {% set feedback_id = "lead-feedback-" ~ loop.index0 ~ "-" ~ item.canonical_group.canonical_key|replace(":", "-")|replace("/", "-")|replace(" ", "-") %}
+      <li class="jobs-vacancy-card relevance-{{ item.relevance_band }}">
+        <div class="jobs-vacancy-card__header">
+          <div class="jobs-vacancy-card__title-block">
+            <strong class="jobs-vacancy-title">{{ item.primary_record.original_title }}</strong>
+            {% if item.translated_title_ru %}
+            <span class="jobs-vacancy-title-ru">{{ item.translated_title_ru }}</span>
+            {% endif %}
+          </div>
+
+          <div class="jobs-vacancy-company">
+            {{ item.primary_record.original_company or item.canonical_group.company_name or "Компания не указана" }}
+            {% if item.primary_record.original_location or item.canonical_group.location_text %}
+            <span>· {{ item.primary_record.original_location or item.canonical_group.location_text }}</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="jobs-vacancy-meta">
+          <span>
+            Категория:
+            {% if item.bucket == "hot" %}горячая{% elif item.bucket == "maybe" %}на проверку{% else %}отклонена{% endif %}
+          </span>
+          <span>Оценка: {{ item.score_result.score }}/100</span>
+          <span>Источник: {{ item.primary_record.source_name }}</span>
+          {% if item.canonical_group.source_records|length > 1 %}
+          <span><em>{{ item.canonical_group.source_records|length }} источника</em></span>
+          {% endif %}
+        </div>
+
+        {% if item.summary_ru %}
+        <p class="jobs-vacancy-summary">{{ item.summary_ru }}</p>
+        {% endif %}
+
+        <p class="jobs-vacancy-explanation"><strong>{{ item.explanation_ru }}</strong></p>
+
+        {% if item.filter_result.review_hits %}
+        <p class="jobs-vacancy-risk muted">Риск: {{ item.filter_result.review_hits|map(attribute="label_ru")|join(", ") }}.</p>
+        {% elif item.filter_result.rejection_hits %}
+        <p class="jobs-vacancy-risk muted">Причина: {{ item.filter_result.rejection_hits|map(attribute="label_ru")|join(", ") }}.</p>
+        {% endif %}
+
+        {% set link_state = namespace(url=None) %}
+        {% if item.primary_record.source_url and item.primary_record.source_url|trim %}
+        {% set link_state.url = item.primary_record.source_url|trim %}
+        {% else %}
+          {% for record in item.canonical_group.source_records %}
+            {% if not link_state.url and record.source_url and record.source_url|trim %}
+            {% set link_state.url = record.source_url|trim %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+
+        <div class="action-row jobs-action-row">
+          <div class="jobs-action-group">
+            <form
+              class="inline-form jobs-action-form"
+              method="post"
+              action="/leads/from-search"
+              hx-post="/leads/from-search"
+              hx-target="#{{ feedback_id }}"
+              hx-swap="innerHTML"
+              data-async-form
+              data-target="#{{ feedback_id }}"
+            >
+              {{ render_candidate_fields(item, link_state.url, profile_id) }}
+              <input type="hidden" name="action" value="save" />
+              <button type="submit" class="ghost-btn jobs-action-btn">Сохранить в отклики</button>
+            </form>
+
+            <form
+              class="inline-form jobs-action-form"
+              method="post"
+              action="/leads/from-search"
+              hx-post="/leads/from-search"
+              hx-target="#{{ feedback_id }}"
+              hx-swap="innerHTML"
+              data-async-form
+              data-target="#{{ feedback_id }}"
+            >
+              {{ render_candidate_fields(item, link_state.url, profile_id) }}
+              <input type="hidden" name="action" value="viewed" />
+              <button type="submit" class="ghost-btn jobs-action-btn">Отметить просмотр</button>
+            </form>
+
+            {% if link_state.url %}
+            <form class="inline-form jobs-action-form" method="post" action="/leads/open-original" target="_blank">
+              {{ render_candidate_fields(item, link_state.url, profile_id) }}
+              <button type="submit" class="ghost-btn jobs-action-btn btn-open-original">Открыть оригинал</button>
+            </form>
+            {% else %}
+            <span class="jobs-original-missing muted">Оригинальная ссылка недоступна</span>
+            {% endif %}
+          </div>
+        </div>
+
+        {% include "jobs/partials/feedback_controls.html" %}
+
+        <div id="{{ feedback_id }}" class="top-gap jobs-action-feedback"></div>
+      </li>
+      {% endfor %}
+    </ol>
+    </section>
+  {% endif %}
+{% endmacro %}
+
+{% macro render_bucket(title, items, profile_id=None) %}
+  {% if items %}
+  <article class="panel">
+    {{ render_bucket_body(title, items, profile_id) }}
+  </article>
+  {% endif %}
+{% endmacro %}
+
+{% if form_error %}
+<article class="panel">
+  <div class="notice warning">{{ form_error }}</div>
+</article>
+{% elif search_result %}
+{% if search_result.attempt_summary and search_result.attempt_summary.user_message_ru %}
+<article class="panel">
+  <div class="notice {% if search_result.has_results %}info{% else %}warning{% endif %}">
+    <strong>Расширенный поиск:</strong> {{ search_result.attempt_summary.user_message_ru }}
+  </div>
+  <details>
+    <summary class="muted">Попытки поиска ({{ search_result.attempt_summary.attempts|length }})</summary>
+    <ul class="hint-list">
+      {% for attempt in search_result.attempt_summary.attempts %}
+      <li>
+        <strong>{{ attempt.stage_name }}</strong> · запрос: «{{ attempt.query_used }}»
+        {% if attempt.language_relaxation_applied %} · <em>низкий языковой барьер</em>{% endif %}
+        <br />
+        <span class="muted">
+          Сырых: {{ attempt.raw_count }} · После дедупликации: {{ attempt.deduped_count }} · Не отклонено: {{ attempt.non_rejected_count }} (горячих: {{ attempt.hot_count }})
+        </span>
+        {% if attempt.rejection_reason_counts %}
+        <br /><span class="muted">
+          Причины отклонения:
+          {% for reason_code, count in attempt.rejection_reason_counts %}
+            {{ reason_code }}: {{ count }}{% if not loop.last %}, {% endif %}
+          {% endfor %}
+        </span>
+        {% endif %}
+        {% if attempt.reason_continued %}
+        <br /><span class="muted">→ {{ attempt.reason_continued }}</span>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </details>
+</article>
+{% endif %}
+{% if search_result.profile.profile_source != "saved" and search_result.profile.note_ru %}
+<article class="panel">
+  {% if search_result.profile.profile_source == "degraded" %}
+  <div class="notice warning">{{ search_result.profile.note_ru }}</div>
+  {% elif search_result.profile.profile_source == "fallback" %}
+  <div class="notice info">{{ search_result.profile.note_ru }}</div>
+  {% endif %}
+</article>
+{% endif %}
+<article class="panel jobs-summary-panel">
+  <h3>Сводка поиска</h3>
+  <p>
+    Сырых записей: {{ search_result.total_raw_records }}.
+    После нормализации: {{ search_result.total_normalized_records }}.
+    После дедупликации: {{ search_result.total_canonical_results }}.
+  </p>
+  {% set visible_count = search_result.hot_results|length + search_result.maybe_results|length %}
+  {% set hidden_count = search_result.hidden_filtered_items|length %}
+
+  <ul class="jobs-summary-list">
+    <li>Горячие: {{ search_result.hot_results|length }}</li>
+    <li>На проверку: {{ search_result.maybe_results|length }}</li>
+    <li>Отклонены: {{ search_result.rejected_results|length }}</li>
+    <li>Показано пользователю: {{ visible_count }}</li>
+    <li>Скрыто жёсткими фильтрами: {{ hidden_count if hidden_count > 0 else 0 }}</li>
+  </ul>
+
+  {% if search_result.deduped_preview_items %}
+  <details class="dedup-details top-gap">
+    <summary class="dedup-summary">
+      <span class="dedup-summary__title">
+        Показать вакансии после дедупликации ({{ search_result.deduped_preview_items|length }})
+      </span>
+      <span class="dedup-summary__hint">
+        до фильтров и bucket-ов
+      </span>
+    </summary>
+
+    <p class="muted top-gap">
+      Здесь показаны вакансии после склейки дублей, но до жёстких фильтров и итогового ранжирования.
+    </p>
+
+    <ol class="hint-list dedup-list">
+      {% for item in search_result.deduped_preview_items %}
+      <li>
+        <strong>{{ item.title }}</strong>
+        {% if item.company_name %}
+        <br />{{ item.company_name }}
+        {% endif %}
+        {% if item.location_text %}
+        · {{ item.location_text }}
+        {% endif %}
+        <br />
+        <span class="muted">
+          {% if item.source_name %}Источник: {{ item.source_name }}{% endif %}
+          {% if item.source_count > 1 %} · <em>{{ item.source_count }} источника</em>{% endif %}
+        </span>
+        {% if item.original_url %}
+        <br />
+        <a href="{{ item.original_url }}" target="_blank" rel="noopener noreferrer">Открыть оригинал</a>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+  </details>
+  {% endif %}
+
+  {% if search_result.hidden_filtered_items %}
+  <details class="dedup-details top-gap">
+    <summary class="dedup-summary">
+      <span class="dedup-summary__title">
+        Показать скрытые жёсткими фильтрами ({{ search_result.hidden_filtered_items|length }})
+      </span>
+      <span class="dedup-summary__hint">
+        причины скрытия
+      </span>
+    </summary>
+
+    <ol class="hint-list dedup-list top-gap">
+      {% for item in search_result.hidden_filtered_items %}
+      <li>
+        <strong>{{ item.title }}</strong>
+        {% if item.company_name %}
+        <br />{{ item.company_name }}
+        {% endif %}
+        {% if item.location_text %}
+        · {{ item.location_text }}
+        {% endif %}
+        <br />
+        <span class="muted">
+          {% if item.source_name %}Источник: {{ item.source_name }}{% endif %}
+          {% if item.rejection_reasons %} · Причина: {{ item.rejection_reasons|map(attribute="label_ru")|join(", ") }}{% endif %}
+        </span>
+        {% if item.original_url %}
+        <br />
+        <a href="{{ item.original_url }}" target="_blank" rel="noopener noreferrer">Открыть оригинал</a>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+  </details>
+  {% endif %}
+
+  <h4>Источники в текущем запуске</h4>
+  <ul class="hint-list">
+    {% for source in search_result.source_states %}
+    <li class="source-state source-state--{{ source.status_kind }}">
+      <strong>{{ source.source_name }}</strong>
+      ·
+      {% if source.status_kind == "success" %}
+      <span class="badge-success">{{ source.status_label }}</span>
+      {% elif source.status_kind == "warning" %}
+      <span class="badge-warning">{{ source.status_label }}</span>
+      {% elif source.status_kind == "disabled" %}
+      <span class="badge-disabled">{{ source.status_label }}</span>
+      {% else %}
+      <span class="badge-error">{{ source.status_label }}</span>
+      {% endif %}
+      {% if source.error_message %}
+      <br />
+      <span class="muted">{{ source.error_message }}</span>
+      {% else %}
+      <br />
+      <span class="muted">
+        Сырых: {{ source.raw_count }}
+        {% if source.total_count is not none %} из {{ source.total_count }}{% endif %}
+        · Нормализовано: {{ source.normalized_count }}
+        · Дедублицировано: {{ source.canonical_count }}
+      </span>
+      {% if source.warnings %}
+      <br />
+      <span class="muted">{{ source.warnings|join(" · ") }}</span>
+      {% endif %}
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</article>
+
+{% set visible_results = search_result.hot_results + search_result.maybe_results %}
+{% if search_result.attempt_summary and search_result.attempt_summary.attempts and search_result.query_result_groups %}
+{% set tabs = namespace(count=0) %}
+<article class="panel jobs-query-tabs-panel" data-query-tabs>
+  <h3>Вакансии по ключевикам</h3>
+  <div class="jobs-query-tabs" role="tablist" aria-label="Ключевики поиска">
+    {% for group in search_result.query_result_groups %}
+        {% set tab_index = tabs.count %}
+        {% set tabs.count = tabs.count + 1 %}
+        <button
+          type="button"
+          class="jobs-query-tab{% if tab_index == 0 %} is-active{% endif %}"
+          data-query-tab-target="query-tab-{{ tab_index }}"
+          data-query-tab-key="{{ group.query }}"
+          aria-selected="{% if tab_index == 0 %}true{% else %}false{% endif %}"
+          role="tab"
+        >
+          <span>{{ group.query }}</span>
+          <strong>{{ group.visible_count }}</strong>
+        </button>
+    {% endfor %}
+  </div>
+
+  {% set panels = namespace(count=0) %}
+  {% for group in search_result.query_result_groups %}
+      {% set panel_index = panels.count %}
+      {% set panels.count = panels.count + 1 %}
+      <div
+        class="jobs-query-tab-panel{% if panel_index == 0 %} is-active{% endif %}"
+        data-query-tab-panel="query-tab-{{ panel_index }}"
+        role="tabpanel"
+      >
+        {{ render_bucket_body("Горячие вакансии", group.hot_results, profile_id) }}
+        {{ render_bucket_body("Можно проверить", group.maybe_results, profile_id) }}
+        {% if not group.hot_results and not group.maybe_results %}
+        <div class="notice info">По этому ключевику после фильтров пока нет вакансий для показа.</div>
+        {% endif %}
+      </div>
+  {% endfor %}
+</article>
+{% else %}
+  {{ render_bucket("Горячие вакансии", search_result.hot_results, profile_id) }}
+  {{ render_bucket("Можно проверить", search_result.maybe_results, profile_id) }}
+{% endif %}
+
+
+{% if not search_result.has_results %}
+<article class="panel">
+  <div class="notice info">Источники ответили, но после текущих фильтров вакансии не остались в выдаче.</div>
+</article>
+{% endif %}
+{% else %}
+<article class="panel">
+  <h3>Результаты поиска</h3>
+  <p>Запустите поиск, чтобы увидеть вакансии с bucket-ами, объяснениями и короткими русскими summary.</p>
+</article>
+{% endif %}

@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block content %}
+<article class="panel">
+  <h2>Память профиля #{{ profile_id }}</h2>
+  <p>Здесь показано, что система знает о ваших предпочтениях — на основе оценок, которые вы поставили при поиске.</p>
+  <p class="muted">
+    Оценки влияют только на сортировку внутри уже допустимых результатов.
+    Жёсткие фильтры (язык, профессия, страна) остаются неизменными.
+  </p>
+
+  {% if not memory.has_memory %}
+  <div class="notice info">
+    Оценок пока нет. Оценивайте вакансии при поиске — кнопки <strong>Подходит</strong>,
+    <strong>Слабо</strong>, <strong>Не подходит</strong> на карточках результатов.
+    Со временем система будет точнее ранжировать похожие вакансии.
+  </div>
+  {% else %}
+
+  <p class="muted">Всего оценок: {{ memory.total_feedback_count }}</p>
+
+  {% if memory.frequently_relevant %}
+  <h3>Часто отмечали как подходящие</h3>
+  <ul class="hint-list">
+    {% for pattern in memory.frequently_relevant %}
+    <li>
+      <strong>{{ pattern.pattern_key }}</strong>
+      <span class="muted">({{ pattern.count }} раз)</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if memory.frequently_irrelevant %}
+  <h3>Часто отмечали как нерелевантные</h3>
+  <ul class="hint-list">
+    {% for pattern in memory.frequently_irrelevant %}
+    <li>
+      <strong>{{ pattern.pattern_key }}</strong>
+      <span class="muted">({{ pattern.count }} раз)</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if memory.weak_tolerated %}
+  <h3>Иногда принимали как допустимые</h3>
+  <ul class="hint-list">
+    {% for pattern in memory.weak_tolerated %}
+    <li>
+      <strong>{{ pattern.pattern_key }}</strong>
+      <span class="muted">({{ pattern.count }} раз)</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if memory.source_signals %}
+  <h3>Оценки по источникам</h3>
+  <ul class="hint-list">
+    {% for signal in memory.source_signals %}
+    <li>
+      <strong>{{ signal.source_name }}</strong>:
+      подходящих {{ signal.relevant_count }},
+      слабых {{ signal.weak_count }},
+      нерелевантных {{ signal.irrelevant_count }}
+      {% if signal.has_penalty %}
+      <span class="badge-warning">источник часто нерелевантен</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  {% endif %}
+</article>
+
+{% if recent_feedback %}
+<article class="panel">
+  <h3>Последние оценки</h3>
+  <ol class="hint-list">
+    {% for fb in recent_feedback %}
+    <li>
+      <strong>{{ fb.normalized_title }}</strong>
+      {% if fb.company_name %} · {{ fb.company_name }}{% endif %}
+      {% if fb.location_text %} · {{ fb.location_text }}{% endif %}
+      <br />
+      <span class="muted">Источник: {{ fb.source_name }}</span>
+      ·
+      {% if fb.feedback_label == "relevant" %}
+      <span class="badge-success">{{ label_display.get(fb.feedback_label, fb.feedback_label) }}</span>
+      {% elif fb.feedback_label == "irrelevant" %}
+      <span class="badge-error">{{ label_display.get(fb.feedback_label, fb.feedback_label) }}</span>
+      {% else %}
+      <span class="badge-warning">{{ label_display.get(fb.feedback_label, fb.feedback_label) }}</span>
+      {% endif %}
+      <br />
+      <span class="muted">{{ fb.updated_at.strftime('%d.%m.%Y %H:%M') }}</span>
+    </li>
+    {% endfor %}
+  </ol>
+</article>
+{% else %}
+<article class="panel">
+  <p class="muted">История оценок пуста.</p>
+</article>
+{% endif %}
+{% endblock %}

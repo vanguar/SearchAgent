@@ -1,0 +1,75 @@
+<article class="panel">
+  <h3>Подтверждение профиля</h3>
+
+  {% if not free_text %}
+  <p>Введите описание профиля, чтобы начать intake.</p>
+  {% else %}
+  <p class="muted">Проверьте, что система правильно поняла ваш запрос перед сохранением.</p>
+
+  <dl class="profile-summary">
+    <div><dt>Страна</dt><dd>{{ analysis.draft.current_country or "—" }}</dd></div>
+    <div><dt>Город</dt><dd>{{ analysis.draft.current_city or "—" }}</dd></div>
+    <div>
+      <dt>Правовой статус</dt>
+      <dd>
+        {% if analysis.draft.legal_status == "section_24" %}
+        §24 (временная защита)
+        {% else %}
+        {{ analysis.draft.legal_status or "—" }}
+        {% endif %}
+      </dd>
+    </div>
+    <div><dt>Разрешение на работу</dt><dd>{% if analysis.draft.work_authorized is none %}—{% elif analysis.draft.work_authorized %}Да{% else %}Нет{% endif %}</dd></div>
+    <div><dt>Немецкий</dt><dd>{{ analysis.draft.german_level or "—" }}</dd></div>
+    <div><dt>Английский</dt><dd>{{ analysis.draft.english_level or "—" }}</dd></div>
+    <div><dt>Желаемые роли</dt><dd>{% if analysis.draft.desired_roles %}{{ analysis.draft.desired_roles|join(", ") }}{% else %}—{% endif %}</dd></div>
+    <div><dt>Исключенные роли</dt><dd>{% if analysis.draft.excluded_roles %}{{ analysis.draft.excluded_roles|join(", ") }}{% else %}—{% endif %}</dd></div>
+    <div><dt>Предпочтительные регионы</dt><dd>{% if analysis.draft.preferred_regions %}{{ analysis.draft.preferred_regions|join(", ") }}{% else %}—{% endif %}</dd></div>
+    <div><dt>Готовность к переезду</dt><dd>{% if analysis.draft.willing_to_relocate is none %}—{% elif analysis.draft.willing_to_relocate %}Да{% else %}Нет{% endif %}</dd></div>
+    <div><dt>Смены</dt><dd>{% if analysis.draft.shift_ok is none %}—{% elif analysis.draft.shift_ok %}Да{% else %}Нет{% endif %}</dd></div>
+    <div><dt>Физическая работа</dt><dd>{% if analysis.draft.physical_work_ok is none %}—{% elif analysis.draft.physical_work_ok %}Да{% else %}Нет{% endif %}</dd></div>
+    <div><dt>Нужно жилье</dt><dd>{% if analysis.draft.housing_needed is none %}—{% elif analysis.draft.housing_needed %}Да{% else %}Нет{% endif %}</dd></div>
+    <div><dt>Готовность начать</dt><dd>{{ analysis.draft.start_availability or "—" }}</dd></div>
+    <div><dt>Права</dt><dd>{{ analysis.draft.driving_license or "—" }}</dd></div>
+    <div><dt>Есть машина</dt><dd>{% if analysis.draft.has_car is none %}—{% elif analysis.draft.has_car %}Да{% else %}Нет{% endif %}</dd></div>
+  </dl>
+
+  {% if analysis.warnings %}
+  <div class="notice warning">
+    <strong>Проверьте уточнения:</strong>
+    <ul>
+      {% for warning in analysis.warnings %}
+      <li>{{ warning }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if save_result and save_result.saved %}
+  <div class="notice success">
+    <strong>{{ save_result.message }}</strong>
+    <p class="muted">UserProfile ID: {{ save_result.user_profile_id }}, SearchProfile ID: {{ save_result.search_profile_id }}</p>
+  </div>
+  {% elif analysis.missing_fields %}
+  {% include "profile/partials/followup_questions.html" %}
+  {% else %}
+  <form hx-post="/profile/intake/confirm" hx-target="#intake-result" hx-swap="innerHTML" class="intake-form">
+    <input type="hidden" name="free_text" value="{{ free_text }}" />
+    {% for field_name in answer_fields %}
+    {% if answers.get(field_name) %}
+    <input type="hidden" name="answer_{{ field_name }}" value="{{ answers.get(field_name) }}" />
+    {% endif %}
+    {% endfor %}
+    <button type="submit" class="ghost-btn">Подтвердить и сохранить профиль</button>
+  </form>
+  {% endif %}
+
+  {% if save_result and not save_result.saved and not analysis.missing_fields %}
+  <div class="notice warning">
+    <strong>Не удалось сохранить профиль в базу.</strong>
+    <p class="muted">Проверьте подключение к БД и повторите сохранение.</p>
+  </div>
+  {% endif %}
+
+  {% endif %}
+</article>

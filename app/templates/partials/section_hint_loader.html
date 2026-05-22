@@ -1,0 +1,14 @@
+<section class="panel htmx-loader">
+  <button
+    type="button"
+    class="ghost-btn"
+    hx-get="/htmx/placeholder/{{ active_page }}"
+    hx-target="#{{ active_page }}-placeholder"
+    hx-swap="innerHTML"
+  >
+    Показать структуру раздела
+  </button>
+  <div id="{{ active_page }}-placeholder" class="placeholder-slot">
+    <p class="muted">Нажмите кнопку, чтобы открыть каркас рабочей зоны.</p>
+  </div>
+</section>

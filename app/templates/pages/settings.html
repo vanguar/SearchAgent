@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <div class="bg-white border border-gray-200 rounded-lg p-5">
+    <h2 class="text-base font-semibold text-gray-900 mb-1">LLM-интеграция</h2>
+    <p class="text-sm text-gray-500 mb-4">
+      LLM используется только для: парсинга профиля, перевода заголовков, кратких резюме вакансий.
+      Детерминированная логика поиска, фильтрации и скоринга от LLM не зависит.
+    </p>
+
+    <div class="flex items-start gap-3 p-4 rounded-md bg-gray-50 border border-gray-100">
+      <div class="flex-1">
+        <p class="text-sm font-medium {{ llm_status_css }}">{{ llm_status_label }}</p>
+        <p class="text-sm text-gray-600 mt-0.5">{{ llm_status_detail }}</p>
+        {% if llm_status == "configured" or llm_status == "provider_error" or llm_status == "extraction_succeeded" %}
+        <p class="text-xs text-gray-400 mt-1">Модель: {{ llm_model }}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if llm_status == "missing_config" %}
+    <p class="text-xs text-gray-400 mt-3">
+      Чтобы включить LLM: задайте
+      <code class="bg-gray-100 px-1 rounded">OPENAI_API_KEY</code>
+      в файле <code class="bg-gray-100 px-1 rounded">.env</code> и перезапустите приложение.
+    </p>
+    {% endif %}
+
+    {% if llm_status == "provider_error" %}
+    <p class="text-xs text-red-400 mt-3">
+      Проверьте лимиты OpenAI и корректность ключа.
+      Детерминированный режим продолжает работать.
+    </p>
+    {% endif %}
+  </div>
+
+  <div class="bg-white border border-gray-200 rounded-lg p-5">
+    <h2 class="text-base font-semibold text-gray-900 mb-1">Другие настройки</h2>
+    <p class="text-sm text-gray-400">Настройки языка и отображения — в следующих версиях.</p>
+  </div>
+
+</div>
+{% endblock %}

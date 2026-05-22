@@ -1,0 +1,81 @@
+Продолжаем проект SmartJob SearchAgent по пути:
+C:\Users\tzvan\Desktop\SmartJob_ SearchAgent
+
+Цель: расширить источники вакансий без хрупкого HTML-скрапинга.
+
+Остановились на стратегии:
+
+Layer 1: Official APIs
+1. HH API
+   - официальный JSON API
+   - страны/регионы через /areas, не хардкодить area ID
+   - искать IT/Python/backend/automation вакансии по профилю
+   - страны приоритетно: Kazakhstan, Kyrgyzstan, Uzbekistan, Georgia, Moldova если есть в /areas
+   - Россия/Беларусь не включать по умолчанию
+
+2. Adzuna multi-country
+   - использовать только если в проекте уже есть ключи Adzuna
+   - текущий Adzuna адаптер не считать worldwide
+   - нужен multi-country режим: отдельные market/country endpoints, объединение и дедупликация
+   - без ложного “worldwide”, только явно указанные страны/markets
+
+3. EURES
+   - использовать только если есть/будет API key
+   - сейчас источник помечен как недоступный из-за отсутствия SOURCE_EURES_API_KEY
+   - не тратить время на обходы без ключа
+
+Layer 2: Feeds
+4. DOU RSS
+   - украинский IT
+   - RSS/Feed, не HTML-скрапинг
+   - категории/запросы: Python, AI/ML, Backend, DevOps, remote
+   - при необходимости detail page только позже, не в первом шаге
+
+5. Djinni RSS
+   - украинский/remote IT
+   - использовать RSS feed, если доступен
+   - API считать опциональным только при официальном доступе
+   - без HTML-скрапинга
+
+Важно:
+- Ничего не делать через хрупкий HTML/XHR scraping на первом этапе.
+- Work.ua, Robota.ua, Rabota.md, Delucru.md, jobs.dev.ua HTML оставить в backlog.
+- Telegram API пока тоже не делаем, это следующий слой после API/RSS.
+- Не ломать текущую архитектуру source adapters.
+- Каждый новый источник должен иметь:
+  source_id
+  display_name
+  describe()
+  is_enabled()
+  search(SourceSearchInput) -> AdapterSearchResponse
+  нормализацию в SourceRecordPreview
+  понятные warnings/errors
+  тесты адаптера
+- Для worldwide remote не резать по локациям и количеству на уровне адаптера, если источник сам отдаёт валидные результаты.
+- Дедупликация и фильтры должны оставаться в общем pipeline.
+- UI статусы источников должны показывать реальную готовность: зелёный работает, красный/ошибка с причиной.
+- После изменений обязательно прогнать тесты.
+
+Текущее состояние после сегодняшних правок:
+- Remotive для remote_worldwide больше не режет по location, page_size и limit.
+- Worldwide orchestrator проходит все search_query_terms профиля.
+- Результаты всех worldwide попыток объединяются, а не выбирается один лучший прогон.
+- Прогресс UI показывает отдельно:
+  1) накопленное “Всего собрано по всем запросам”
+  2) “На текущем запросе найдено/в обработке”
+- Последний полный тестовый прогон: 781 passed.
+
+Начать завтра с анализа текущих адаптеров:
+app/services/source_adapters/
+app/services/source_adapters/registry.py
+app/services/source_adapters/models.py
+app/core/config.py
+tests/services/source_adapters/
+
+Первое практическое решение завтра:
+выбрать порядок внедрения:
+1) HH API adapter
+2) DOU RSS adapter
+3) Djinni RSS adapter
+4) Adzuna multi-country только если ключи уже есть
+5) EURES только если есть ключ

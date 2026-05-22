@@ -1,0 +1,114 @@
+{% if form_error %}
+<article class="panel">
+  <div class="notice warning">{{ form_error }}</div>
+</article>
+{% elif preview_states %}
+  {% for preview in preview_states %}
+  <article class="panel">
+    <h3>{{ preview.source.display_name }}</h3>
+    <p class="muted">Статус: {{ preview.source.status_label }}</p>
+
+    {% if preview.error %}
+    <div class="notice warning">
+      <strong>{{ preview.error.message }}</strong>
+      <p class="muted">Код ошибки: {{ preview.error.code }}</p>
+    </div>
+    {% else %}
+    <p>Сырых записей из источника: {{ preview.response.total_count if preview.response.total_count is not none else preview.response.records|length }}</p>
+
+      {% if preview.response.warnings %}
+      <div class="notice info">
+        {% for warning in preview.response.warnings %}
+        <p>{{ warning }}</p>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if preview.processed_preview %}
+      <div class="notice info">
+        <p>После нормализации: {{ preview.processed_preview.normalized_records|length }} записей.</p>
+        <p>После объединения дублей: {{ preview.processed_preview.canonical_groups|length }} вакансий для дальнейшей оценки.</p>
+      </div>
+
+        {% if preview.processed_preview.canonical_groups %}
+        <h4>Что получилось после объединения</h4>
+        <ol class="hint-list">
+          {% for canonical in preview.processed_preview.canonical_groups %}
+          <li>
+            <strong>{{ canonical.normalized_title or "без нормализованного заголовка" }}</strong><br />
+            {{ canonical.company_name or "Компания не указана" }}{% if canonical.location_text %} · {{ canonical.location_text }}{% endif %}<br />
+            <span class="muted">Объявлений в группе: {{ canonical.provenance|length }}</span>
+            {% if canonical.posted_date %}<span class="muted"> · дата публикации {{ canonical.posted_date }}</span>{% endif %}
+            <br />
+            <span class="muted">
+              Сигналы:
+              {% if canonical.language_signals.strong_german_required %}сильный немецкий{% else %}без сильного немецкого{% endif %}
+              {% if canonical.language_signals.english_mentioned %} · английский упомянут{% endif %}
+              {% if canonical.language_signals.shift_signal %} · смены{% endif %}
+              {% if canonical.language_signals.helper_role_signal %} · складские и простые роли{% endif %}
+              {% if canonical.language_signals.low_language_signal %} · низкий языковой барьер{% endif %}
+            </span>
+          </li>
+          {% endfor %}
+        </ol>
+        {% endif %}
+
+        {% if preview.processed_preview.cache_decisions %}
+        <h4>Что изменится при повторной загрузке</h4>
+        <ul class="hint-list">
+          {% for decision in preview.processed_preview.cache_decisions %}
+          <li>
+            <strong>{{ decision.source_record_key }}</strong><br />
+            {% if decision.source_record_action == "create" %}
+            Новая запись из источника будет сохранена.
+            {% elif decision.source_record_action == "update" %}
+            Источниковая запись будет обновлена.
+            {% else %}
+            Контент не изменился, достаточно обновить дату последнего появления.
+            {% endif %}
+            {% if decision.canonical_action == "create" %}
+            Будет создана новая каноническая вакансия.
+            {% elif decision.canonical_action == "update" %}
+            Каноническая вакансия будет обновлена.
+            {% elif decision.canonical_action == "merge" %}
+            Запись будет объединена с существующей канонической вакансией.
+            {% else %}
+            Каноническая вакансия останется без изменений.
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      {% endif %}
+
+      {% if preview.response.records %}
+      <h4>Сырые записи источника</h4>
+      <ol class="hint-list">
+        {% for record in preview.response.records %}
+        <li>
+          <strong>{{ record.title }}</strong><br />
+          {{ record.company or "Компания не указана" }}{% if record.location %} · {{ record.location }}{% endif %}<br />
+          <span class="muted">
+            ID: {{ record.external_id }}
+            {% if record.posted_at %} · опубликовано {{ record.posted_at }}{% endif %}
+          </span>
+          {% if record.detail_url %}
+          <br />
+          <a href="{{ record.detail_url }}" target="_blank" rel="noreferrer">Открыть исходную ссылку</a>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ol>
+      <p class="muted">Сырой ответ источника хранится отдельно от канонического слоя, чтобы можно было проверить происхождение данных.</p>
+      {% else %}
+      <div class="notice info">Источник ответил успешно, но сейчас не вернул элементов для превью.</div>
+      {% endif %}
+    {% endif %}
+  </article>
+  {% endfor %}
+{% else %}
+<article class="panel">
+  <h3>Превью выдачи</h3>
+  <p>Запустите запрос к источнику, чтобы увидеть сырой ответ и краткий результат нормализации и объединения дублей.</p>
+</article>
+{% endif %}

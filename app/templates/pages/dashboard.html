@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="cards-grid">
+  <article class="panel stat-card">
+    <p class="muted">Сегодня</p>
+    <strong>0 новых вакансий</strong>
+  </article>
+  <article class="panel stat-card">
+    <p class="muted">Отклики</p>
+    <strong>0 активных процессов</strong>
+  </article>
+  <article class="panel stat-card">
+    <p class="muted">Фокус</p>
+    <strong>Обновить профиль поиска</strong>
+  </article>
+</section>
+
+{% include "partials/section_hint_loader.html" %}
+{% endblock %}

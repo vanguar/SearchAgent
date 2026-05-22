@@ -1,0 +1,6 @@
+<div class="notice {{ feedback_kind }}">
+  {{ feedback_message }}
+  {% if action_result %}
+  <a href="/leads/{{ action_result.lead.id }}">Открыть карточку</a>
+  {% endif %}
+</div>

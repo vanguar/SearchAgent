@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="panel intake-intro">
+  <h3>Intake профиля</h3>
+  <p>
+    Опишите вашу ситуацию на русском в свободной форме. Например: город, языки, типы работ,
+    готовность к переезду и сменам.
+  </p>
+  <p class="muted">
+    Система выделит ключевые поля, покажет подтверждение и задаст только недостающие критичные вопросы.
+  </p>
+</section>
+
+<section class="panel">
+  <form hx-post="/profile/intake/analyze" hx-target="#intake-result" hx-swap="innerHTML" class="intake-form">
+    <label for="free_text"><strong>Описание профиля</strong></label>
+    <textarea
+      id="free_text"
+      name="free_text"
+      rows="7"
+      placeholder="Я в Германии по §24, ищу Python/backend/AI automation или другую роль, готов к remote/hybrid, немецкий A1, английский intermediate..."
+      required
+    ></textarea>
+    <button type="submit" class="ghost-btn">Разобрать профиль</button>
+  </form>
+</section>
+
+<section id="intake-result" class="content-stack">
+  <article class="panel">
+    <p class="muted">После разбора здесь появится подтверждение профиля и уточняющие вопросы.</p>
+  </article>
+</section>
+{% endblock %}

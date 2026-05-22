@@ -1,0 +1,65 @@
+{
+  "data": {
+    "totalMatchingCount": 34,
+    "currentPage": 0,
+    "totalPages": 4,
+    "payload": [
+      {
+        "header": {
+          "handle": "JV-DE-20260001",
+          "dateCreated": "2026-04-15",
+          "referenceLanguage": "de",
+          "isExpired": false
+        },
+        "jobVacancy": {
+          "jobTitle": "Lagerhelfer (m/w/d)",
+          "numberOfPosts": 2,
+          "employer": {
+            "name": "Spedition Müller GmbH"
+          },
+          "positionLocation": {
+            "cityName": "Berlin",
+            "countryCode": "DE"
+          }
+        },
+        "urls": [
+          {
+            "language": "de",
+            "url": "https://eures.europa.eu/jobs/JV-DE-20260001"
+          }
+        ]
+      },
+      {
+        "header": {
+          "handle": "JV-DE-20260002",
+          "dateCreated": "2026-04-14",
+          "referenceLanguage": "de",
+          "isExpired": false
+        },
+        "jobVacancy": {
+          "jobTitle": "Staplerfahrer (m/w/d)",
+          "numberOfPosts": 1,
+          "employer": {
+            "name": "LogiPark Düsseldorf"
+          },
+          "positionLocation": {
+            "cityName": "Düsseldorf",
+            "countryCode": "DE"
+          }
+        },
+        "urls": [
+          {
+            "language": "de",
+            "url": "https://eures.europa.eu/jobs/JV-DE-20260002"
+          }
+        ]
+      },
+      {
+        "header": {},
+        "jobVacancy": {
+          "jobTitle": "Ohne Handle — soll übersprungen werden"
+        }
+      }
+    ]
+  }
+}

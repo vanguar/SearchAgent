@@ -1,0 +1,36 @@
+<article class="panel">
+  <div class="lead-card-head">
+    <div>
+      <h3>Воронка</h3>
+      <p class="muted">{{ funnel_dashboard.cohort_label_ru }}</p>
+    </div>
+  </div>
+
+  {% if funnel_dashboard.warning_message %}
+  <div class="notice warning">{{ funnel_dashboard.warning_message }}</div>
+  {% endif %}
+
+  {% if funnel_dashboard.stages %}
+  <ol class="compact-list">
+    {% for stage in funnel_dashboard.stages %}
+    <li>
+      <strong>{{ stage.label_ru }}: {{ stage.count }}</strong>
+      <br />
+      <span class="muted">{{ stage.subtitle_ru }}</span>
+    </li>
+    {% endfor %}
+  </ol>
+
+  <hr class="section-divider" />
+
+  <ul class="compact-list">
+    {% for metric in funnel_dashboard.metrics %}
+    <li>
+      <strong>{{ metric.label_ru }}:</strong> {{ metric.value_ru }}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Пока нет данных по этапам, чтобы построить рабочую воронку.</p>
+  {% endif %}
+</article>

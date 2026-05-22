@@ -1,0 +1,14 @@
+{
+  "found": 2,
+  "items": [
+    {
+      "id": "112233",
+      "name": "Python Backend Developer",
+      "alternate_url": "https://hh.kz/vacancy/112233",
+      "published_at": "2026-05-18T10:00:00+0300",
+      "salary": {"from": 300000, "to": 500000, "currency": "KZT", "gross": false},
+      "area": {"id": "160", "name": "Almaty"},
+      "employer": {"id": "77", "name": "Tech KZ"}
+    }
+  ]
+}

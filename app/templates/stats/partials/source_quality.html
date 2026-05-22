@@ -1,0 +1,26 @@
+<article class="panel">
+  <h3>Качество источников</h3>
+
+  {% if stats_dashboard.source_rows %}
+  <ul class="compact-list">
+    {% for row in stats_dashboard.source_rows %}
+    <li>
+      <strong>{{ row.source_name }}</strong>
+      <br />
+      Найдено: {{ row.found_count }} · Hot: {{ row.hot_count }} · Лиды: {{ row.lead_count }}
+      <br />
+      Отклики: {{ row.applied_count }} · Ответы: {{ row.reply_count }} · Собеседования: {{ row.interview_count }}
+      <br />
+      <span class="muted">
+        Найдено -> лид: {{ row.lead_conversion_label_ru }} |
+        Лид -> отклик: {{ row.application_conversion_label_ru }} |
+        Ответы: {{ row.response_rate_label_ru }} |
+        Интервью: {{ row.interview_rate_label_ru }}
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Пока недостаточно данных, чтобы сравнивать источники по качеству.</p>
+  {% endif %}
+</article>

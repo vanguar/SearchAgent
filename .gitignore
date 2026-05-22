@@ -1,0 +1,29 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual env
+.venv/
+venv/
+
+# Environment files
+.env
+
+# Tooling
+.pytest_cache/
+.mypy_cache/
+.coverage
+*.egg-info/
+
+# Local data
+*.sqlite3
+*.db
+
+# IDE
+.vscode/
+.idea/
+
+# Local assistant/tool settings
+.claude/settings.local.json

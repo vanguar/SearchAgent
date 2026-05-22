@@ -1,0 +1,39 @@
+{
+  "stellenangebote": [
+    {
+      "hashId": "hash-1",
+      "beruf": "Lagermitarbeiter/in",
+      "refnr": "10000-1234567890-S",
+      "arbeitgeber": "Logistik Nord GmbH",
+      "aktuelleVeroeffentlichungsdatum": "2026-04-15",
+      "eintrittsdatum": "2026-05-01",
+      "arbeitsort": {
+        "plz": 10115,
+        "ort": "Berlin",
+        "region": "Berlin",
+        "land": "Deutschland"
+      },
+      "kundennummerHash": "kunden-hash-1",
+      "externeUrl": "https://example.org/jobs/10000-1234567890-S",
+      "modifikationsTimestamp": "2026-04-15T08:00:00"
+    },
+    {
+      "hashId": "hash-2",
+      "beruf": "Produktionshelfer/in",
+      "refnr": "10000-9876543210-S",
+      "arbeitgeber": "Werkteam Hamburg KG",
+      "aktuelleVeroeffentlichungsdatum": "2026-04-14",
+      "arbeitsort": {
+        "plz": 20095,
+        "ort": "Hamburg",
+        "region": "Hamburg",
+        "land": "Deutschland"
+      },
+      "modifikationsTimestamp": "2026-04-14T12:30:00"
+    }
+  ],
+  "maxErgebnisse": "42",
+  "page": "1",
+  "size": "5",
+  "facetten": []
+}

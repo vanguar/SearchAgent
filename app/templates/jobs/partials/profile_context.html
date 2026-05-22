@@ -1,0 +1,34 @@
+{% if profile_context.profile_source == "saved" %}
+<div class="notice success">{{ profile_context.note_ru }}</div>
+{% elif profile_context.profile_source == "degraded" %}
+<div class="notice warning">{{ profile_context.note_ru }}</div>
+{% else %}
+<div class="notice info">{{ profile_context.note_ru }}</div>
+{% endif %}
+
+<dl class="profile-summary">
+  <div>
+    <dt>Немецкий</dt>
+    <dd>{{ profile_context.german_level or "не указан" }}</dd>
+  </div>
+  <div>
+    <dt>Право на работу</dt>
+    <dd>{% if profile_context.work_authorized %}есть{% else %}нужно уточнить{% endif %}</dd>
+  </div>
+  <div>
+    <dt>Желаемые роли</dt>
+    <dd>{{ profile_context.desired_roles|join(", ") if profile_context.desired_roles else "используется безопасный базовый фокус" }}</dd>
+  </div>
+  <div>
+    <dt>Переезд</dt>
+    <dd>{% if profile_context.relocation_ready is false %}нет{% else %}допустим{% endif %}</dd>
+  </div>
+  <div>
+    <dt>Смены</dt>
+    <dd>{% if profile_context.shift_ok is false %}не подходят{% else %}допустимы{% endif %}</dd>
+  </div>
+  <div>
+    <dt>Предпочтительные регионы</dt>
+    <dd>{{ profile_context.preferred_locations|join(", ") if profile_context.preferred_locations else "локация не ограничена" }}</dd>
+  </div>
+</dl>

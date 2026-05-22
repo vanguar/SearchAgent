@@ -1,0 +1,9 @@
+<section class="cards-grid">
+  {% for card in stats_dashboard.summary_cards %}
+  <article class="panel stat-card">
+    <p class="muted">{{ card.title_ru }}</p>
+    <strong>{{ card.value }}</strong>
+    <p class="muted">{{ card.subtitle_ru }}</p>
+  </article>
+  {% endfor %}
+</section>

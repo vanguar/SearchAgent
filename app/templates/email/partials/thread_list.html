@@ -1,0 +1,35 @@
+<article class="panel">
+  <div class="panel-actions">
+    <h3>Цепочки переписки</h3>
+    <span class="muted">{{ workspace.threads|length }} шт.</span>
+  </div>
+
+  {% if workspace.threads %}
+  <ul class="thread-list">
+    {% for thread in workspace.threads %}
+    <li class="thread-item{% if thread.selected %} is-selected{% endif %}">
+      <a class="thread-link" href="/email?thread_id={{ thread.thread_id }}">
+        <strong>{{ thread.subject }}</strong>
+        <span class="muted">{{ thread.participant_line }}</span>
+        <span class="muted">
+          Сообщений: {{ thread.message_count }}
+          {% if thread.last_message_at %}
+          · {{ thread.last_message_at.strftime("%d.%m.%Y %H:%M") }}
+          {% endif %}
+        </span>
+        {% if thread.linked_lead_label %}
+        <span>Привязано: {{ thread.linked_lead_label }}</span>
+        {% else %}
+        <span class="muted">Пока без лида</span>
+        {% endif %}
+        {% if thread.cue_labels_ru %}
+        <span class="muted">{{ thread.cue_labels_ru|join(" · ") }}</span>
+        {% endif %}
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Пока нет импортированных цепочек. Добавьте письмо вручную ниже.</p>
+  {% endif %}
+</article>

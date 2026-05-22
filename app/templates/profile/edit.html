@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block content %}
+<article class="panel">
+  <h3>Редактировать профиль</h3>
+  <form method="post" action="/profile/{{ profile.id }}/edit" class="intake-form">
+    <label for="edit-name">Название профиля</label>
+    <input id="edit-name" name="name" type="text" value="{{ profile.name }}" required />
+
+    <label for="edit-roles">Желаемые роли (через запятую)</label>
+    <input
+      id="edit-roles"
+      name="desired_roles"
+      type="text"
+      value="{{ profile.desired_roles | join(', ') if profile.desired_roles else '' }}"
+      placeholder="Например: lager, produktion, verpacker"
+    />
+
+    <label for="edit-locations">Города / регионы (через запятую)</label>
+    <input
+      id="edit-locations"
+      name="preferred_locations"
+      type="text"
+      value="{{ profile.preferred_locations | join(', ') if profile.preferred_locations else '' }}"
+      placeholder="Например: Berlin, Hamburg, Bayern"
+    />
+
+    <label for="edit-relocation">Готов к переезду</label>
+    <select id="edit-relocation" name="relocation_ready">
+      <option value="" {% if profile.relocation_ready is none %}selected{% endif %}>Не указано</option>
+      <option value="true" {% if profile.relocation_ready %}selected{% endif %}>Да</option>
+      <option value="false" {% if profile.relocation_ready == false %}selected{% endif %}>Нет</option>
+    </select>
+
+    <label for="edit-shift">Сменный график</label>
+    <select id="edit-shift" name="shift_ok">
+      <option value="" {% if profile.shift_ok is none %}selected{% endif %}>Не указано</option>
+      <option value="true" {% if profile.shift_ok %}selected{% endif %}>Да</option>
+      <option value="false" {% if profile.shift_ok == false %}selected{% endif %}>Нет</option>
+    </select>
+
+    <label for="edit-physical">Физический труд</label>
+    <select id="edit-physical" name="physical_work_ok">
+      <option value="" {% if profile.physical_work_ok is none %}selected{% endif %}>Не указано</option>
+      <option value="true" {% if profile.physical_work_ok %}selected{% endif %}>Да</option>
+      <option value="false" {% if profile.physical_work_ok == false %}selected{% endif %}>Нет</option>
+    </select>
+
+    <div class="checkbox-row">
+      <input
+        id="edit-no-german"
+        name="no_german_required"
+        type="checkbox"
+        value="on"
+        {% if profile.no_german_required %}checked{% endif %}
+      />
+      <label for="edit-no-german">Без знания немецкого — скрывать вакансии, где немецкий обязателен</label>
+    </div>
+
+    <label for="edit-notes">Заметки</label>
+    <textarea id="edit-notes" name="notes" rows="3">{{ profile.notes or '' }}</textarea>
+
+    <div class="action-row">
+      <button type="submit" class="ghost-btn">Сохранить</button>
+      <a class="ghost-btn" href="/profile">Отмена</a>
+    </div>
+  </form>
+</article>
+{% endblock %}

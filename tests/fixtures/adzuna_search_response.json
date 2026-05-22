@@ -1,0 +1,71 @@
+{
+  "count": 128,
+  "results": [
+    {
+      "id": "4618529301",
+      "title": "Lagermitarbeiter (m/w/d)",
+      "description": "Wir suchen einen zuverl\u00e4ssigen Lagermitarbeiter f\u00fcr unser Logistikzentrum in Berlin. Keine Deutschkenntnisse erforderlich. Schichtarbeit m\u00f6glich. Sofortiger Beginn.",
+      "company": {
+        "display_name": "Logistik Nord GmbH"
+      },
+      "location": {
+        "display_name": "Berlin, Deutschland",
+        "area": ["Deutschland", "Berlin"]
+      },
+      "created": "2026-04-15T09:00:00Z",
+      "redirect_url": "https://www.adzuna.de/jobs/details/4618529301",
+      "salary_min": 2200.0,
+      "salary_max": 2600.0,
+      "contract_type": "permanent",
+      "contract_time": "full_time",
+      "category": {
+        "label": "Logistics & Warehouse Jobs",
+        "tag": "logistics-warehouse-jobs"
+      }
+    },
+    {
+      "id": "4618529302",
+      "title": "Verpacker/in Lebensmittel",
+      "description": "Verpackung von Lebensmitteln im Schichtbetrieb. Keine Vorkenntnisse notwendig. Unterkunft kann gestellt werden.",
+      "company": {
+        "display_name": "FreshPack GmbH"
+      },
+      "location": {
+        "display_name": "Hamburg, Deutschland",
+        "area": ["Deutschland", "Hamburg"]
+      },
+      "created": "2026-04-14T14:30:00Z",
+      "redirect_url": "https://www.adzuna.de/jobs/details/4618529302",
+      "salary_min": 2000.0,
+      "salary_max": 2400.0,
+      "contract_type": "permanent",
+      "contract_time": "full_time",
+      "category": {
+        "label": "Manufacturing Jobs",
+        "tag": "manufacturing-jobs"
+      }
+    },
+    {
+      "id": "4618529303",
+      "title": "Produktionshelfer (m/w/d)",
+      "description": "Einfache T\u00e4tigkeiten in der Produktion. Kein Deutsch erforderlich. Montag bis Freitag Tagschicht.",
+      "company": {
+        "display_name": "AutoParts Bayern AG"
+      },
+      "location": {
+        "display_name": "M\u00fcnchen, Deutschland",
+        "area": ["Deutschland", "Bayern", "M\u00fcnchen"]
+      },
+      "created": "2026-04-13T08:00:00Z",
+      "redirect_url": "https://www.adzuna.de/jobs/details/4618529303",
+      "salary_min": 2100.0,
+      "salary_max": null,
+      "contract_type": "contract",
+      "contract_time": "full_time",
+      "category": {
+        "label": "Manufacturing Jobs",
+        "tag": "manufacturing-jobs"
+      }
+    }
+  ]
+}

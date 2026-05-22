@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "profile/partials/profile_card.html" import render_profile_card %}
+
+{% block content %}
+<article class="panel">
+  <h3>Профили поиска</h3>
+  <p>Каждый профиль задаёт роли, регионы и предпочтения для поиска. Выберите нужный профиль перед запуском поиска.</p>
+  <a class="ghost-btn" href="/profile/intake">Создать новый профиль</a>
+</article>
+
+{% if profile_entries %}
+{% for entry in profile_entries %}
+{{ render_profile_card(entry) }}
+{% endfor %}
+{% else %}
+<article class="panel">
+  <div class="notice info">
+    Профилей пока нет. <a href="/profile/intake">Заполните анкету</a>, чтобы создать первый профиль.
+  </div>
+</article>
+{% endif %}
+
+<article class="panel">
+  <h3>Уведомления</h3>
+  <p>Отправить дайджест по активному профилю вручную:</p>
+  <div class="action-row">
+    <form
+      method="post"
+      action="/notifications/trigger/telegram"
+      hx-post="/notifications/trigger/telegram"
+      hx-target="#notif-feedback"
+      hx-swap="innerHTML"
+      class="inline-form"
+    >
+      <button type="submit" class="ghost-btn">Отправить в Telegram</button>
+    </form>
+    <form
+      method="post"
+      action="/notifications/trigger/email"
+      hx-post="/notifications/trigger/email"
+      hx-target="#notif-feedback"
+      hx-swap="innerHTML"
+      class="inline-form"
+    >
+      <button type="submit" class="ghost-btn">Отправить на Email</button>
+    </form>
+  </div>
+  <div id="notif-feedback" class="top-gap"></div>
+</article>
+
+{% include "partials/section_hint_loader.html" %}
+{% endblock %}

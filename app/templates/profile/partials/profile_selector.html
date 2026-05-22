@@ -1,0 +1,19 @@
+{% macro render_profile_selector(profile_options, selected_profile_id, target_url) %}
+{% if profile_options %}
+<form method="get" action="{{ target_url }}" class="inline-form">
+  <label for="profile-selector">Профиль поиска</label>
+  <select id="profile-selector" name="profile_id" onchange="this.form.submit()">
+    {% for option in profile_options %}
+    <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>
+      {{ option.label }}
+    </option>
+    {% endfor %}
+  </select>
+  <noscript><button type="submit" class="ghost-btn">Применить</button></noscript>
+</form>
+{% else %}
+<div class="notice info">
+  Профилей пока нет. <a href="/profile/intake">Создайте первый профиль</a>.
+</div>
+{% endif %}
+{% endmacro %}

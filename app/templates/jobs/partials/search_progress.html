@@ -1,0 +1,87 @@
+<div id="search-progress-panel"
+     hx-get="/jobs/search/progress/{{ task_id }}"
+     hx-trigger="every 1s"
+     hx-swap="outerHTML"
+     hx-target="this">
+  <article class="panel">
+    <div class="search-progress">
+      <p class="search-progress__status">
+        {% if stopping %}
+          Завершаем текущую попытку, формируем результаты...
+        {% else %}
+          {{ phase_label }}
+          <span class="search-progress__dots">
+            <span class="dot dot--1">.</span><span class="dot dot--2">.</span><span class="dot dot--3">.</span>
+          </span>
+        {% endif %}
+      </p>
+      {% if stopping %}
+      <div class="notice warning search-progress__stop-notice" role="status" aria-live="polite">
+        <strong>Остановка принята.</strong>
+        Дождитесь завершения обработки уже найденных вакансий: система доделывает дедупликацию, фильтрацию и подготовку промежуточной выдачи.
+      </div>
+      {% endif %}
+      <div class="search-progress__bar search-progress__bar--{{ phase_code }}" aria-hidden="true">
+        <img class="search-progress__snail"
+             src="{{ url_for('static', path='img/snail-progress.gif') }}"
+             style="animation-delay: -{{ snail_animation_offset }}s;"
+             alt="">
+      </div>
+      <ol class="search-progress__steps" aria-label="Этапы поиска">
+        <li class="{% if phase_code in ['attempt', 'fetch', 'postprocess'] %}is-active{% endif %}">Сбор</li>
+        <li class="{% if phase_code == 'postprocess' %}is-active{% endif %}">Дедупликация</li>
+        <li class="{% if phase_code == 'postprocess' %}is-active{% endif %}">Фильтрация</li>
+        <li class="{% if stopping %}is-active{% endif %}">Выдача</li>
+      </ol>
+
+      {% if current_query %}
+      <p class="search-progress__meta">
+        Текущий запрос: <strong>{{ current_query }}</strong>
+      </p>
+      {% endif %}
+
+      <div class="search-progress__counts">
+        <p class="search-progress__count">
+          Всего собрано по всем запросам: <strong>{{ total_count }}</strong> вакансий
+        </p>
+        <p class="search-progress__count search-progress__count--current">
+        {% if phase_code == "postprocess" %}
+          На текущем запросе в обработке: <strong>{{ current_count }}</strong> вакансий
+        {% else %}
+          На текущем запросе найдено: <strong>{{ current_count }}</strong> вакансий
+        {% endif %}
+        {% if best_count > current_count %}
+          <span class="muted"> · лучший промежуточный результат: {{ best_count }}</span>
+        {% endif %}
+        {% if last_source %}
+          <span class="muted"> · последний источник: {{ last_source }}</span>
+        {% endif %}
+        </p>
+      </div>
+
+      {% if show_stop_button and not stopping %}
+      <form
+        hx-post="/jobs/search/stop/{{ task_id }}"
+        hx-target="#jobs-results-panel"
+        hx-swap="innerHTML"
+        style="margin-top: 0.75rem;">
+        <button type="submit" class="ghost-btn ghost-btn--stop">
+          Остановить и показать лучший промежуточный результат
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </article>
+
+  {% if partial_result and partial_result.has_results %}
+  <article class="panel">
+    <div class="notice info">
+      <strong>Промежуточная выдача, поиск ещё продолжается.</strong>
+      Ниже показан лучший уже обработанный результат; итоговая выдача может измениться после следующих запросов.
+    </div>
+  </article>
+  {% set search_result = partial_result %}
+  {% set profile_id = none %}
+  {% include "jobs/partials/search_results.html" %}
+  {% endif %}
+</div>

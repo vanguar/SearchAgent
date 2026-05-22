@@ -1,0 +1,13 @@
+SmartJob — дайджест поиска
+Профиль: {{ profile_label }}
+
+Горячих вакансий: {{ hot_count }}
+На проверку: {{ maybe_count }}
+Сохранено лидов: {{ total_leads }}
+Откликов: {{ applied_count }}
+{% if overdue_followups > 0 %}
+Просроченных follow-up: {{ overdue_followups }}
+{% endif %}
+{% if digest_text %}
+{{ digest_text }}
+{% endif %}

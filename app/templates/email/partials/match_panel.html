@@ -1,0 +1,31 @@
+<article class="panel">
+  <h3>Кандидаты на привязку</h3>
+
+  {% if workspace.selected_thread %}
+  <p>{{ workspace.selected_thread.match_result.summary_ru }}</p>
+
+  {% if workspace.selected_thread.match_result.candidates %}
+  <ul class="match-list">
+    {% for candidate in workspace.selected_thread.match_result.candidates %}
+    <li class="match-item match-{{ candidate.strength }}">
+      <div class="panel-actions">
+        <div>
+          <strong>{{ candidate.label_ru }}</strong>
+          <p class="muted">{{ candidate.strength_label_ru }} · score {{ candidate.score }}</p>
+        </div>
+        <form method="post" action="/email/threads/{{ workspace.selected_thread.thread_id }}/link" class="inline-form">
+          <input type="hidden" name="lead_id" value="{{ candidate.lead_id }}" />
+          <button type="submit" class="ghost-btn">Привязать цепочку</button>
+        </form>
+      </div>
+      <p class="muted">{{ candidate.reasons_ru|join(" · ") }}</p>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Для этой цепочки matcher не нашел уверенных кандидатов. Можно оставить без привязки или выбрать лид вручную.</p>
+  {% endif %}
+  {% else %}
+  <p class="muted">После импорта письма здесь появятся deterministic match signals и причины на русском.</p>
+  {% endif %}
+</article>

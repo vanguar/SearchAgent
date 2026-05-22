@@ -1,0 +1,20 @@
+<article class="panel">
+  <h3>История действий</h3>
+  {% if detail.timeline %}
+  <ol class="timeline-list">
+    {% for event in detail.timeline %}
+    <li class="timeline-item">
+      <div class="timeline-head">
+        <strong>{{ event.label_ru }}</strong>
+        <span class="muted">{{ event.occurred_at.strftime("%d.%m.%Y %H:%M") }}</span>
+      </div>
+      {% if event.details_ru %}
+      <p>{{ event.details_ru }}</p>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="muted">Пока нет зафиксированных действий.</p>
+  {% endif %}
+</article>

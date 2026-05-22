@@ -1,0 +1,43 @@
+<div class="notice info">
+  <strong>Нужно уточнить несколько критичных полей:</strong>
+  <ul>
+    {% for question in analysis.questions %}
+    <li>{{ question.label }}</li>
+    {% endfor %}
+  </ul>
+</div>
+
+<form hx-post="/profile/intake/analyze" hx-target="#intake-result" hx-swap="innerHTML" class="intake-form followup-form">
+  <input type="hidden" name="free_text" value="{{ free_text }}" />
+
+  {% for field_name in answer_fields %}
+  {% if field_name not in analysis.missing_fields and answers.get(field_name) %}
+  <input type="hidden" name="answer_{{ field_name }}" value="{{ answers.get(field_name) }}" />
+  {% endif %}
+  {% endfor %}
+
+  {% for question in analysis.questions %}
+  <div class="question-row">
+    <label for="answer_{{ question.field_name }}">{{ question.label }}</label>
+
+    {% if question.input_type == "yes_no" %}
+    <select id="answer_{{ question.field_name }}" name="answer_{{ question.field_name }}" required>
+      <option value="">Выберите ответ</option>
+      <option value="да" {% if answers.get(question.field_name) == "да" %}selected{% endif %}>Да</option>
+      <option value="нет" {% if answers.get(question.field_name) == "нет" %}selected{% endif %}>Нет</option>
+    </select>
+    {% else %}
+    <input
+      id="answer_{{ question.field_name }}"
+      type="text"
+      name="answer_{{ question.field_name }}"
+      value="{{ answers.get(question.field_name, "") }}"
+      placeholder="{{ question.placeholder }}"
+      required
+    />
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  <button type="submit" class="ghost-btn">Обновить профиль с уточнениями</button>
+</form>

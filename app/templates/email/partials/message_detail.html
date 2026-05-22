@@ -1,0 +1,96 @@
+<article class="panel">
+  <h3>Детали цепочки</h3>
+
+  {% if workspace.selected_thread %}
+  <div class="email-detail-head">
+    <div>
+      <strong>{{ workspace.selected_thread.subject }}</strong>
+      <p class="muted">{{ workspace.selected_thread.participant_line }}</p>
+      {% if workspace.selected_thread.linked_lead_label %}
+      <p>Текущая привязка: {{ workspace.selected_thread.linked_lead_label }}</p>
+      {% else %}
+      <p class="muted">Цепочка пока не привязана к лиду.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <form class="stack-form top-gap" method="post" action="/email/threads/{{ workspace.selected_thread.thread_id }}/link">
+    <label for="thread-lead-id">Привязать цепочку к лиду</label>
+    <select id="thread-lead-id" name="lead_id">
+      <option value="">Выберите лид</option>
+      {% for lead in workspace.lead_options %}
+      <option value="{{ lead.lead_id }}"{% if workspace.selected_thread.linked_lead_id == lead.lead_id %} selected{% endif %}>
+        {{ lead.label_ru }}
+      </option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="ghost-btn">Привязать цепочку</button>
+  </form>
+  {% if workspace.selected_thread.linked_lead_id %}
+  <form method="post" action="/email/threads/{{ workspace.selected_thread.thread_id }}/unlink" class="inline-form top-gap">
+    <button type="submit" class="ghost-btn">Отвязать цепочку</button>
+  </form>
+  {% endif %}
+
+  <hr class="section-divider" />
+
+  {% if workspace.selected_thread.messages %}
+  <div class="email-message-list">
+    {% for message in workspace.selected_thread.messages %}
+    <article class="email-message-card">
+      <div class="panel-actions">
+        <strong>{{ message.subject }}</strong>
+        {% if message.sent_at %}
+        <span class="muted">{{ message.sent_at.strftime("%d.%m.%Y %H:%M") }}</span>
+        {% endif %}
+      </div>
+      <p class="muted">
+        {{ message.direction_label_ru }}
+        {% if message.from_email %} · От: {{ message.from_email }}{% endif %}
+      </p>
+      <p class="muted">Кому: {{ message.recipients_line }}</p>
+      {% if message.cue_labels_ru %}
+      <p class="muted">{{ message.cue_labels_ru|join(" · ") }}</p>
+      {% endif %}
+      <p>{{ message.body_preview }}</p>
+      {% if message.extracted_contact_emails %}
+      <p class="muted">Контактные email: {{ message.extracted_contact_emails|join(", ") }}</p>
+      {% endif %}
+      {% if message.extracted_urls %}
+      <p class="muted">Ссылки: {{ message.extracted_urls|join(" · ") }}</p>
+      {% endif %}
+      {% if message.linked_lead_label %}
+      <p>Сообщение привязано: {{ message.linked_lead_label }}</p>
+      {% else %}
+      <p class="muted">Сообщение пока не привязано к лиду.</p>
+      {% endif %}
+
+      <form class="stack-form top-gap" method="post" action="/email/messages/{{ message.message_id }}/link">
+        <input type="hidden" name="thread_id" value="{{ workspace.selected_thread.thread_id }}" />
+        <label for="message-lead-{{ message.message_id }}">Привязать сообщение к лиду</label>
+        <select id="message-lead-{{ message.message_id }}" name="lead_id">
+          <option value="">Выберите лид</option>
+          {% for lead in workspace.lead_options %}
+          <option value="{{ lead.lead_id }}"{% if message.linked_lead_id == lead.lead_id %} selected{% endif %}>
+            {{ lead.label_ru }}
+          </option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="ghost-btn">Привязать сообщение</button>
+      </form>
+      {% if message.linked_lead_id %}
+      <form method="post" action="/email/messages/{{ message.message_id }}/unlink" class="inline-form top-gap">
+        <input type="hidden" name="thread_id" value="{{ workspace.selected_thread.thread_id }}" />
+        <button type="submit" class="ghost-btn">Отвязать сообщение</button>
+      </form>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="muted">В этой цепочке пока нет сохраненных сообщений. Можно оставить только thread-level привязку.</p>
+  {% endif %}
+  {% else %}
+  <p class="muted">Выберите цепочку слева, чтобы увидеть письма, parsed metadata и ручную привязку.</p>
+  {% endif %}
+</article>

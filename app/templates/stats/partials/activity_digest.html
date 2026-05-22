@@ -1,0 +1,70 @@
+<article class="panel">
+  <h3>Короткий digest</h3>
+  <p><strong>{{ stats_digest.headline_ru }}</strong></p>
+  <ul class="compact-list">
+    {% for line in stats_digest.highlights_ru %}
+    <li>{{ line }}</li>
+    {% endfor %}
+  </ul>
+  <p class="muted">{{ stats_digest.next_action_ru }}</p>
+</article>
+
+<article class="panel">
+  <h3>Динамика {{ stats_dashboard.timeline_mode_label_ru }}</h3>
+  {% if stats_dashboard.timeline_rows %}
+  <ul class="compact-list">
+    {% for row in stats_dashboard.timeline_rows %}
+    <li>
+      <strong>{{ row.label_ru }}</strong>
+      <br />
+      Найдено: {{ row.found_count }} · Отклики: {{ row.applications_count }} · Ответы: {{ row.replies_count }} · Собеседования: {{ row.interviews_count }}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Для динамики пока не хватает накопленной истории.</p>
+  {% endif %}
+</article>
+
+<article class="panel">
+  <h3>Что требует внимания</h3>
+  {% if stats_dashboard.attention_items %}
+  <ul class="compact-list">
+    {% for item in stats_dashboard.attention_items %}
+    <li>
+      <strong>{{ item.title_ru }}</strong>
+      <br />
+      <span class="muted">
+        {{ item.subtitle_ru }} · {{ item.due_at.strftime("%d.%m.%Y %H:%M") }}
+        {% if item.overdue %} · просрочено{% endif %}
+      </span>
+      <br />
+      <a href="{{ item.action_url }}">Открыть</a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">На ближайшие дни критичных действий не накопилось.</p>
+  {% endif %}
+</article>
+
+<article class="panel">
+  <h3>Последняя активность</h3>
+  {% if stats_dashboard.recent_activities %}
+  <ul class="compact-list">
+    {% for item in stats_dashboard.recent_activities %}
+    <li>
+      <strong>{{ item.title_ru }}</strong>
+      <br />
+      <span class="muted">{{ item.event_label_ru }} · {{ item.occurred_at.strftime("%d.%m.%Y %H:%M") }}</span>
+      <br />
+      <span>{{ item.subtitle_ru }}</span>
+      <br />
+      <a href="{{ item.action_url }}">Открыть</a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Последних событий пока нет.</p>
+  {% endif %}
+</article>

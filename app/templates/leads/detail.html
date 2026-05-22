@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block content %}
+<article class="panel lead-hero">
+  <div class="lead-card-head">
+    <div>
+      <h3>{{ detail.lead.vacancy_title }}</h3>
+      {% if detail.lead.translated_title_ru %}
+      <p class="muted">{{ detail.lead.translated_title_ru }}</p>
+      {% endif %}
+      <p>
+        {{ detail.lead.company_name or "Компания не указана" }}
+        {% if detail.lead.location_text %}
+        · {{ detail.lead.location_text }}
+        {% endif %}
+        {% if detail.lead.source_name %}
+        · {{ detail.lead.source_name }}
+        {% endif %}
+      </p>
+    </div>
+    <span class="status-pill status-{{ detail.lead.status or 'new' }}">{{ detail.status_label_ru }}</span>
+  </div>
+
+  {% if detail.lead.summary_ru %}
+  <p>{{ detail.lead.summary_ru }}</p>
+  {% endif %}
+
+  <dl class="lead-meta-grid">
+    <div>
+      <dt>Оригинал</dt>
+      <dd>
+        {% if detail.lead.original_url %}
+        <form method="post" action="/leads/{{ detail.lead.id }}/open-original" target="_blank" class="inline-form">
+          <input type="hidden" name="original_url" value="{{ detail.lead.original_url }}" />
+          <button type="submit" class="ghost-btn">Открыть оригинал</button>
+        </form>
+        {% else %}
+        <span class="muted">Ссылка не сохранена</span>
+        {% endif %}
+      </dd>
+    </div>
+    <div>
+      <dt>Резюме</dt>
+      <dd>{{ detail.linked_resume_label or "Пока не привязано" }}</dd>
+    </div>
+    <div>
+      <dt>Шаблон</dt>
+      <dd>{{ detail.linked_template_name or "Пока не привязан" }}</dd>
+    </div>
+    <div>
+      <dt>Следующий шаг</dt>
+      <dd>
+        {% if detail.lead.next_action_at %}
+        {{ detail.lead.next_action_at.strftime("%d.%m.%Y %H:%M") }}
+        {% else %}
+        Пока не задан
+        {% endif %}
+      </dd>
+    </div>
+  </dl>
+</article>
+
+<article class="panel">
+  <h3>Связанная переписка</h3>
+  {% if email_summary.warning_message %}
+  <p class="muted">{{ email_summary.warning_message }}</p>
+  {% elif email_summary.threads %}
+  <ul class="compact-list">
+    {% for thread in email_summary.threads %}
+    <li>
+      <a href="/email?thread_id={{ thread.thread_id }}">{{ thread.subject }}</a>
+      <br />
+      <span class="muted">
+        {{ thread.participant_line }}
+        {% if thread.last_message_at %}
+        · {{ thread.last_message_at.strftime("%d.%m.%Y %H:%M") }}
+        {% endif %}
+        · сообщений: {{ thread.message_count }}
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Пока нет привязанных цепочек или писем.</p>
+  {% endif %}
+</article>
+
+<section class="detail-layout">
+  <div class="content-stack">
+    {% include "leads/partials/lead_form.html" %}
+    {% include "leads/partials/reminder_form.html" %}
+
+    <article class="panel">
+      <h3>Заметки</h3>
+      <form class="stack-form" method="post" action="/leads/{{ detail.lead.id }}/notes">
+        <label for="note-body">Что важно не забыть</label>
+        <textarea id="note-body" name="note_body" rows="4" placeholder="Например: спросить про жилье и смены"></textarea>
+
+        <label class="checkbox-row">
+          <input name="note_pinned" type="checkbox" />
+          Закрепить заметку
+        </label>
+
+        <button type="submit" class="ghost-btn">Добавить заметку</button>
+      </form>
+
+      {% if detail.notes %}
+      <ul class="compact-list top-gap">
+        {% for note in detail.notes %}
+        <li>
+          {% if note.pinned %}<strong>Закреплено.</strong> {% endif %}{{ note.body }}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="muted">Пока без заметок.</p>
+      {% endif %}
+    </article>
+  </div>
+
+  <div class="content-stack">
+    <article class="panel">
+      <h3>Собеседования</h3>
+      {% if detail.interviews %}
+      <ul class="compact-list">
+        {% for interview in detail.interviews %}
+        <li>
+          <strong>{{ interview.interview_at.strftime("%d.%m.%Y %H:%M") }}</strong>
+          {% if interview.interview_format %} · {{ interview.interview_format }}{% endif %}
+          {% if interview.interviewer_name %}<br />{{ interview.interviewer_name }}{% endif %}
+          {% if interview.location %}<br /><span class="muted">{{ interview.location }}</span>{% endif %}
+          {% if interview.notes %}<br />{{ interview.notes }}{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="muted">Пока нет назначенных собеседований.</p>
+      {% endif %}
+    </article>
+
+    {% include "leads/partials/lead_timeline.html" %}
+  </div>
+</section>
+{% endblock %}

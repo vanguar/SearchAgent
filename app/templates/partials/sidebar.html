@@ -1,0 +1,35 @@
+<aside class="sidebar" aria-label="Основное меню">
+  <div class="brand">
+    <h1>{{ app_title }}</h1>
+    <p>{{ app_subtitle }}</p>
+  </div>
+
+  <nav>
+    <ul class="menu-list">
+      {% for item in nav_items %}
+      <li>
+        <a
+          href="{{ item.path }}"
+          class="menu-item {% if active_page == item.key %}is-active{% endif %}"
+        >
+          {{ item.label }}
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </nav>
+
+  {% if llm_status is defined %}
+  <div class="sidebar-llm-status">
+    {% if llm_status == "configured" %}
+    <span class="llm-dot llm-dot--ok" title="ИИ настроен">●</span> ИИ настроен
+    {% elif llm_status == "extraction_succeeded" %}
+    <span class="llm-dot llm-dot--ok" title="Последний ИИ-разбор успешен">●</span> ИИ-разбор успешен
+    {% elif llm_status == "provider_error" %}
+    <span class="llm-dot llm-dot--warn" title="OpenAI timeout или ошибка запроса">●</span> ИИ: timeout/ошибка
+    {% else %}
+    <span class="llm-dot llm-dot--off" title="ИИ не настроен">●</span> ИИ отключён
+    {% endif %}
+  </div>
+  {% endif %}
+</aside>

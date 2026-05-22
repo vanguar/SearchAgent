@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% if dashboard.warning_message %}
+<article class="panel">
+  <div class="notice warning">{{ dashboard.warning_message }}</div>
+</article>
+{% endif %}
+
+<section class="cards-grid">
+  <article class="panel stat-card">
+    <h3>Всего лидов</h3>
+    <strong>{{ dashboard.summary.total_leads }}</strong>
+    <p class="muted">Все сохраненные вакансии и активные отклики.</p>
+  </article>
+  <article class="panel stat-card">
+    <h3>Активные</h3>
+    <strong>{{ dashboard.summary.active_leads }}</strong>
+    <p class="muted">Еще не в архиве и требуют внимания.</p>
+  </article>
+  <article class="panel stat-card">
+    <h3>Отклики отправлены</h3>
+    <strong>{{ dashboard.summary.applied_leads }}</strong>
+    <p class="muted">Уже ушли в компанию или через платформу.</p>
+  </article>
+  <article class="panel stat-card">
+    <h3>Фоллоу-ап просрочен</h3>
+    <strong>{{ dashboard.summary.due_follow_ups }}</strong>
+    <p class="muted">Есть лиды, где пора напомнить о себе.</p>
+  </article>
+</section>
+
+<section class="split-layout">
+  <div class="content-stack">
+    {% if dashboard.leads %}
+      {% for lead_card in dashboard.leads %}
+        {% include "leads/partials/lead_card.html" %}
+      {% endfor %}
+    {% else %}
+    <article class="panel">
+      <h3>Пока нет лидов</h3>
+      <p>Сохраните вакансию из поиска, чтобы появился рабочий ATS-слой с откликами, заметками и напоминаниями.</p>
+    </article>
+    {% endif %}
+  </div>
+
+  <aside class="content-stack">
+    <article class="panel">
+      <h3>Ближайшие напоминания</h3>
+      {% if dashboard.reminders %}
+      <ul class="compact-list">
+        {% for reminder in dashboard.reminders %}
+        <li>
+          <strong>{{ reminder.title }}</strong>
+          {% if reminder.due_at %}
+          <br />
+          <span class="muted">{{ reminder.due_at.strftime("%d.%m.%Y %H:%M") }}</span>
+          {% endif %}
+          {% if reminder.details %}
+          <br />
+          <span>{{ reminder.details }}</span>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="muted">Сейчас нет открытых напоминаний.</p>
+      {% endif %}
+    </article>
+
+    <article class="panel">
+      <h3>Резюме</h3>
+      {% if dashboard.owner_context %}
+      <form class="stack-form" method="post" action="/leads/library/resumes">
+        <label for="resume-title">Название</label>
+        <input id="resume-title" name="resume_title" type="text" placeholder="Например: Немецкое базовое" required />
+
+        <label for="resume-language">Язык</label>
+        <input id="resume-language" name="resume_language" type="text" placeholder="ru / de / en" />
+
+        <button type="submit" class="ghost-btn">Добавить резюме</button>
+      </form>
+
+      <hr class="section-divider" />
+
+      <form class="stack-form" method="post" action="/leads/library/resume-versions">
+        <label for="resume-id">К какому резюме</label>
+        <select id="resume-id" name="resume_id" {% if not resume_catalog %}disabled{% endif %}>
+          {% for resume in resume_catalog %}
+          <option value="{{ resume.id }}">{{ resume.title }}{% if resume.language %} · {{ resume.language }}{% endif %}</option>
+          {% endfor %}
+        </select>
+
+        <label for="version-label">Версия</label>
+        <input id="version-label" name="version_label" type="text" placeholder="v1, warehouse, deutsch" {% if not resume_catalog %}disabled{% else %}required{% endif %} />
+
+        <label for="file-path">Путь к файлу</label>
+        <input id="file-path" name="file_path" type="text" placeholder="C:\resume\de_v1.pdf" {% if not resume_catalog %}disabled{% endif %} />
+
+        <label for="storage-hint">Подсказка</label>
+        <input id="storage-hint" name="storage_hint" type="text" placeholder="PDF для BA" {% if not resume_catalog %}disabled{% endif %} />
+
+        <label class="checkbox-row">
+          <input name="is_default" type="checkbox" {% if not resume_catalog %}disabled{% endif %} />
+          Сделать версией по умолчанию
+        </label>
+
+        <button type="submit" class="ghost-btn" {% if not resume_catalog %}disabled{% endif %}>Добавить версию</button>
+      </form>
+      {% else %}
+      <p class="muted">Сначала нужен сохраненный профиль пользователя.</p>
+      {% endif %}
+
+      {% if resume_version_catalog %}
+      <ul class="compact-list top-gap">
+        {% for version in resume_version_catalog %}
+        <li>{{ version.label_ru }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </article>
+
+    <article class="panel">
+      <h3>Шаблоны сопроводительного</h3>
+      {% if dashboard.owner_context %}
+      <form class="stack-form" method="post" action="/leads/library/templates">
+        <label for="template-name">Название</label>
+        <input id="template-name" name="template_name" type="text" placeholder="Короткий отклик на склад" required />
+
+        <label for="template-language">Язык</label>
+        <input id="template-language" name="template_language" type="text" placeholder="ru / de / en" />
+
+        <label for="template-body">Текст шаблона</label>
+        <textarea id="template-body" name="template_body" rows="6" placeholder="Добрый день..." required></textarea>
+
+        <button type="submit" class="ghost-btn">Сохранить шаблон</button>
+      </form>
+      {% else %}
+      <p class="muted">Сначала нужен сохраненный профиль пользователя.</p>
+      {% endif %}
+
+      {% if cover_letter_templates %}
+      <ul class="compact-list top-gap">
+        {% for template in cover_letter_templates %}
+        <li>{{ template.name }}{% if template.language %} · {{ template.language }}{% endif %}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </article>
+  </aside>
+</section>
+{% endblock %}

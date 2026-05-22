@@ -1,0 +1,102 @@
+<article class="panel">
+  <h3>Детали отклика</h3>
+  <form class="stack-form" method="post" action="/leads/{{ detail.lead.id }}/details">
+    <label for="application-channel">Канал отклика</label>
+    <input id="application-channel" name="application_channel" type="text" value="{{ detail.lead.application_channel or '' }}" placeholder="BA, Careerjet, email, сайт компании" />
+
+    <label for="salary-expectation">Ожидание по зарплате</label>
+    <input id="salary-expectation" name="salary_expectation_text" type="text" value="{{ detail.lead.salary_expectation_text or '' }}" placeholder="Например: 2400 EUR brutto" />
+
+    <label for="contact-person">Контактное лицо</label>
+    <input id="contact-person" name="contact_person" type="text" value="{{ detail.lead.contact_person or '' }}" placeholder="Имя рекрутера или менеджера" />
+
+    <label for="contact-email">Контактный email</label>
+    <input id="contact-email" name="contact_email" type="email" value="{{ detail.lead.contact_email or '' }}" placeholder="hr@example.de" />
+
+    <label for="follow-up-due">Фоллоу-ап до</label>
+    <input id="follow-up-due" name="follow_up_due_at" type="date" value="{{ detail.lead.follow_up_due_at.strftime('%Y-%m-%d') if detail.lead.follow_up_due_at else '' }}" />
+
+    <label for="follow-up-sent">Фоллоу-ап отправлен</label>
+    <input id="follow-up-sent" name="follow_up_sent_at" type="date" value="{{ detail.lead.follow_up_sent_at.strftime('%Y-%m-%d') if detail.lead.follow_up_sent_at else '' }}" />
+
+    <label for="next-action-at">Следующее действие</label>
+    <input id="next-action-at" name="next_action_at" type="datetime-local" value="{{ detail.lead.next_action_at.strftime('%Y-%m-%dT%H:%M') if detail.lead.next_action_at else '' }}" />
+
+    <label for="resume-version-id">Версия резюме</label>
+    <select id="resume-version-id" name="resume_version_id">
+      <option value="">Не выбрано</option>
+      {% for version in resume_version_catalog %}
+      <option value="{{ version.id }}" {% if detail.lead.resume_version_id == version.id %}selected{% endif %}>{{ version.label_ru }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="cover-letter-template-id">Шаблон сопроводительного</label>
+    <select id="cover-letter-template-id" name="cover_letter_template_id">
+      <option value="">Не выбрано</option>
+      {% for template in cover_letter_templates %}
+      <option value="{{ template.id }}" {% if detail.lead.cover_letter_template_id == template.id %}selected{% endif %}>
+        {{ template.name }}{% if template.language %} · {{ template.language }}{% endif %}
+      </option>
+      {% endfor %}
+    </select>
+
+    <button type="submit" class="ghost-btn">Сохранить детали</button>
+  </form>
+</article>
+
+<article class="panel">
+  <h3>Статусы отклика</h3>
+  <div class="content-stack">
+    <form class="stack-form" method="post" action="/leads/{{ detail.lead.id }}/apply">
+      <label for="applied-at">Когда отправили отклик</label>
+      <input id="applied-at" name="applied_at" type="date" value="{{ detail.lead.applied_at.strftime('%Y-%m-%d') if detail.lead.applied_at else '' }}" />
+      <button type="submit" class="ghost-btn">Отметить отклик</button>
+    </form>
+
+    <form class="stack-form" method="post" action="/leads/{{ detail.lead.id }}/reply">
+      <label for="reply-at">Когда пришел ответ</label>
+      <input id="reply-at" name="reply_at" type="date" value="{{ detail.lead.reply_at.strftime('%Y-%m-%d') if detail.lead.reply_at else '' }}" />
+      <label for="reply-details">Что написал работодатель</label>
+      <textarea id="reply-details" name="reply_details" rows="3" placeholder="Коротко зафиксируйте смысл ответа"></textarea>
+      <button type="submit" class="ghost-btn">Отметить ответ</button>
+    </form>
+
+    <form class="stack-form" method="post" action="/leads/{{ detail.lead.id }}/reject">
+      <label for="rejected-at">Дата отказа</label>
+      <input id="rejected-at" name="rejected_at" type="date" value="{{ detail.lead.rejected_at.strftime('%Y-%m-%d') if detail.lead.rejected_at else '' }}" />
+      <label for="rejection-reason">Комментарий</label>
+      <textarea id="rejection-reason" name="rejection_reason" rows="3" placeholder="Например: нужен fluent German"></textarea>
+      <button type="submit" class="ghost-btn">Отметить отказ</button>
+    </form>
+
+    <form class="stack-form" method="post" action="/leads/{{ detail.lead.id }}/archive">
+      <label for="archived-at">Дата архивации</label>
+      <input id="archived-at" name="archived_at" type="date" value="{{ detail.lead.archived_at.strftime('%Y-%m-%d') if detail.lead.archived_at else '' }}" />
+      <label for="archive-note">Почему уводим в архив</label>
+      <textarea id="archive-note" name="archive_note" rows="3" placeholder="Например: вакансия закрыта или больше не актуальна"></textarea>
+      <button type="submit" class="ghost-btn">Отправить в архив</button>
+    </form>
+  </div>
+</article>
+
+<article class="panel">
+  <h3>Собеседование</h3>
+  <form class="stack-form" method="post" action="/leads/{{ detail.lead.id }}/interview">
+    <label for="interview-at">Дата и время</label>
+    <input id="interview-at" name="interview_at" type="datetime-local" />
+
+    <label for="interview-format">Формат</label>
+    <input id="interview-format" name="interview_format" type="text" placeholder="Телефон, Zoom, офис" />
+
+    <label for="interviewer-name">Кто проводит</label>
+    <input id="interviewer-name" name="interviewer_name" type="text" placeholder="Имя и роль" />
+
+    <label for="interview-location">Где</label>
+    <input id="interview-location" name="interview_location" type="text" placeholder="Ссылка, адрес или комната" />
+
+    <label for="interview-notes">Что важно помнить</label>
+    <textarea id="interview-notes" name="interview_notes" rows="4" placeholder="Подготовить опыт, документы, вопросы"></textarea>
+
+    <button type="submit" class="ghost-btn">Назначить собеседование</button>
+  </form>
+</article>

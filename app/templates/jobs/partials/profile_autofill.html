@@ -1,0 +1,25 @@
+{% include "jobs/partials/profile_context.html" %}
+
+<select id="jobs-search-mode" name="search_mode" hx-swap-oob="true">
+  <option value="remote_worldwide" {% if search_mode_prefill == "remote_worldwide" %}selected{% endif %}>Remote worldwide</option>
+  <option value="germany_local" {% if search_mode_prefill == "germany_local" %}selected{% endif %}>Germany / local</option>
+</select>
+
+<input
+  id="jobs-query"
+  name="query"
+  type="text"
+  value="{{ query_prefill }}"
+  placeholder="Например: lager, produktion, verpacker"
+  required
+  hx-swap-oob="true"
+/>
+
+<input
+  id="jobs-location"
+  name="location"
+  type="text"
+  value="{{ location_prefill }}"
+  placeholder="Например: Berlin, Hamburg, Deutschland"
+  hx-swap-oob="true"
+/>

@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block content %}
+<article class="panel">
+  <h3>Поиск вакансий</h3>
+  <p>
+    Поиск через адаптеры источников, нормализацию, дедупликацию, жёсткие фильтры и
+    rule-based скоринг. На выходе — горячее, спорное и отсеянное.
+  </p>
+
+  <form
+    class="intake-form"
+    method="post"
+    action="/jobs/search/start"
+    hx-post="/jobs/search/start"
+    hx-target="#jobs-results-panel"
+    hx-swap="innerHTML"
+    data-async-form
+    data-target="#jobs-results-panel"
+    id="jobs-search-form"
+  >
+    <label for="jobs-profile">Профиль поиска</label>
+    {% if profile_options %}
+    <select
+      id="jobs-profile"
+      name="profile_id"
+      hx-get="/jobs/profile-autofill"
+      hx-target="#jobs-profile-panel"
+      hx-swap="innerHTML"
+      hx-trigger="change"
+      hx-include="this"
+    >
+      {% for option in profile_options %}
+      <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>
+        {{ option.label }}
+      </option>
+      {% endfor %}
+    </select>
+    {% else %}
+    <div class="notice info">
+      Профилей пока нет. <a href="/profile/intake">Создайте профиль</a>, чтобы запустить поиск.
+    </div>
+    {% endif %}
+
+    <label for="jobs-search-mode">Режим поиска</label>
+    <select id="jobs-search-mode" name="search_mode">
+      <option value="remote_worldwide" {% if form_values["search_mode"] == "remote_worldwide" %}selected{% endif %}>Remote worldwide</option>
+      <option value="germany_local" {% if form_values["search_mode"] == "germany_local" %}selected{% endif %}>Germany / local</option>
+    </select>
+
+    <label for="jobs-source">Источник</label>
+    <select id="jobs-source" name="source">
+      {% for option in source_options %}
+      <option
+        value="{{ option.value }}"
+        {% if option.value == form_values["source"] %}selected{% endif %}
+        {% if option.disabled %}disabled{% endif %}
+      >
+        {{ option.label }}{% if option.disabled %} (недоступен){% endif %}
+      </option>
+      {% endfor %}
+    </select>
+
+    <label for="jobs-query">Что ищем</label>
+    <input
+      id="jobs-query"
+      name="query"
+      type="text"
+      value="{{ form_values['query'] }}"
+      placeholder="Например: lager, produktion, verpacker"
+      required
+    />
+
+    <label for="jobs-location">Где искать</label>
+    <input
+      id="jobs-location"
+      name="location"
+      type="text"
+      value="{{ form_values['location'] }}"
+      placeholder="Например: Berlin, Hamburg, Deutschland"
+    />
+
+    <label for="jobs-radius">Радиус, км</label>
+    <input
+      id="jobs-radius"
+      name="radius_km"
+      type="number"
+      min="0"
+      value="{{ form_values['radius_km'] }}"
+      placeholder="25"
+    />
+
+    <div class="search-btn-wrap">
+      <button type="submit" id="jobs-search-btn" class="search-btn" name="source_scope" value="western">
+        <span class="search-btn__gear" aria-hidden="true">⚙</span>
+        <span class="search-btn__text">Запустить поиск</span>
+      </button>
+      <button type="submit" id="jobs-russian-search-btn" class="search-btn search-btn--secondary" name="source_scope" value="russian">
+        <span class="search-btn__gear" aria-hidden="true">⚙</span>
+        <span class="search-btn__text">Искать по русскоязычным ресурсам</span>
+      </button>
+    </div>
+    <p class="source-scope-note">
+      Русскоязычные ресурсы: HeadHunter API, DOU Jobs RSS, Djinni Jobs RSS.
+    </p>
+  </form>
+
+  <script>
+  (function () {
+    var form = document.getElementById('jobs-search-form');
+    var buttons = Array.prototype.slice.call(form ? form.querySelectorAll('.search-btn') : []);
+    if (!form || !buttons.length) return;
+    var mode = document.getElementById('jobs-search-mode');
+    var loc = document.getElementById('jobs-location');
+
+    var activeBtn = buttons[0];
+    var observer = null;
+
+    function resetBtn() {
+      buttons.forEach(function (button) {
+        var txt = button.querySelector('.search-btn__text');
+        button.classList.remove('is-loading');
+        button.disabled = false;
+        if (txt && button.id === 'jobs-search-btn') txt.textContent = 'Запустить поиск';
+        if (txt && button.id === 'jobs-russian-search-btn') txt.textContent = 'Искать по русскоязычным ресурсам';
+      });
+    }
+
+    function disconnectObserver() {
+      if (observer) {
+        observer.disconnect();
+        observer = null;
+      }
+    }
+
+    function connectObserver() {
+      var panel = document.getElementById('jobs-results-panel');
+      if (!panel) return;
+
+      disconnectObserver();
+
+      observer = new MutationObserver(function () {
+        if (activeBtn.disabled && !document.getElementById('search-progress-panel')) {
+          resetBtn();
+          disconnectObserver();
+        }
+      });
+
+      observer.observe(panel, { childList: true, subtree: true });
+    }
+
+    form.addEventListener('htmx:beforeRequest', function () {
+      activeBtn.classList.add('is-loading');
+      buttons.forEach(function (button) { button.disabled = true; });
+      var txt = activeBtn.querySelector('.search-btn__text');
+      if (txt) txt.textContent = 'Идёт поиск...';
+      connectObserver();
+    });
+
+    buttons.forEach(function (button) {
+      button.addEventListener('click', function () {
+        activeBtn = button;
+      });
+    });
+
+    form.addEventListener('htmx:afterRequest', function () {
+      if (!document.getElementById('search-progress-panel')) {
+        resetBtn();
+        disconnectObserver();
+      } else {
+        connectObserver();
+      }
+    });
+
+    window.addEventListener('beforeunload', disconnectObserver);
+
+    if (mode && loc) {
+      updateSourceApplicability();
+      mode.addEventListener('change', function () {
+        if (mode.value === 'remote_worldwide' && !loc.value.trim()) {
+          loc.value = 'remote';
+        } else if (mode.value === 'germany_local') {
+          var currentLocation = loc.value.trim().toLowerCase();
+          if (['remote', 'worldwide remote', 'remote worldwide', 'global remote'].indexOf(currentLocation) !== -1) {
+            loc.value = 'Deutschland';
+          }
+        }
+        updateSourceApplicability();
+      });
+    }
+
+    function updateSourceApplicability() {
+      var sourceStatusRows = Array.prototype.slice.call(document.querySelectorAll('[data-source-status-row]'));
+      if (!mode || !sourceStatusRows.length) return;
+      sourceStatusRows.forEach(function (row) {
+        var target = row.querySelector('[data-source-applicability]');
+        if (!target) return;
+        if (row.dataset.enabled !== 'true') {
+          target.textContent = 'Не участвует, пока источник выключен.';
+          return;
+        }
+        if (row.dataset.russian === 'true') {
+          target.textContent = 'Не входит в обычный запуск; используется кнопкой «Искать по русскоязычным ресурсам».';
+          return;
+        }
+        if (row.dataset.modeScope === mode.value) {
+          target.textContent = 'Участвует в обычном запуске для текущего режима.';
+        } else if (row.dataset.modeScope === 'remote_worldwide') {
+          target.textContent = 'Не участвует в Germany / local; источник только для Remote worldwide.';
+        } else {
+          target.textContent = 'Не участвует в Remote worldwide; источник только для Germany / local.';
+        }
+      });
+    }
+  })();
+</script>
+</article>
+
+<article class="panel">
+  <h3>Активный профиль</h3>
+  <section
+    id="jobs-profile-panel"
+    hx-get="/jobs/profile-context{% if selected_profile_id %}?profile_id={{ selected_profile_id }}{% endif %}"
+    hx-trigger="load"
+    hx-swap="innerHTML"
+  >
+    <div class="notice info">Загружаем профиль поиска...</div>
+  </section>
+</article>
+
+<article class="panel">
+  <h3>Статус источников</h3>
+  <ul class="hint-list">
+    {% for row in source_status_rows %}
+    {% set source = row.descriptor %}
+    <li class="source-state source-state--{{ source.status_kind }}"
+        data-source-status-row
+        data-enabled="{{ 'true' if source.enabled and source.status_kind != 'error' else 'false' }}"
+        data-russian="{{ 'true' if row.is_russian else 'false' }}"
+        data-mode-scope="{{ row.mode_scope }}">
+      <strong>{{ source.display_name }}</strong>:
+      {% if source.status_kind == "success" %}
+      <span class="badge-success">{{ source.status_label }}</span>
+      {% elif source.status_kind == "warning" %}
+      <span class="badge-warning">{{ source.status_label }}</span>
+      {% elif source.status_kind == "error" %}
+      <span class="badge-error">{{ source.status_label }}</span>
+      {% else %}
+      <span class="badge-disabled">{{ source.status_label }}</span>
+      {% endif %}
+      {% if source.status_detail %}
+      <br />
+      <span class="muted">{{ source.status_detail }}</span>
+      {% endif %}
+      <br />
+      <span class="muted" data-source-applicability>
+        {% if not source.enabled or source.status_kind == "error" %}
+          Не участвует, пока источник выключен.
+        {% elif row.is_russian %}
+          Не входит в обычный запуск; используется кнопкой «Искать по русскоязычным ресурсам».
+        {% elif row.mode_scope == form_values["search_mode"] %}
+          Участвует в обычном запуске для текущего режима.
+        {% elif row.mode_scope == "remote_worldwide" %}
+          Не участвует в Germany / local; источник только для Remote worldwide.
+        {% else %}
+          Не участвует в Remote worldwide; источник только для Germany / local.
+        {% endif %}
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+</article>
+
+<section id="jobs-results-panel">
+  {% include "jobs/partials/search_results.html" %}
+</section>
+
+{% include "partials/section_hint_loader.html" %}
+{% endblock %}

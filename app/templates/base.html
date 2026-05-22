@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}{{ page_title }} · {{ app_title }}{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/app.css') }}?v=jobs-buttons-20260504" />
+    <script defer src="{{ url_for('static', path='js/app.js') }}?v=query-tabs-20260521"></script>
+    <script defer src="https://unpkg.com/htmx.org@1.9.12"></script>
+  </head>
+  <body>
+    <div class="shell">
+      {% include "partials/sidebar.html" %}
+
+      <main class="main-area">
+        {% include "partials/page_intro.html" %}
+
+        <section class="content-stack">
+          {% block content %}{% endblock %}
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% if stats_dashboard.warning_message %}
+<article class="panel">
+  <div class="notice warning">{{ stats_dashboard.warning_message }}</div>
+</article>
+{% endif %}
+
+<article class="panel">
+  <div class="panel-actions">
+    <div>
+      <h3>Сводка по периоду</h3>
+      <p class="muted">
+        {{ stats_dashboard.window.label_ru }}
+        {% if stats_dashboard.owner_label_ru %}
+          · {{ stats_dashboard.owner_label_ru }}
+        {% endif %}
+      </p>
+    </div>
+    <div class="action-row">
+      {% for option in stats_dashboard.window_links %}
+        {% if option.is_active %}
+        <span class="status-pill">{{ option.label_ru }}</span>
+        {% else %}
+        <a href="{{ option.url }}" class="ghost-btn">{{ option.label_ru }}</a>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  <p class="muted">Обновлено {{ stats_dashboard.generated_at.strftime("%d.%m.%Y %H:%M") }}</p>
+</article>
+
+{% if stats_dashboard.empty_state %}
+<article class="panel">
+  <h3>Пока мало данных</h3>
+  <p>
+    Запустите поиск вакансий, откройте несколько карточек и сохраните хотя бы один лид.
+    После этого здесь появятся реальные источники, воронка и понятный список того, что делать дальше.
+  </p>
+</article>
+{% endif %}
+
+{% include "stats/partials/summary_cards.html" %}
+
+<section class="split-layout">
+  <div class="content-stack">
+    {% include "stats/partials/funnel.html" %}
+    {% include "stats/partials/source_quality.html" %}
+  </div>
+  <aside class="content-stack">
+    {% include "stats/partials/activity_digest.html" %}
+  </aside>
+</section>
+{% endblock %}

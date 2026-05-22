@@ -1,0 +1,30 @@
+<article class="panel">
+  <h3>Напоминания и следующий шаг</h3>
+  <form class="stack-form" method="post" action="/leads/{{ detail.lead.id }}/reminders">
+    <label for="reminder-title">Что сделать</label>
+    <input id="reminder-title" name="reminder_title" type="text" placeholder="Написать фоллоу-ап или позвонить" />
+
+    <label for="reminder-due-at">Когда</label>
+    <input id="reminder-due-at" name="reminder_due_at" type="datetime-local" />
+
+    <label for="reminder-details">Подробности</label>
+    <textarea id="reminder-details" name="reminder_details" rows="3" placeholder="Какие документы взять или что уточнить"></textarea>
+
+    <button type="submit" class="ghost-btn">Добавить напоминание</button>
+  </form>
+
+  {% if detail.reminders %}
+  <ul class="compact-list top-gap">
+    {% for reminder in detail.reminders %}
+    <li>
+      <strong>{{ reminder.title }}</strong>
+      {% if reminder.due_at %} · {{ reminder.due_at.strftime("%d.%m.%Y %H:%M") }}{% endif %}
+      {% if reminder.details %}<br />{{ reminder.details }}{% endif %}
+      {% if reminder.is_done %}<br /><span class="muted">Выполнено</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted top-gap">Пока нет напоминаний по этому лиду.</p>
+  {% endif %}
+</article>

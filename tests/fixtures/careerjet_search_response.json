@@ -1,0 +1,42 @@
+{
+  "type": "JOBS",
+  "hits": 87,
+  "message": "87 matching jobs found",
+  "pages": 5,
+  "response_time": 0.21,
+  "jobs": [
+    {
+      "title": "Lagermitarbeiter (m/w/d)",
+      "company": "Logistik Nord GmbH",
+      "date": "Sun, 19 Apr 2026 09:00:00 GMT",
+      "description": "Wir suchen einen zuverlässigen Lagermitarbeiter für unser Lager in München.",
+      "locations": "München, Bayern",
+      "salary": "€2600",
+      "salary_currency_code": "EUR",
+      "salary_min": 2600.0,
+      "salary_max": 2600.0,
+      "salary_type": "M",
+      "site": "logistik-nord.de",
+      "url": "https://jobviewtrack.com/v2/job-cj-de-1001"
+    },
+    {
+      "title": "Produktionshelfer/in",
+      "company": "Werkteam Hamburg KG",
+      "date": "Sat, 18 Apr 2026 14:00:00 GMT",
+      "description": "Produktionshelfer gesucht für sofortigen Start.",
+      "locations": "Hamburg",
+      "salary": "",
+      "salary_currency_code": "",
+      "salary_min": 0.0,
+      "salary_max": 0.0,
+      "salary_type": "",
+      "site": "werkteam.de",
+      "url": "https://jobviewtrack.com/v2/job-cj-de-1002"
+    },
+    {
+      "title": "Ohne URL — soll übersprungen werden",
+      "company": "Test AG",
+      "locations": "Berlin"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% set title = "Планирование интервью" %}
+{% set description = "Скелет для фиксации даты, формата и заметок по собеседованиям." %}
+{% set button_label = "Добавить интервью (позже)" %}
+{% include "partials/empty_state.html" %}
+
+{% include "partials/section_hint_loader.html" %}
+{% endblock %}

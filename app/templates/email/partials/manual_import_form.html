@@ -1,0 +1,70 @@
+<article class="panel">
+  <h3>Ручной импорт</h3>
+  <form class="stack-form" method="post" action="/email/import">
+    <label for="import-mode">Что добавить</label>
+    <select id="import-mode" name="import_mode">
+      <option value="message">Цепочку и сообщение</option>
+      <option value="thread_only">Только цепочку</option>
+    </select>
+
+    <label for="subject">Тема</label>
+    <input id="subject" name="subject" type="text" placeholder="Например: Re: Lagermitarbeiter Berlin" />
+
+    <label for="participant-emails">Участники цепочки</label>
+    <input
+      id="participant-emails"
+      name="participant_emails"
+      type="text"
+      placeholder="hr@example.de, jobs@example.de"
+    />
+
+    <label for="from-email">Отправитель</label>
+    <input id="from-email" name="from_email" type="text" placeholder="HR Team <hr@example.de>" />
+
+    <label for="to-emails">Кому</label>
+    <input id="to-emails" name="to_emails" type="text" placeholder="me@gmail.com, jobs@example.de" />
+
+    <label for="cc-emails">Копия</label>
+    <input id="cc-emails" name="cc_emails" type="text" placeholder="cc@example.de" />
+
+    <label for="bcc-emails">Скрытая копия</label>
+    <input id="bcc-emails" name="bcc_emails" type="text" placeholder="bcc@example.de" />
+
+    <label for="body-text">Текст письма</label>
+    <textarea
+      id="body-text"
+      name="body_text"
+      rows="6"
+      placeholder="Вставьте текст письма, чтобы matcher увидел компанию, ссылку и контактные сигналы."
+    ></textarea>
+
+    <label for="sent-at">Дата и время</label>
+    <input id="sent-at" name="sent_at" type="datetime-local" />
+
+    <label for="external-message-id">Внешний ID сообщения</label>
+    <input id="external-message-id" name="external_message_id" type="text" placeholder="gmail-message-id" />
+
+    <label for="external-thread-id">Внешний ID цепочки</label>
+    <input id="external-thread-id" name="external_thread_id" type="text" placeholder="gmail-thread-id" />
+
+    <label for="direction-mode">Направление</label>
+    <select id="direction-mode" name="direction_mode">
+      <option value="auto">Определить автоматически</option>
+      <option value="incoming">Входящее</option>
+      <option value="outgoing">Исходящее</option>
+    </select>
+
+    <label for="lead-id">Сразу привязать к лиду</label>
+    <select id="lead-id" name="lead_id">
+      <option value="">Пока не привязывать</option>
+      {% for lead in workspace.lead_options %}
+      <option value="{{ lead.lead_id }}">{{ lead.label_ru }}</option>
+      {% endfor %}
+    </select>
+
+    <button type="submit" class="ghost-btn" {% if not workspace.can_import %}disabled{% endif %}>
+      Импортировать
+    </button>
+  </form>
+  <p class="muted">Если внешние ID пусты, система создаст локальные deterministic manual IDs.</p>
+</article>
