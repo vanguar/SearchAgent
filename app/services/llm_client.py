@@ -44,6 +44,17 @@ def get_runtime_status() -> LLMStatus:
     return _runtime_status
 
 
+def _mark_configured_if_no_history() -> None:
+    """Повысить статус до CONFIGURED только из MISSING_CONFIG.
+
+    PROVIDER_ERROR и EXTRACTION_SUCCEEDED отражают исходы реальных вызовов;
+    конструирование клиента (происходит на каждый запрос через Depends)
+    не должно их затирать — иначе settings-страница скрывает ошибку провайдера.
+    """
+    if _runtime_status is LLMStatus.MISSING_CONFIG:
+        _set_runtime_status(LLMStatus.CONFIGURED)
+
+
 def _clean_json_response(raw: str) -> str:
     """Strip markdown fences and keep the outer JSON object when present."""
     cleaned = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
@@ -214,7 +225,7 @@ class LazyOpenAILLMClient:
         self._timeout_seconds = timeout_seconds
         self._client: OpenAILLMClient | None = None
         self._lock = threading.Lock()
-        _set_runtime_status(LLMStatus.CONFIGURED)
+        _mark_configured_if_no_history()
 
     def _get_client(self) -> OpenAILLMClient:
         if self._client is not None:
@@ -268,9 +279,9 @@ def build_llm_client(settings: Settings) -> OpenAILLMClient | None:
         _set_runtime_status(LLMStatus.MISSING_CONFIG)
         logger.info("llm_status=missing_config OPENAI_API_KEY не задан, детерминированный режим")
         return None
-    # Ключ есть → помечаем как configured до первого реального вызова.
-    # Статус обновится на provider_error если вызов упадёт.
-    _set_runtime_status(LLMStatus.CONFIGURED)
+    # Ключ есть → помечаем как configured, но только если статуса ещё нет:
+    # provider_error/extraction_succeeded от реальных вызовов сохраняются.
+    _mark_configured_if_no_history()
     return OpenAILLMClient(
         api_key=settings.openai_api_key,
         model=settings.openai_model,
