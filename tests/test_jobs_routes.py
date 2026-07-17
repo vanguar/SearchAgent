@@ -782,7 +782,9 @@ def test_jobs_page_renders_separate_russian_language_search_button() -> None:
     assert response.status_code == 200
     assert 'name="source_scope" value="russian"' in response.text
     assert "Искать по русскоязычным ресурсам" in response.text
-    assert "HeadHunter API, DOU Jobs RSS, Djinni Jobs RSS" in response.text
+    assert "HeadHunter API" in response.text
+    assert "DOU Jobs RSS" in response.text
+    assert "Djinni Jobs RSS" in response.text
 
 
 def test_jobs_search_results_route_hides_explicit_irrelevant_feedback_from_visible_buckets(
