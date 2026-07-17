@@ -617,10 +617,31 @@ body {
 }
 
 .source-scope-note {
-  margin: 8px 0 0;
-  color: var(--muted);
-  font-size: 0.86rem;
-  text-align: center;
+  margin: 10px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  color: var(--text-soft);
+  font-size: 0.8rem;
+}
+
+.source-scope-note__label {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* Бирюзовая гамма — перекликается с кнопкой русскоязычного поиска */
+.source-chip {
+  display: inline-block;
+  padding: 3px 11px;
+  border-radius: 999px;
+  background: rgba(37, 109, 99, 0.08);
+  border: 1px solid rgba(37, 109, 99, 0.28);
+  color: #256d63;
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .search-btn:active:not(:disabled) {
