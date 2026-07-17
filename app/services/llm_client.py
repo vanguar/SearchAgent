@@ -256,7 +256,7 @@ class LazyOpenAILLMClient:
         )
 
 
-def build_llm_client(settings: "Settings") -> OpenAILLMClient | None:
+def build_llm_client(settings: Settings) -> OpenAILLMClient | None:
     """
     Вернуть OpenAILLMClient если OPENAI_API_KEY задан, иначе None.
 
@@ -278,7 +278,7 @@ def build_llm_client(settings: "Settings") -> OpenAILLMClient | None:
     )
 
 
-def build_lazy_llm_client(settings: "Settings") -> LazyOpenAILLMClient | None:
+def build_lazy_llm_client(settings: Settings) -> LazyOpenAILLMClient | None:
     """Return an LLM helper that creates the OpenAI SDK client only on first use."""
     if not settings.openai_api_key:
         _set_runtime_status(LLMStatus.MISSING_CONFIG)

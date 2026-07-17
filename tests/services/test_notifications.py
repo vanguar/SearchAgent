@@ -3,7 +3,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 from app.core.config import Settings
-from app.services.notifications.base import DigestPayload, NotifyResult
+from app.services.notifications.base import DigestPayload
 from app.services.notifications.email_digest_notifier import EmailDigestNotifier
 from app.services.notifications.telegram_notifier import TelegramNotifier
 

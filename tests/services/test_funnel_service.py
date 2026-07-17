@@ -2,12 +2,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy.orm import Session
-
-from app.db.models.profiles import SearchProfile
 from app.db.models.crm import ApplicationLead
+from app.db.models.profiles import SearchProfile
 from app.db.models.vacancies import VacancyCanonical, VacancySourceRecord
 from app.services.funnel_service import FunnelService
+from sqlalchemy.orm import Session
 
 
 def _seed_funnel_dataset(db_session: Session, owner_records: dict[str, object]) -> None:

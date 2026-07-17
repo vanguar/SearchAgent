@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-
 from app.db.models.crm import LeadEvent
 from app.services.lead_event_service import LeadEventService
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 
 def test_lead_event_service_tracks_view_open_and_idempotent_saved(db_session: Session, saved_lead) -> None:

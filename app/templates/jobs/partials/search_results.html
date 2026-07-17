@@ -181,7 +181,17 @@
 </article>
 {% endif %}
 <article class="panel jobs-summary-panel">
-  <h3>Сводка поиска</h3>
+  <div class="jobs-summary-header">
+    <h3>Сводка поиска</h3>
+    {% if export_task_id %}
+    <a
+      class="ghost-btn jobs-export-btn"
+      href="/jobs/export/{{ export_task_id }}"
+      target="_blank"
+      rel="noopener noreferrer"
+    >⬇ Скачать всё в ПДФ</a>
+    {% endif %}
+  </div>
   <p>
     Сырых записей: {{ search_result.total_raw_records }}.
     После нормализации: {{ search_result.total_normalized_records }}.

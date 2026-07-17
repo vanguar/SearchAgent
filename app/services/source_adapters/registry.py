@@ -14,7 +14,11 @@ from app.services.source_adapters.errors import AdapterConfigurationError
 from app.services.source_adapters.eures_adapter import EURESAdapter
 from app.services.source_adapters.greenhouse_adapter import GreenhouseAdapter
 from app.services.source_adapters.hh_adapter import HHAdapter
-from app.services.source_adapters.http import HttpJsonTransport, UrllibHttpJsonTransport
+from app.services.source_adapters.http import (
+    DEFAULT_GET_CACHE_TTL_SECONDS,
+    HttpJsonTransport,
+    UrllibHttpJsonTransport,
+)
 from app.services.source_adapters.jooble_adapter import JoobleAdapter
 from app.services.source_adapters.lever_adapter import LeverAdapter
 from app.services.source_adapters.models import SourceAdapterDescriptor
@@ -34,7 +38,12 @@ class SourceAdapterRegistry:
     ) -> None:
         if adapters is None:
             resolved_settings = settings or Settings()
-            resolved_transport = http_transport or UrllibHttpJsonTransport()
+            # Shared transport with a short GET cache so repeated identical fetches across
+            # keyword attempts in one search run hit the network only once (prevents 429s
+            # from full-list sources like Arbeitnow that filter client-side).
+            resolved_transport = http_transport or UrllibHttpJsonTransport(
+                cache_ttl_seconds=DEFAULT_GET_CACHE_TTL_SECONDS
+            )
             adapters = (
                 BAAdapter(settings=resolved_settings, http_transport=resolved_transport),
                 CareerjetAdapter(settings=resolved_settings, http_transport=resolved_transport),

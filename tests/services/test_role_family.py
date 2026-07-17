@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import pytest
-
 from app.services.role_family import (
     RoleFamily,
     classify_desired_roles,
@@ -12,7 +11,6 @@ from app.services.role_family import (
     is_specific_family,
     prohibits_broad_fallback,
 )
-
 
 # ---------------------------------------------------------------------------
 # classify_query_ru — Russian query/role classification
@@ -363,7 +361,8 @@ def test_warehouse_query_accepts_generic_helper_vacancy() -> None:
     query_families = classify_desired_roles(("склад",))
     specific = {f for f in query_families if is_specific_family(f)}
     vacancy_family = classify_vacancy_de("helfer")  # GENERIC
-    assert not is_specific_family(vacancy_family)  # would NOT be mismatch-rejected
+    assert specific  # warehouse query resolves to a specific family
+    assert not is_specific_family(vacancy_family)  # generic vacancy → would NOT be mismatch-rejected
 
 
 def test_accounting_query_rejects_warehouse_vacancy() -> None:

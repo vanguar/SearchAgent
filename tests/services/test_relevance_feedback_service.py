@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-import pytest
-
-from app.services.relevance_feedback_service import RelevanceFeedbackService
-
 import app.db.models  # noqa: F401 — ensures RelevanceFeedback is registered with Base
-
+import pytest
+from app.services.relevance_feedback_service import RelevanceFeedbackService
 
 # ---------------------------------------------------------------------------
 # Helpers

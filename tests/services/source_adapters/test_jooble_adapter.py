@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from app.core.config import Settings
 from app.services.source_adapters.errors import AdapterConfigurationError
 from app.services.source_adapters.http import HttpJsonResponse

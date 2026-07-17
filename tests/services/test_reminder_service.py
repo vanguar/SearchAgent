@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-
 from app.db.models.crm import LeadEvent, ReminderTask
 from app.services.reminder_service import ReminderService
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 
 def test_reminder_service_creates_reminder_task_and_event(db_session: Session, saved_lead) -> None:

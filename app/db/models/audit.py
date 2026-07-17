@@ -2,10 +2,9 @@
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, JSON, String, func
-from sqlalchemy.orm import Mapped, mapped_column
-
 from app.db.base import Base
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String, func
+from sqlalchemy.orm import Mapped, mapped_column
 
 
 class UserActionAudit(Base):

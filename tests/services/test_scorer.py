@@ -55,6 +55,52 @@ def _build_canonical(*, title: str, body: str) -> CanonicalVacancyGroup:
     )
 
 
+def test_video_montage_does_not_false_match_production_family() -> None:
+    """"montage" (video editing) must NOT count as a production role for a warehouse profile."""
+    from app.services.rule_catalog import inspect_vacancy
+
+    profile = _build_profile(desired_roles=("Lagerarbeiter", "Lagermitarbeiter"))
+    canonical = _build_canonical(
+        title="Mid/Senior AI Cinematic Video Editor",
+        body="Video editor for cinematic montage and post-production of AI video.",
+    )
+
+    signals = inspect_vacancy(canonical, profile)
+
+    assert not any(hit.code == "production_family" for hit in signals.positive_role_hits)
+
+
+def test_german_assembly_still_matches_production_family() -> None:
+    """Genuine German assembly/production keywords must still score as production work."""
+    from app.services.rule_catalog import inspect_vacancy
+
+    profile = _build_profile()
+    for title, body in (
+        ("Montagemitarbeiter (m/w/d)", "Montage von Bauteilen in der Fertigung."),
+        ("Produktionshelfer (m/w/d)", "Mitarbeit in der Produktion, Schichtarbeit."),
+    ):
+        signals = inspect_vacancy(_build_canonical(title=title, body=body), profile)
+        assert any(hit.code == "production_family" for hit in signals.positive_role_hits), title
+
+
+def test_scorer_skips_location_penalty_in_remote_worldwide_mode() -> None:
+    """Worldwide-remote must not penalize a geographic 'mismatch' — mirrors FilterEngine."""
+    filter_engine = FilterEngine()
+    scorer = VacancyScorer(filter_engine=filter_engine)
+    profile = _build_profile(
+        desired_roles=("Python Developer",),
+        preferred_locations=("München",),
+        relocation_ready=False,
+    )
+    canonical = _build_canonical(title="Python Developer", body="Build Python backend services.")
+
+    filter_result = filter_engine.evaluate(canonical, profile, search_mode="remote_worldwide")
+    result = scorer.score(canonical, profile, filter_result=filter_result, search_mode="remote_worldwide")
+
+    assert not filter_result.hard_reject
+    assert not any(hit.code == "location_mismatch" for hit in result.negative_hits)
+
+
 def test_scorer_rewards_low_barrier_shift_and_relocation_signals() -> None:
     filter_engine = FilterEngine()
     scorer = VacancyScorer(filter_engine=filter_engine)

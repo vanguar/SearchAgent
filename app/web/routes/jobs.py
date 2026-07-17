@@ -12,6 +12,7 @@ from starlette.datastructures import FormData
 
 from app.core.constants import PAGE_META
 from app.core.logging import logger
+from app.core.time import utc_now
 from app.db.session import get_db
 from app.services.profile_catalog_service import ProfileCatalogService
 from app.services.relevance_memory_service import ProfileFeedbackMemory, RelevanceMemoryService
@@ -26,7 +27,7 @@ from app.services.search_service import SearchService
 from app.services.source_adapters.models import SourceAdapterDescriptor, SourceSearchInput
 from app.web.deps import get_profile_catalog_service, get_search_service
 from app.web.form_utils import read_form_data
-from app.web.views import render_page, render_partial
+from app.web.views import render_page, render_partial, templates
 
 # ---------------------------------------------------------------------------
 # Фоновый поиск — in-memory реестр задач (для single-user локального приложения)
@@ -476,7 +477,7 @@ def _render_progress(request: Request, task: _SearchTask) -> HTMLResponse:
 
 
 def _render_results(request: Request, result: SearchRunResult | None, profile_id: int | None,
-                    form_error: str | None = None) -> HTMLResponse:
+                    form_error: str | None = None, task_id: str | None = None) -> HTMLResponse:
     meta = PAGE_META["jobs"]
     return render_partial(
         request,
@@ -488,6 +489,8 @@ def _render_results(request: Request, result: SearchRunResult | None, profile_id
             "search_result": result,
             "form_error": form_error,
             "profile_id": profile_id,
+            # Present only for completed background searches — enables the PDF export button.
+            "export_task_id": task_id if (result is not None and result.has_results) else None,
         },
     )
 
@@ -578,11 +581,30 @@ def jobs_search_progress(
 
     snap = task.snapshot()
     if snap["status"] == "done":
-        return _render_results(request, snap["result"], snap["profile_id"])
+        return _render_results(request, snap["result"], snap["profile_id"], task_id=snap["task_id"])
     if snap["status"] == "error":
         return _render_results(request, None, snap["profile_id"], form_error=snap["error_message"])
 
     return _render_progress(request, task)
+
+
+@router.get("/jobs/export/{task_id}", response_class=HTMLResponse)
+def jobs_export(task_id: str, request: Request) -> HTMLResponse:
+    """Print-optimized export of a completed search run (browser "Сохранить как PDF")."""
+    task = _get_task(task_id)
+    snap = task.snapshot() if task is not None else None
+    result: SearchRunResult | None = snap["result"] if snap and snap["status"] == "done" else None
+
+    meta = PAGE_META["jobs"]
+    return templates.TemplateResponse(
+        request=request,
+        name="jobs/export.html",
+        context={
+            "page_title": meta["title"],
+            "search_result": result,
+            "generated_at": utc_now(),
+        },
+    )
 
 
 @router.post("/jobs/search/stop/{task_id}", response_class=HTMLResponse)

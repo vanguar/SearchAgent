@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from app.core.config import Settings
@@ -63,7 +62,7 @@ class TelegramNotifier:
 
 def _format_message(payload: DigestPayload) -> str:
     lines = [
-        f"<b>SmartJob — дайджест</b>",
+        "<b>SmartJob — дайджест</b>",
         f"Профиль: <i>{payload.profile_label}</i>",
         "",
         f"🔥 Горячих: {payload.hot_count}",

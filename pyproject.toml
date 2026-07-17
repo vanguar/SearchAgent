@@ -24,8 +24,50 @@ dependencies = [
 dev = [
     "httpx>=0.28.0,<1.0.0",
     "pytest>=8.0.0,<9.0.0",
+    "ruff>=0.15.0,<1.0.0",
+    "mypy>=1.13.0,<2.0.0",
 ]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["app", "tests"]
+
+[tool.ruff.lint]
+# Pragmatic starter set: pyflakes (F), pycodestyle (E/W), import sorting (I),
+# pyupgrade (UP), flake8-bugbear (B), comprehensions (C4).
+select = ["E", "F", "W", "I", "UP", "B", "C4"]
+# E501 (line length) is noisy on structured log calls; the formatter owns wrapping.
+# UP042 (str+Enum → StrEnum) is intentionally NOT applied: it changes str(member)
+# semantics and could alter existing behavior — migrate deliberately, not via lint.
+ignore = ["E501", "UP042"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B011", "B017"]
+"alembic/**" = ["F401", "E402"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency-injection markers are evaluated once at import and are the
+# framework's intended default-argument idiom — not the mutable-default antipattern.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Header",
+    "fastapi.Form",
+    "fastapi.Body",
+    "fastapi.File",
+]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_redundant_casts = true
+# Adopted incrementally — kept non-strict so CI stays green while typing improves.
+warn_unused_ignores = false
+disallow_untyped_defs = false

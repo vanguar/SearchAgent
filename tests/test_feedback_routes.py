@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-import pytest
-from fastapi.testclient import TestClient
-
 import app.db.models  # noqa: F401
-
+from fastapi.testclient import TestClient
 
 # ---------------------------------------------------------------------------
 # POST /feedback/record

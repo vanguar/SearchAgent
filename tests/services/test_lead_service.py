@@ -3,13 +3,11 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 import pytest
+from app.db.models.crm import ApplicationLead, LeadEvent, ManualNote
+from app.services.lead_service import UNSET, LeadService, SearchLeadCandidate
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-
-from app.db.models.crm import ApplicationLead
-from app.db.models.crm import LeadEvent, ManualNote
-from app.services.lead_service import UNSET, LeadService, SearchLeadCandidate
 
 
 def test_lead_service_creates_structured_lead_and_initial_events(

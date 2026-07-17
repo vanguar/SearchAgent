@@ -1,7 +1,6 @@
-import dataclasses
 
 from app.services.filter_engine import FilterEngine, _classify_body_family
-from app.services.normalization_models import CanonicalVacancyGroup, LanguageSignals, NormalizedLocation, NormalizedVacancyRecord
+from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.normalizer import VacancyNormalizer
 from app.services.role_family import RoleFamily
 from app.services.scorer import VacancyScorer
@@ -105,6 +104,103 @@ def test_filter_engine_rejects_clearly_mismatched_role() -> None:
 
     assert result.decision == "reject"
     assert any(hit.code in ("clear_role_mismatch", "profession_family_mismatch") for hit in result.rejection_hits)
+
+
+def test_filter_engine_rejects_local_location_mismatch_for_non_relocating_profile() -> None:
+    engine = FilterEngine()
+    profile = _build_profile(
+        desired_roles=("Python Developer",),
+        preferred_locations=("München",),
+        relocation_ready=False,
+    )
+    canonical = _build_canonical(
+        title="Python Developer",
+        body="Build Python backend services.",
+        location="Berlin, Deutschland",
+    )
+
+    result = engine.evaluate(canonical, profile)
+
+    assert result.decision == "reject"
+    assert any(hit.code == "location_mismatch" for hit in result.rejection_hits)
+
+
+def test_filter_engine_skips_location_mismatch_for_remote_worldwide_profile() -> None:
+    """A saved 'Дистанционно' location must be treated as worldwide remote, not a local filter."""
+    engine = FilterEngine()
+    profile = _build_profile(
+        desired_roles=("Python Developer",),
+        preferred_locations=("Дистанционно",),
+        relocation_ready=False,
+    )
+    canonical = _build_canonical(
+        title="Python Developer",
+        body="Build Python backend services.",
+        location="Kyiv, Ukraine",
+    )
+
+    result = engine.evaluate(canonical, profile)
+
+    assert not any(hit.code == "location_mismatch" for hit in result.rejection_hits)
+
+
+def test_filter_engine_search_mode_overrides_local_location_filter() -> None:
+    """Explicit remote_worldwide mode must bypass location_mismatch even for a local saved location."""
+    engine = FilterEngine()
+    profile = _build_profile(
+        desired_roles=("Python Developer",),
+        preferred_locations=("München",),
+        relocation_ready=False,
+    )
+    canonical = _build_canonical(
+        title="Python Developer",
+        body="Build Python backend services.",
+        location="Kyiv, Ukraine",
+    )
+
+    local = engine.evaluate(canonical, profile)
+    worldwide = engine.evaluate(canonical, profile, search_mode="remote_worldwide")
+
+    assert any(hit.code == "location_mismatch" for hit in local.rejection_hits)
+    assert not any(hit.code == "location_mismatch" for hit in worldwide.rejection_hits)
+
+
+def test_filter_engine_keeps_optional_german_for_no_german_profile() -> None:
+    """"German is an asset" means optional — must NOT trigger german_required_mismatch."""
+    engine = FilterEngine()
+    profile = _build_profile(
+        desired_roles=("Python Developer",),
+        no_german_required=True,
+        preferred_locations=(),
+    )
+    canonical = _build_canonical(
+        title="Python Developer",
+        body="Build Python backend services. German is an asset but not required.",
+        location="Remote",
+    )
+
+    result = engine.evaluate(canonical, profile)
+
+    assert not any(hit.code == "german_required_mismatch" for hit in result.rejection_hits)
+
+
+def test_filter_engine_rejects_mandatory_german_for_no_german_profile() -> None:
+    """A genuine 'German required' must still be rejected for a no_german profile."""
+    engine = FilterEngine()
+    profile = _build_profile(
+        desired_roles=("Python Developer",),
+        no_german_required=True,
+        preferred_locations=(),
+    )
+    canonical = _build_canonical(
+        title="Python Developer",
+        body="Build Python backend services. German is required for this role.",
+        location="Remote",
+    )
+
+    result = engine.evaluate(canonical, profile)
+
+    assert any(hit.code == "german_required_mismatch" for hit in result.rejection_hits)
 
 
 def test_filter_engine_rejects_strong_german_requirement_for_low_german_profile() -> None:

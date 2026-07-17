@@ -69,6 +69,29 @@ ROLE_TO_DE_QUERY: dict[str, str] = {
     "менеджер": "manager",
     "продавец": "verkäufer",
     "кассир": "kassierer",
+    # Rarer roles (kept in sync with ROLE_INTENT_MAP in _role_intent_lexicon.py).
+    "таксист": "taxifahrer",
+    "дальнобойщик": "berufskraftfahrer",
+    "бармен": "barkeeper",
+    "бариста": "barista",
+    "пекарь": "bäcker",
+    "кондитер": "konditor",
+    "мясник": "metzger",
+    "врач": "arzt",
+    "физиотерапевт": "physiotherapeut",
+    "стоматолог": "zahnarzt",
+    "маляр": "maler",
+    "плиточник": "fliesenleger",
+    "штукатур": "stuckateur",
+    "плотник": "zimmermann",
+    "столяр": "tischler",
+    "каменщик": "maurer",
+    "кровельщик": "dachdecker",
+    "сантехник": "anlagenmechaniker",
+    "автомеханик": "kfz-mechaniker",
+    "швея": "näherin",
+    "разнорабочий": "helfer",
+    "сторож": "sicherheitsdienst",
 }
 
 
@@ -94,9 +117,16 @@ _REMOTE_WORLDWIDE_TOKENS: tuple[str, ...] = (
     "international remote companies",
     "remote worldwide",
     "remote only",
+    "remote",
+    "anywhere",
     "только удал",
     "удалён",
     "удален",
+    "удалённо",
+    "удаленно",
+    # Russian/Ukrainian "remote work" synonyms used as saved-profile location labels.
+    # Kept in sync with the remote synonyms recognised in profile_parser.py.
+    "дистанц",
     "по всему миру",
     "весь мир",
 )

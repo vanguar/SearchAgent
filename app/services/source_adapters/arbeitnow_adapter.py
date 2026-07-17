@@ -5,9 +5,19 @@ from typing import Any
 
 from app.core.config import Settings
 from app.services.source_adapters.base import BaseSourceAdapter
-from app.services.source_adapters.errors import AdapterRequestError, AdapterResponseError, HttpDecodeError, HttpTransportError
+from app.services.source_adapters.errors import (
+    AdapterRequestError,
+    AdapterResponseError,
+    HttpDecodeError,
+    HttpTransportError,
+)
 from app.services.source_adapters.http import HttpJsonTransport, UrllibHttpJsonTransport
-from app.services.source_adapters.models import AdapterSearchResponse, SourceAdapterDescriptor, SourceRecordPreview, SourceSearchInput
+from app.services.source_adapters.models import (
+    AdapterSearchResponse,
+    SourceAdapterDescriptor,
+    SourceRecordPreview,
+    SourceSearchInput,
+)
 
 _REMOTE_TERMS = ("remote", "worldwide", "anywhere", "europe")
 
@@ -45,6 +55,14 @@ class ArbeitnowAdapter(BaseSourceAdapter):
             http_response = self.http_transport.get_json(
                 self.settings.source_arbeitnow_base_url,
                 params={"page": max(1, search_input.page)},
+                # arbeitnow.com sits behind Cloudflare, which 429-challenges plain bot
+                # User-Agents; send a browser-like UA (same approach as the Remotive adapter).
+                headers={
+                    "User-Agent": (
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+                    ),
+                },
                 timeout_seconds=self.settings.source_adapter_timeout_seconds,
             )
         except HttpTransportError as exc:

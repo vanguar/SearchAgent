@@ -849,6 +849,19 @@ body {
   margin: 0 0 12px;
 }
 
+.jobs-summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.jobs-export-btn {
+  white-space: nowrap;
+  text-decoration: none;
+}
+
 .jobs-summary-list {
   list-style: none;
   margin: 12px 0 18px;

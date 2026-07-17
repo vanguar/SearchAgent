@@ -214,16 +214,6 @@ class DedupPreviewItem:
     location_text: str | None = None
     source_name: str | None = None
     source_count: int = 1
-    original_url: str | None = None    
-
-@dataclass(frozen=True, slots=True)
-class DedupPreviewItem:
-    canonical_key: str
-    title: str
-    company_name: str | None = None
-    location_text: str | None = None
-    source_name: str | None = None
-    source_count: int = 1
     original_url: str | None = None
 
 

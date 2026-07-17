@@ -10,7 +10,7 @@ from app.db.session import get_db
 from app.services.profile_catalog_service import ProfileCatalogService
 from app.web.deps import get_profile_catalog_service
 from app.web.form_utils import read_form_data
-from app.web.views import render_page, render_partial
+from app.web.views import render_page
 
 router = APIRouter(tags=["web-profile"])
 
@@ -65,7 +65,6 @@ def profile_edit_page(
     profile = catalog_service.get_profile(db, profile_id=profile_id)
     if profile is None:
         return RedirectResponse(url="/profile", status_code=303)
-    meta = PAGE_META["profile"]
     return render_page(
         request,
         "profile/edit.html",

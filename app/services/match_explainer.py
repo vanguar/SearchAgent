@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 class MatchExplainer:
     """Короткие русские объяснения для карточек вакансий."""
 
-    def __init__(self, *, llm_client: "OpenAILLMClient | None" = None) -> None:
+    def __init__(self, *, llm_client: OpenAILLMClient | None = None) -> None:
         self._llm_client = llm_client
 
     def explain(

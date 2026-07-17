@@ -4,12 +4,9 @@ from __future__ import annotations
 import itertools
 from unittest.mock import MagicMock
 
-import pytest
-
 from app.services.search_fallback import (
-    ENOUGH_HOT,
-    ENOUGH_NON_REJECTED,
     get_fallback_keywords,
+    get_intent_fallback_keywords,
     is_low_language_profile,
 )
 from app.services.search_models import (
@@ -21,19 +18,18 @@ from app.services.search_models import (
 from app.services.search_service import SearchService
 from app.services.source_adapters.models import SourceSearchInput
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 def _make_profile(**kwargs) -> SearchProfileContext:
-    defaults = dict(
-        profile_label="Test",
-        profile_source="saved",
-        desired_roles=("склад",),
-        german_level=None,
-        english_level=None,
-    )
+    defaults = {
+        "profile_label": "Test",
+        "profile_source": "saved",
+        "desired_roles": ("склад",),
+        "german_level": None,
+        "english_level": None,
+    }
     defaults.update(kwargs)
     return SearchProfileContext(**defaults)
 
@@ -92,6 +88,43 @@ def test_get_fallback_keywords_unknown_role_does_not_inject_helper_fallback() ->
     assert kws == ()
 
 
+def test_warehouse_fallback_includes_family_synonyms() -> None:
+    """Warehouse search must broaden to alternative German + English titles."""
+    kws = get_fallback_keywords(primary_query="lager", role="склад", low_language=False)
+    for expected in ("kommissionierer", "verpacker", "staplerfahrer", "warehouse associate"):
+        assert expected in kws, expected
+    assert "lager" not in kws  # primary excluded
+    assert len(kws) <= 12  # capped
+
+
+def test_fallback_keywords_dedupe_case_insensitively() -> None:
+    """A profile term and a pool term differing only in case must not produce two queries."""
+    from app.services.role_family import RoleFamily
+    from app.services.search_fallback import get_profile_fallback_keywords
+
+    kws = get_profile_fallback_keywords(
+        profile_terms=("Lagerarbeiter", "Lagermitarbeiter"),
+        family=RoleFamily.WAREHOUSE,
+        role_primary_de="lager",
+        broaden=True,
+    )
+    lowered = [k.lower() for k in kws]
+    assert len(lowered) == len(set(lowered))  # no case-insensitive duplicates
+    assert sum(1 for k in kws if k.lower() == "lagermitarbeiter") == 1
+    assert "lagerarbeiter" not in lowered  # primary excluded case-insensitively
+
+
+def test_skilled_trade_fallback_is_not_polluted_by_sibling_trades() -> None:
+    """An electrician search must NOT pull unrelated construction trades (mason/painter)."""
+    from app.services.role_intent import normalize_role_intent
+
+    intent = normalize_role_intent("электрик")
+    kws = get_intent_fallback_keywords(intent=intent, primary_query=intent.primary_de, low_language=False)
+    assert "maurer" not in kws
+    assert "maler" not in kws
+    assert "fliesenleger" not in kws
+
+
 def test_unknown_saved_role_does_not_trigger_helper_poisoning() -> None:
     """Unknown/narrow accepted behavior: no deterministic helper fallback for unknown roles."""
     empty = _make_result()
@@ -107,6 +140,17 @@ def test_unknown_saved_role_does_not_trigger_helper_poisoning() -> None:
     assert result.attempt_summary.fallback_used is False
     assert result.attempt_summary.final_query_used == "xyz"
     assert [attempt.query_used for attempt in result.attempt_summary.attempts] == ["xyz"]
+
+
+def test_orchestrated_search_scores_attempts_without_llm_enrichment() -> None:
+    svc = _make_service([_make_result(hot=1, maybe=1)])
+
+    svc.orchestrated_search(search_input=_make_search_input("lager"))
+
+    assert svc.search.call_count >= 1
+    # Every attempt must be scored deterministically; LLM enrichment is deferred to the end.
+    for call in svc.search.call_args_list:
+        assert call.kwargs.get("enrich_with_llm") is False
 
 
 def test_is_low_language_profile_both_none() -> None:
@@ -138,11 +182,13 @@ def test_primary_sufficient_still_runs_full_planned_query_set() -> None:
 
     result = svc.orchestrated_search(search_input=_make_search_input("lager"))
 
-    assert svc.search.call_count == 4
+    # >= 4: exact count depends on the (now broader) synonym pool; the invariant is that the
+    # full planned set runs (more than just the primary), not a specific number.
+    assert svc.search.call_count >= 4
     assert result.attempt_summary is not None
     summary: SearchAttemptSummary = result.attempt_summary
     assert summary.fallback_used
-    assert len(summary.attempts) == 4
+    assert len(summary.attempts) >= 4
     assert summary.attempts[0].stage_name == "primary"
 
 
@@ -201,9 +247,10 @@ def test_germany_local_runs_all_profile_search_terms_even_when_primary_is_enough
         search_input=_make_search_input("Middle Python Developer", search_mode="germany_local")
     )
 
-    assert svc.search.call_count == 4
+    assert svc.search.call_count >= 4
     assert result.attempt_summary is not None
-    assert [attempt.query_used for attempt in result.attempt_summary.attempts] == [
+    # The explicit profile terms run first (in order); synonym broadening is appended after.
+    assert [attempt.query_used for attempt in result.attempt_summary.attempts][:4] == [
         "Middle Python Developer",
         "Python Backend Developer",
         "FastAPI Developer",
@@ -235,9 +282,10 @@ def test_saved_profile_desired_roles_become_search_tabs_when_terms_missing() -> 
         search_input=_make_search_input("Middle Python Developer", search_mode="remote_worldwide")
     )
 
-    assert svc.search.call_count == 3
+    assert svc.search.call_count >= 3
     assert result.attempt_summary is not None
-    assert [attempt.query_used for attempt in result.attempt_summary.attempts] == [
+    # Desired roles run first (in order); synonym broadening is appended after.
+    assert [attempt.query_used for attempt in result.attempt_summary.attempts][:3] == [
         "Middle Python Developer",
         "Python Backend Developer",
         "FastAPI Developer",
@@ -263,10 +311,13 @@ def test_germany_local_saved_cyrillic_profile_roles_use_german_source_queries() 
         search_input=_make_search_input("курьер", search_mode="germany_local")
     )
 
-    assert svc.search.call_count == 2
+    assert svc.search.call_count >= 2
     assert result.attempt_summary is not None
     queries = [attempt.query_used for attempt in result.attempt_summary.attempts]
-    assert queries == ["kurier", "fahrer"]
+    assert queries[0] == "kurier"  # primary translated from курьер
+    assert "fahrer" in queries
+    assert "zusteller" in queries  # broadened with same-family alternative titles
+    # Core invariant: German sources must never receive Cyrillic terms.
     assert not any(any("а" <= char.lower() <= "я" or char.lower() == "ё" for char in query) for query in queries)
 
 
@@ -309,7 +360,7 @@ def test_partial_results_include_completed_attempts_for_live_tabs() -> None:
         partial_result_callback=partials.append,
     )
 
-    assert len(partials) == 2
+    assert len(partials) >= 2
     assert partials[0].attempt_summary is not None
     assert [attempt.query_used for attempt in partials[0].attempt_summary.attempts] == [
         "Middle Python Developer",
@@ -344,9 +395,9 @@ def test_fallback_does_not_stop_when_enough_results() -> None:
 
     result = svc.orchestrated_search(search_input=_make_search_input("lager"))
 
-    assert svc.search.call_count == 4
+    assert svc.search.call_count >= 4
     summary = result.attempt_summary
-    assert len(summary.attempts) == 4
+    assert len(summary.attempts) >= 4
     assert summary.attempts[1].stage_name == "fallback_1"
 
 
@@ -447,7 +498,7 @@ def test_llm_fallback_not_used_when_no_llm_client() -> None:
 
     result = svc.orchestrated_search(search_input=_make_search_input("lager"))
 
-    assert svc.search.call_count == 4
+    assert svc.search.call_count >= 4
     assert all(a.stage_name != "llm_1" for a in result.attempt_summary.attempts)
 
 

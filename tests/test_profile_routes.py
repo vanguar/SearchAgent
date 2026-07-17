@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import pytest
+from app.db.models.profiles import SearchProfile, UserProfile
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-
-from app.db.models.profiles import SearchProfile, UserProfile
 
 
 @pytest.fixture()

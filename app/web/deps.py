@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from app.core.config import Settings
 from app.services.intake_agent import IntakeAgentService
-from app.services.llm_client import LazyOpenAILLMClient, build_lazy_llm_client, get_runtime_status
+from app.services.llm_client import LazyOpenAILLMClient, build_lazy_llm_client
 from app.services.match_explainer import MatchExplainer
 from app.services.profile_catalog_service import ProfileCatalogService
 from app.services.search_service import SearchService

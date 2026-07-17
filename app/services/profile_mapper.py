@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from app.services.intake_models import IntakeProfileDraft, MappedProfilePayload, SearchProfilePayload, UserProfilePayload
+from app.services.intake_models import (
+    IntakeProfileDraft,
+    MappedProfilePayload,
+    SearchProfilePayload,
+    UserProfilePayload,
+)
 
 
 def _to_country_code(current_country: str | None) -> str | None:

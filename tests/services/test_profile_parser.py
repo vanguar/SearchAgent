@@ -2,7 +2,6 @@ from unittest.mock import MagicMock
 
 from app.services.profile_parser import ProfileParser
 
-
 EXAMPLE_TEXT = (
     "Я в Германии, по 24 параграфу, немецкого почти не знаю, английский слабый, "
     "ищу склад, упаковку, производство, можно по всей Германии, готов к переезду, смены ок."

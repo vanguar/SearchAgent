@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
-from typing import Any
+from typing import Any, Literal
 
 RawPayload = dict[str, Any] | list[Any] | str | int | float | bool | None
 SearchMode = Literal["germany_local", "remote_worldwide"]

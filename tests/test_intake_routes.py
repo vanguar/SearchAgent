@@ -1,17 +1,15 @@
 from collections.abc import Generator
 
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
-
 import app.db.models  # noqa: F401
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import create_app
 from app.services.intake_models import IntakeAnalysisResult, IntakeProfileDraft, IntakeSaveResult
 from app.web.deps import get_intake_agent
-
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 EXAMPLE_TEXT = (
     "Я в Германии, по 24 параграфу, немецкого почти не знаю, английский слабый, "

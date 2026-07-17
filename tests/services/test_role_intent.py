@@ -2,10 +2,8 @@
 from __future__ import annotations
 
 import pytest
-
 from app.services.role_family import RoleFamily
-from app.services.role_intent import RoleIntent, normalize_role_intent
-
+from app.services.role_intent import normalize_role_intent
 
 # ---------------------------------------------------------------------------
 # DRIVING family
@@ -199,3 +197,58 @@ def test_role_intent_is_frozen() -> None:
     assert intent is not None
     with pytest.raises(Exception):
         intent.family = RoleFamily.GENERIC  # type: ignore[misc]
+
+
+# ---------------------------------------------------------------------------
+# Added rarer roles (RU/UA/EN -> DE) — verified German keywords
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("query,expected_family,expected_de", [
+    ("таксист", RoleFamily.DRIVING, "taxifahrer"),
+    ("дальнобойщик", RoleFamily.DRIVING, "berufskraftfahrer"),
+    ("водитель погрузчика", RoleFamily.WAREHOUSE, "staplerfahrer"),
+    ("бармен", RoleFamily.KITCHEN, "barkeeper"),
+    ("бариста", RoleFamily.KITCHEN, "barista"),
+    ("пекарь", RoleFamily.KITCHEN, "bäcker"),
+    ("кондитер", RoleFamily.KITCHEN, "konditor"),
+    ("мойщик посуды", RoleFamily.KITCHEN, "spülkraft"),
+    ("мясник", RoleFamily.KITCHEN, "metzger"),
+    ("врач", RoleFamily.HEALTHCARE, "arzt"),
+    ("физиотерапевт", RoleFamily.HEALTHCARE, "physiotherapeut"),
+    ("стоматолог", RoleFamily.HEALTHCARE, "zahnarzt"),
+    ("маляр", RoleFamily.CONSTRUCTION, "maler"),
+    ("плиточник", RoleFamily.CONSTRUCTION, "fliesenleger"),
+    ("штукатур", RoleFamily.CONSTRUCTION, "stuckateur"),
+    ("столяр", RoleFamily.CONSTRUCTION, "tischler"),
+    ("каменщик", RoleFamily.CONSTRUCTION, "maurer"),
+    ("кровельщик", RoleFamily.CONSTRUCTION, "dachdecker"),
+    ("сантехник", RoleFamily.CONSTRUCTION, "anlagenmechaniker"),
+    ("автомеханик", RoleFamily.CONSTRUCTION, "kfz-mechaniker"),
+    ("швея", RoleFamily.PRODUCTION, "näherin"),
+    ("сборщик урожая", RoleFamily.AGRICULTURE, "erntehelfer"),
+    ("оператор колл-центра", RoleFamily.OFFICE, "callcenter"),
+    ("сторож", RoleFamily.SECURITY, "sicherheitsdienst"),
+    ("разнорабочий", RoleFamily.GENERIC, "helfer"),
+    ("plumber", RoleFamily.CONSTRUCTION, "anlagenmechaniker"),
+    ("painter", RoleFamily.CONSTRUCTION, "maler"),
+    ("baker", RoleFamily.KITCHEN, "bäcker"),
+])
+def test_normalize_role_intent_added_rare_roles(query: str, expected_family: RoleFamily, expected_de: str) -> None:
+    result = normalize_role_intent(query)
+    assert result is not None, f"Expected intent for {query!r}, got None"
+    assert result.family == expected_family
+    assert result.primary_de == expected_de
+
+
+@pytest.mark.parametrize("query,expected_de", [
+    # Longer added keys must not hijack these existing single-word queries.
+    ("курьер", "kurier"),
+    ("водитель", "fahrer"),
+    ("оператор", "maschinenführer"),
+    ("сборщик", "montagemitarbeiter"),
+    ("грузчик", "lagerhelfer"),
+])
+def test_added_roles_do_not_regress_existing_queries(query: str, expected_de: str) -> None:
+    result = normalize_role_intent(query)
+    assert result is not None
+    assert result.primary_de == expected_de

@@ -3,15 +3,26 @@ from __future__ import annotations
 import logging
 from datetime import UTC, date, datetime
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session, sessionmaker
-
 from app.db.models.search import SearchRun, VacancyScore
 from app.db.models.vacancies import VacancyCanonical, VacancySourceRecord
 from app.services.filter_engine import FilterResult
-from app.services.normalization_models import CanonicalVacancyGroup, LanguageSignals, NormalizedLocation, NormalizedVacancyRecord
+from app.services.normalization_models import (
+    CanonicalVacancyGroup,
+    LanguageSignals,
+    NormalizedLocation,
+    NormalizedVacancyRecord,
+)
 from app.services.search_history_service import SearchHistoryService
-from app.services.search_models import RuleHit, ScoreResult, SearchProfileContext, SearchResultItem, SearchRunResult, VacancySignalSnapshot
+from app.services.search_models import (
+    RuleHit,
+    ScoreResult,
+    SearchProfileContext,
+    SearchResultItem,
+    SearchRunResult,
+    VacancySignalSnapshot,
+)
+from sqlalchemy import select
+from sqlalchemy.orm import Session, sessionmaker
 
 
 def _normalized_record(*, source_id: str, source_name: str, external_id: str, title: str, city: str) -> NormalizedVacancyRecord:

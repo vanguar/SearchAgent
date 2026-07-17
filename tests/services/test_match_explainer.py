@@ -1,5 +1,5 @@
 from app.services.match_explainer import MatchExplainer
-from app.services.search_models import FilterResult, RuleHit, ScoreResult, RelevanceBand
+from app.services.search_models import FilterResult, RuleHit, ScoreResult
 
 
 def test_match_explainer_formats_hot_match_in_short_russian() -> None:

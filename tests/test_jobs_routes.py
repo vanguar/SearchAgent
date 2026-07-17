@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
+import dataclasses
 
 from app.main import create_app
 from app.services.normalization_models import CanonicalVacancyGroup, NormalizedVacancyRecord
@@ -11,6 +11,7 @@ from app.services.search_models import (
     RuleHit,
     ScoreResult,
     SearchProfileContext,
+    SearchQueryResultGroup,
     SearchResultItem,
     SearchRunResult,
     SearchSourceState,
@@ -26,6 +27,7 @@ from app.services.source_adapters.models import (
 )
 from app.services.source_adapters.registry import SourceAdapterRegistry
 from app.web.routes.jobs import _SearchTask, get_profile_catalog_service, get_search_history_service, get_search_service
+from fastapi.testclient import TestClient
 
 
 def _normalize_record(
@@ -1017,3 +1019,75 @@ def test_jobs_legacy_source_preview_route_is_not_exposed_anymore() -> None:
     app.dependency_overrides.clear()
 
     assert response.status_code == 404
+
+
+def test_jobs_export_renders_all_vacancies_for_completed_task() -> None:
+    app = create_app()
+    client = TestClient(app)
+    from app.web.routes.jobs import _register_task
+
+    task = _SearchTask(task_id="export1", profile_id=None)
+    task.mark_done(_build_result())
+    _register_task(task)
+
+    response = client.get("/jobs/export/export1")
+
+    assert response.status_code == 200
+    assert "Lagermitarbeiter/in" in response.text  # vacancy title present
+    assert "Сотрудник склада" in response.text  # translated title / summary present
+    assert "Источник:" in response.text
+    assert "https://example.org/jobs/10000-1234567890-S" in response.text  # clickable link
+    assert "Сохранить как PDF" in response.text
+    assert "window.print()" in response.text  # auto-print for one-click PDF
+
+
+def test_jobs_export_groups_vacancies_by_keyword() -> None:
+    base = _build_result()
+    item1, item2, _item3 = base.results
+    grouped = dataclasses.replace(
+        base,
+        query_result_groups=(
+            SearchQueryResultGroup(query="Python Developer", hot_results=(item1,), maybe_results=()),
+            SearchQueryResultGroup(query="FastAPI", hot_results=(item2,), maybe_results=()),
+        ),
+    )
+
+    app = create_app()
+    client = TestClient(app)
+    from app.web.routes.jobs import _register_task
+
+    task = _SearchTask(task_id="exportkw", profile_id=None)
+    task.mark_done(grouped)
+    _register_task(task)
+
+    response = client.get("/jobs/export/exportkw")
+
+    assert response.status_code == 200
+    assert "Ключевик: «Python Developer»" in response.text
+    assert "Ключевик: «FastAPI»" in response.text
+
+
+def test_jobs_export_unknown_task_shows_friendly_message() -> None:
+    app = create_app()
+    client = TestClient(app)
+
+    response = client.get("/jobs/export/does-not-exist")
+
+    assert response.status_code == 200
+    assert "Нет данных для экспорта" in response.text
+
+
+def test_jobs_search_progress_done_shows_pdf_export_button() -> None:
+    app = create_app()
+    client = TestClient(app)
+    from app.web.routes.jobs import _register_task
+
+    task = _SearchTask(task_id="exportbtn", profile_id=None)
+    task.mark_done(_build_result())
+    _register_task(task)
+
+    response = client.get("/jobs/search/progress/exportbtn")
+
+    assert response.status_code == 200
+    assert "Скачать всё в ПДФ" in response.text
+    assert "/jobs/export/exportbtn" in response.text

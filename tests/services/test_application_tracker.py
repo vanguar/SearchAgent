@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-
 from app.db.models.crm import InterviewEvent, LeadEvent
 from app.services.application_tracker import ApplicationTrackerService
 from app.services.cover_letter_service import CoverLetterService
 from app.services.resume_service import ResumeService
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 
 def test_application_tracker_marks_applied_and_links_documents(

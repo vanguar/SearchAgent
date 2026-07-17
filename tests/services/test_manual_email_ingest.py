@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from sqlalchemy import select
-
 from app.db.models.crm import LeadEvent
 from app.db.models.email import EmailMessage, EmailThread
 from app.services.email.manual_email_ingest import ManualEmailIngestService
+from sqlalchemy import select
 
 
 def test_manual_email_ingest_persists_message_and_builds_match(db_session, owner_records, saved_lead) -> None:

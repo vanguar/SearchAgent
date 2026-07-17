@@ -1,12 +1,10 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
-
 import app.db.models  # noqa: F401
 from app.db.base import Base
 from app.db.models.profiles import SearchProfile, UserProfile
 from app.services.intake_agent import IntakeAgentService
 from app.services.llm_client import LLMStatus, _set_runtime_status
-
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 
 IT_TIMEOUT_TEXT = """
 Я в Германии по §24 AufenthG, разрешение на работу есть.

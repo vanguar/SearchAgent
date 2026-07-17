@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy.orm import Session
-
 from app.db.models.crm import ApplicationLead, LeadEvent, ReminderTask
 from app.db.models.profiles import SearchProfile
 from app.db.models.search import SearchRun, VacancyScore
 from app.db.models.vacancies import VacancyCanonical, VacancySourceRecord
 from app.services.stats_service import StatsService
+from sqlalchemy.orm import Session
 
 
 def _seed_stats_dataset(db_session: Session, owner_records: dict[str, object]) -> None:

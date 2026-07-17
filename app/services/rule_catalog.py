@@ -5,8 +5,8 @@ from dataclasses import dataclass
 
 from app.services.hashers import normalize_text_for_fingerprint
 from app.services.normalization_models import CanonicalVacancyGroup
-from app.services.search_normalizer import is_remote_worldwide_location
 from app.services.search_models import RuleHit, SearchProfileContext, VacancySignalSnapshot, normalize_profile_text
+from app.services.search_normalizer import is_remote_worldwide_location
 
 HOT_BUCKET_MIN_SCORE = 70
 MAYBE_BUCKET_MIN_SCORE = 45
@@ -39,7 +39,16 @@ POSITIVE_ROLE_FAMILIES: tuple[TextRule, ...] = (
     TextRule(
         code="production_family",
         label_ru="производственная роль",
-        patterns=(r"\bproduktion\w*", r"\bfertigung\w*", r"\bmontage\w*", r"\bassembly\b"),
+        # NB: bare "montage"/"assembly" intentionally NOT used — they collide with the
+        # English film/video term "montage" and software/meeting "assembly", which made
+        # creative roles (e.g. "Cinematic Video Editor") false-match as production work.
+        # Restricted to unambiguous German assembly compounds + explicit manufacturing phrases.
+        patterns=(
+            r"\bproduktion\w*", r"\bfertigung\w*",
+            r"\bmontagemitarbeiter\w*", r"\bmontagehelfer\w*", r"\bmontagearbeit\w*",
+            r"\bendmontage\w*", r"\bvormontage\w*", r"\bmontagelinie\w*", r"\bfliessband\w*",
+            r"\bassembly line\b", r"\bassembly worker\b",
+        ),
     ),
     TextRule(
         code="helper_family",
@@ -121,9 +130,11 @@ GERMAN_ANY_REQUIRED_RULE = TextRule(
         r"\bdeutsch\s+(?:ist|als)\s+(?:pflicht|voraussetzung|anforderung|muss)\b",
         # Communication in German
         r"\bkommunikation\s+(?:auf\s+)?deutsch\b",
-        # English patterns for German requirement
+        # English patterns for German requirement.
+        # NB: soft/optional phrasings ("German is an asset", "German is a plus",
+        # "German nice to have") must NOT match — they signal German is optional, not required.
         r"\bgerman\s+(?:required|must|mandatory|needed|proficiency|language skills)\b",
-        r"\bgerman\s+(?:is|as)\s+(?:required|mandatory|a must|an asset)\b",
+        r"\bgerman\s+(?:is|as)\s+(?:required|mandatory|a must)\b",
     ),
 )
 LOW_LANGUAGE_RULE = TextRule(

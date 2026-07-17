@@ -7,13 +7,18 @@ from app.services.normalization_models import NormalizedLocation
 
 _POSTAL_CODE_RE = re.compile(r"\b\d{5}\b")
 _CITY_PREFIX_RE = re.compile(r"^(?:raum|region|nahe|naehe|bei)\s+", re.IGNORECASE)
-_COUNTRY_ALIASES: dict[str, tuple[str, ...]] = {
-    "DE": ("deutschland", "germany", "de"),
-    "AT": ("oesterreich", "osterreich", "austria", "at"),
-    "CH": ("schweiz", "switzerland", "ch"),
-    "PL": ("polen", "poland", "pl"),
-    "NL": ("niederlande", "netherlands", "nl"),
+# Full-word country names, matched case-insensitively on normalized text.
+_COUNTRY_WORD_ALIASES: dict[str, tuple[str, ...]] = {
+    "DE": ("deutschland", "germany"),
+    "AT": ("oesterreich", "osterreich", "austria"),
+    "CH": ("schweiz", "switzerland"),
+    "PL": ("polen", "poland"),
+    "NL": ("niederlande", "netherlands"),
 }
+# Two-letter ISO codes are matched ONLY when they appear uppercase in the raw text.
+# Lower-casing them (as before) made the English preposition "at" resolve to Austria,
+# "de"/"in" to a country, etc. — a real misclassification for remote/English locations.
+_COUNTRY_ISO_CODES: tuple[str, ...] = ("DE", "AT", "CH", "PL", "NL")
 
 
 class LocationNormalizer:
@@ -43,8 +48,12 @@ class LocationNormalizer:
         )
 
     def _detect_country_code(self, location_text: str) -> str | None:
+        # Uppercase ISO code in the raw text (e.g. "Vienna, AT") — case-sensitive on purpose.
+        for code in _COUNTRY_ISO_CODES:
+            if re.search(rf"\b{code}\b", location_text):
+                return code
         normalized = normalize_text_for_fingerprint(location_text)
-        for country_code, aliases in _COUNTRY_ALIASES.items():
+        for country_code, aliases in _COUNTRY_WORD_ALIASES.items():
             for alias in aliases:
                 if re.search(rf"\b{re.escape(alias)}\b", normalized):
                     return country_code
@@ -55,7 +64,11 @@ class LocationNormalizer:
         if postal_code:
             cleaned = cleaned.replace(postal_code, " ")
 
-        for aliases in _COUNTRY_ALIASES.values():
+        # Strip uppercase ISO codes (case-sensitive) so "Berlin, DE" → "Berlin",
+        # while leaving lowercase prepositions like "at" untouched.
+        for code in _COUNTRY_ISO_CODES:
+            cleaned = re.sub(rf"\b{code}\b", " ", cleaned)
+        for aliases in _COUNTRY_WORD_ALIASES.values():
             for alias in aliases:
                 cleaned = re.sub(rf"\b{re.escape(alias)}\b", " ", cleaned, flags=re.IGNORECASE)
 

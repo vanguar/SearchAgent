@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Вакансии — экспорт в PDF</title>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      color: #1a1a1a;
+      margin: 0;
+      padding: 24px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .export-meta { color: #555; font-size: 12px; margin-bottom: 16px; }
+    .export-toolbar { margin: 0 0 20px; }
+    .print-btn {
+      font-size: 14px; padding: 8px 16px; cursor: pointer;
+      border: 1px solid #2b6cb0; background: #2b6cb0; color: #fff; border-radius: 6px;
+    }
+    .export-counts { margin: 0 0 20px; padding: 10px 14px; background: #f4f6f8; border-radius: 6px; font-size: 12px; }
+    .export-counts span { margin-right: 14px; white-space: nowrap; }
+    .vacancy {
+      border: 1px solid #d7dde3;
+      border-left-width: 5px;
+      border-radius: 6px;
+      padding: 12px 14px;
+      margin: 0 0 12px;
+      page-break-inside: avoid;
+    }
+    .vacancy--hot { border-left-color: #d9534f; }
+    .vacancy--maybe { border-left-color: #e0a800; }
+    .vacancy--rejected { border-left-color: #9aa5b1; }
+    .vacancy__title { font-size: 15px; font-weight: 700; margin: 0; }
+    .vacancy__title-ru { font-weight: 400; color: #444; font-size: 13px; }
+    .vacancy__company { color: #333; margin: 2px 0 6px; }
+    .vacancy__meta { font-size: 12px; color: #555; margin: 0 0 6px; }
+    .vacancy__meta b { color: #1a1a1a; }
+    .badge { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+    .badge--hot { background: #fdecea; color: #c0392b; }
+    .badge--maybe { background: #fff6db; color: #8a6d00; }
+    .badge--rejected { background: #eef1f4; color: #5b6470; }
+    .vacancy__summary { margin: 6px 0; }
+    .vacancy__explanation { margin: 6px 0; }
+    .vacancy__link { word-break: break-all; font-size: 12px; }
+    .vacancy__link a { color: #2b6cb0; }
+    .section-title { font-size: 16px; margin: 26px 0 10px; border-bottom: 2px solid #d7dde3; padding-bottom: 4px; }
+    .hidden-row { font-size: 12px; padding: 6px 0; border-bottom: 1px solid #eee; page-break-inside: avoid; }
+    .muted { color: #777; }
+    .empty { padding: 20px; background: #f4f6f8; border-radius: 6px; }
+    @media print {
+      body { padding: 0; }
+      .export-toolbar { display: none; }
+      .vacancy { border-color: #999; }
+    }
+  </style>
+</head>
+<body>
+  {% macro relevance_label(bucket) -%}
+    {%- if bucket == "hot" -%}Высокая (горячая)
+    {%- elif bucket == "maybe" -%}Средняя (на проверку)
+    {%- else -%}Низкая (отклонена){%- endif -%}
+  {%- endmacro %}
+
+  {% macro item_link(item) -%}
+    {%- set ns = namespace(url=None) -%}
+    {%- if item.primary_record.source_url and item.primary_record.source_url|trim -%}
+      {%- set ns.url = item.primary_record.source_url|trim -%}
+    {%- else -%}
+      {%- for record in item.canonical_group.source_records -%}
+        {%- if not ns.url and record.source_url and record.source_url|trim -%}
+          {%- set ns.url = record.source_url|trim -%}
+        {%- endif -%}
+      {%- endfor -%}
+    {%- endif -%}
+    {{- ns.url or "" -}}
+  {%- endmacro %}
+
+  {% macro render_vacancy(item) %}
+    {% set link = item_link(item)|trim %}
+    <div class="vacancy vacancy--{{ item.bucket }}">
+      <p class="vacancy__title">
+        {{ item.primary_record.original_title }}
+        {% if item.translated_title_ru %}<span class="vacancy__title-ru">— {{ item.translated_title_ru }}</span>{% endif %}
+      </p>
+      <p class="vacancy__company">
+        {{ item.primary_record.original_company or item.canonical_group.company_name or "Компания не указана" }}
+        {% if item.primary_record.original_location or item.canonical_group.location_text %}
+          · {{ item.primary_record.original_location or item.canonical_group.location_text }}
+        {% endif %}
+      </p>
+      <p class="vacancy__meta">
+        <span class="badge badge--{{ item.bucket }}">{{ relevance_label(item.bucket) }}</span>
+        · <b>Оценка:</b> {{ item.score_result.score }}/100
+        · <b>Источник:</b> {{ item.primary_record.source_name }}
+        {% if item.canonical_group.source_records|length > 1 %} · {{ item.canonical_group.source_records|length }} источника{% endif %}
+        {% if item.canonical_group.posted_date %} · <b>Дата:</b> {{ item.canonical_group.posted_date }}{% endif %}
+      </p>
+      {% if item.summary_ru %}<p class="vacancy__summary">{{ item.summary_ru }}</p>{% endif %}
+      <p class="vacancy__explanation"><b>{{ item.explanation_ru }}</b></p>
+      {% if link %}
+      <p class="vacancy__link">Ссылка: <a href="{{ link }}">{{ link }}</a></p>
+      {% else %}
+      <p class="vacancy__link muted">Оригинальная ссылка недоступна</p>
+      {% endif %}
+    </div>
+  {% endmacro %}
+
+  {% if not search_result or not search_result.has_results %}
+    <h1>Экспорт вакансий</h1>
+    <div class="empty">
+      Нет данных для экспорта. Возможно, результаты поиска устарели (сессия поиска хранится ограниченное время).
+      Запустите поиск заново и снова нажмите «Скачать всё в ПДФ».
+    </div>
+  {% else %}
+    {% set primary_query = search_result.attempt_summary.primary_query if search_result.attempt_summary else None %}
+    <div class="export-toolbar">
+      <button type="button" class="print-btn" onclick="window.print()">⬇ Сохранить как PDF / Печать</button>
+    </div>
+
+    <h1>Вакансии по поиску{% if primary_query %}: «{{ primary_query }}»{% endif %}</h1>
+    <div class="export-meta">
+      Сформировано: {{ generated_at.strftime("%Y-%m-%d %H:%M") }} UTC ·
+      Профиль: {{ search_result.profile.profile_label or "—" }}
+    </div>
+
+    <div class="export-counts">
+      <span><b>Горячие:</b> {{ search_result.hot_results|length }}</span>
+      <span><b>На проверку:</b> {{ search_result.maybe_results|length }}</span>
+      <span><b>Отклонены:</b> {{ search_result.rejected_results|length }}</span>
+      <span><b>Скрыто фильтрами:</b> {{ search_result.hidden_filtered_items|length }}</span>
+      <span><b>Сырых записей:</b> {{ search_result.total_raw_records }}</span>
+    </div>
+
+    {% set keyword_groups = search_result.query_result_groups | selectattr("query") | list %}
+    {% if keyword_groups %}
+      <p class="muted" style="margin: 0 0 14px;">
+        Документ сгруппирован по ключевикам поиска. Одна вакансия может попасть в несколько ключевиков.
+      </p>
+      {% for group in keyword_groups %}
+        {% if group.hot_results or group.maybe_results %}
+        <h2 class="section-title">Ключевик: «{{ group.query }}» ({{ group.visible_count }})</h2>
+        {% for item in group.hot_results %}{{ render_vacancy(item) }}{% endfor %}
+        {% for item in group.maybe_results %}{{ render_vacancy(item) }}{% endfor %}
+        {% endif %}
+      {% endfor %}
+    {% else %}
+      {% for item in search_result.hot_results %}{{ render_vacancy(item) }}{% endfor %}
+      {% for item in search_result.maybe_results %}{{ render_vacancy(item) }}{% endfor %}
+    {% endif %}
+
+    {% if search_result.hidden_filtered_items %}
+    <h2 class="section-title">Скрыто жёсткими фильтрами ({{ search_result.hidden_filtered_items|length }})</h2>
+    {% for hidden in search_result.hidden_filtered_items %}
+    <div class="hidden-row">
+      <b>{{ hidden.title }}</b>
+      {% if hidden.company_name %} · {{ hidden.company_name }}{% endif %}
+      {% if hidden.location_text %} · {{ hidden.location_text }}{% endif %}
+      {% if hidden.source_name %} · Источник: {{ hidden.source_name }}{% endif %}
+      {% if hidden.rejection_reasons %}
+        <br /><span class="muted">Причина: {{ hidden.rejection_reasons|map(attribute="label_ru")|join(", ") }}</span>
+      {% endif %}
+      {% if hidden.original_url %}<br /><span class="vacancy__link"><a href="{{ hidden.original_url }}">{{ hidden.original_url }}</a></span>{% endif %}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <script>
+      // Auto-open the print dialog so the user can pick "Сохранить как PDF".
+      window.addEventListener("load", function () { setTimeout(function () { window.print(); }, 350); });
+    </script>
+  {% endif %}
+</body>
+</html>

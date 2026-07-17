@@ -15,13 +15,11 @@ Verifies that the parser + validator pipeline correctly handles:
 from __future__ import annotations
 
 import pytest
-
 from app.services.intake_models import IntakeProfileDraft
 from app.services.profile_extraction_model import ProfileExtractionResult
 from app.services.profile_parser import ProfileParser, extraction_result_to_draft
 from app.services.profile_post_processor import process as post_process
 from app.services.profile_validator import ProfileValidator
-
 
 IT_PROFILE_TEXT = """\
 Я хочу создать рабочий профиль для поиска IT/MVP/AI Automation проектов и вакансий.

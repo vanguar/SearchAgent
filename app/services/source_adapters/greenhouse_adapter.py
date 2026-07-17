@@ -7,9 +7,19 @@ from typing import Any
 
 from app.core.config import Settings
 from app.services.source_adapters.base import BaseSourceAdapter
-from app.services.source_adapters.errors import AdapterRequestError, AdapterResponseError, HttpDecodeError, HttpTransportError
+from app.services.source_adapters.errors import (
+    AdapterRequestError,
+    AdapterResponseError,
+    HttpDecodeError,
+    HttpTransportError,
+)
 from app.services.source_adapters.http import HttpJsonTransport, UrllibHttpJsonTransport
-from app.services.source_adapters.models import AdapterSearchResponse, SourceAdapterDescriptor, SourceRecordPreview, SourceSearchInput
+from app.services.source_adapters.models import (
+    AdapterSearchResponse,
+    SourceAdapterDescriptor,
+    SourceRecordPreview,
+    SourceSearchInput,
+)
 
 _HTML_RE = re.compile(r"<[^>]+>")
 

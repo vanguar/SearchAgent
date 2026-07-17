@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import pytest
-from sqlalchemy.orm import Session
-
 from app.db.models.profiles import SearchProfile, UserProfile
 from app.services.email.workspace_service import EmailWorkspaceService
+from sqlalchemy.orm import Session
 
 
 @pytest.fixture()

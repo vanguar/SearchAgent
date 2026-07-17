@@ -3,9 +3,15 @@ from __future__ import annotations
 from app.services.filter_engine import FilterEngine
 from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.rule_catalog import BASE_SCORE, inspect_vacancy
-from app.services.search_models import FilterResult, RuleHit, ScoreResult, SearchProfileContext, VacancySignalSnapshot
-from app.services.search_models import normalize_profile_text
-
+from app.services.search_models import (
+    FilterResult,
+    RuleHit,
+    ScoreResult,
+    SearchProfileContext,
+    VacancySignalSnapshot,
+    normalize_profile_text,
+)
+from app.services.search_normalizer import is_remote_worldwide_location
 
 _CORE_STACK_RULES: tuple[tuple[str, str, int, tuple[str, ...]], ...] = (
     ("stack_python", "Python в стеке", 14, ("python",)),
@@ -71,9 +77,12 @@ class VacancyScorer:
         signals: VacancySignalSnapshot | None = None,
         filter_result: FilterResult | None = None,
         feedback_adjustment: int | None = None,
+        search_mode: str | None = None,
     ) -> ScoreResult:
         resolved_signals = signals or inspect_vacancy(canonical, profile)
-        resolved_filter = filter_result or self.filter_engine.evaluate(canonical, profile, signals=resolved_signals)
+        resolved_filter = filter_result or self.filter_engine.evaluate(
+            canonical, profile, signals=resolved_signals, search_mode=search_mode
+        )
 
         score = BASE_SCORE
         positive_hits: list[RuleHit] = []
@@ -142,10 +151,20 @@ class VacancyScorer:
             score += 8
             positive_hits.append(RuleHit(code="entry_level_signal", label_ru="без жесткого упора на опыт", weight=8))
 
+        # A worldwide-remote run deliberately ignores geography (mirrors FilterEngine):
+        # never penalize a location "mismatch" the user explicitly opted out of.
+        worldwide_search = (
+            search_mode == "remote_worldwide"
+            or is_remote_worldwide_location(profile.preferred_locations)
+        )
         if resolved_signals.location_match:
             score += 6
             positive_hits.append(RuleHit(code="location_match", label_ru="локация совпадает с профилем", weight=6))
-        elif resolved_signals.location_match is False and profile.relocation_ready is False:
+        elif (
+            resolved_signals.location_match is False
+            and profile.relocation_ready is False
+            and not worldwide_search
+        ):
             score -= 15
             negative_hits.append(RuleHit(code="location_mismatch", label_ru="локация не совпадает с профилем", weight=-15))
 

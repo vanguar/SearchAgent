@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from app.core.config import Settings
 from app.services.source_adapters.adzuna_adapter import AdzunaAdapter
 from app.services.source_adapters.errors import (

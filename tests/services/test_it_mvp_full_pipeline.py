@@ -15,18 +15,14 @@ Also documents and tests the downstream search-query flow:
 """
 from __future__ import annotations
 
-import json
 from unittest.mock import MagicMock
 
 import pytest
-
 from app.services.intake_agent import IntakeAgentService
 from app.services.profile_extraction_model import ProfileExtractionResult
-from app.services.profile_parser import extraction_result_to_draft
 from app.services.profile_post_processor import process as post_process
 from app.services.profile_role_taxonomy import RoleFamily, classify_roles
 from app.services.search_normalizer import normalize_query_from_roles
-
 
 # ---------------------------------------------------------------------------
 # IT/MVP/AI Automation profile text (real user text)

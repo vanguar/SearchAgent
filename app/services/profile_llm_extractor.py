@@ -7,7 +7,6 @@ On LLM failure returns None so the caller can use the conservative fallback.
 """
 from __future__ import annotations
 
-import json
 import logging
 
 from pydantic import ValidationError

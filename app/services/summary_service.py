@@ -25,6 +25,8 @@ class SummaryService:
     ) -> None:
         self.translation_service = translation_service or TranslationService()
         self.helper = helper
+        # Per-instance cache keyed by body text — dedupes LLM summary calls within one run.
+        self._llm_cache: dict[str, str | None] = {}
 
     def build_summary(
         self,
@@ -32,15 +34,25 @@ class SummaryService:
         signals: VacancySignalSnapshot,
         *,
         translated_title_ru: str | None = None,
+        use_llm: bool = True,
     ) -> str | None:
-        if self.helper is not None and canonical.source_records:
-            helper_summary = self.helper.summarize(canonical.source_records[0].body_text or "")
-            if helper_summary:
-                return helper_summary.strip()
+        if use_llm and self.helper is not None and canonical.source_records:
+            body_text = canonical.source_records[0].body_text or ""
+            if body_text in self._llm_cache:
+                cached = self._llm_cache[body_text]
+                if cached:
+                    return cached
+            else:
+                helper_summary = self.helper.summarize(body_text)
+                normalized_summary = helper_summary.strip() if helper_summary else None
+                self._llm_cache[body_text] = normalized_summary
+                if normalized_summary:
+                    return normalized_summary
 
         translated_title = translated_title_ru or self.translation_service.translate_title(
             normalized_title=canonical.normalized_title,
             original_title=canonical.source_records[0].original_title if canonical.source_records else None,
+            use_llm=use_llm,
         )
         if translated_title is None and canonical.source_records:
             translated_title = canonical.source_records[0].original_title

@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
-from sqlalchemy import select
-
 from app.db.models.crm import LeadEvent
-from app.db.models.email import EmailMessage
-from app.db.models.email import EmailThread
+from app.db.models.email import EmailMessage, EmailThread
 from app.main import create_app
 from app.services.email.base import EmailNotice, EmailWorkspaceData, GmailClientState, ManualEmailIngestResult
 from app.web.routes.email import get_email_workspace_service, get_manual_email_ingest_service
+from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 
 class _StubWorkspaceService:

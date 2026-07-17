@@ -2,16 +2,14 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
-
 from app.db.models.crm import ApplicationLead
 from app.db.models.search import VacancyScore
 from app.db.models.vacancies import VacancyCanonical, VacancySourceRecord
-from app.main import create_app
-from app.web.routes.stats import get_funnel_service, get_stats_service
 from app.services.funnel_service import FunnelService
 from app.services.stats_service import StatsService
+from app.web.routes.stats import get_funnel_service, get_stats_service
+from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 
 def _seed_route_dataset(db_session: Session, owner_records: dict[str, object]) -> None:

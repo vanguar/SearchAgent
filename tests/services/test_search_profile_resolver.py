@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from sqlalchemy.exc import OperationalError
-
 import app.services.search_profile_resolver as search_profile_resolver_module
 from app.services.search_models import SearchProfileContext
 from app.services.search_profile_resolver import DatabaseSearchProfileResolver, interpret_legal_status
+from sqlalchemy.exc import OperationalError
 
 
 def _build_profile(**overrides: object) -> SearchProfileContext:

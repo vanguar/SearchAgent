@@ -9,15 +9,12 @@ Acceptance tests covering:
 """
 from __future__ import annotations
 
-from collections.abc import Generator
 import itertools
+from collections.abc import Generator
 from unittest.mock import MagicMock
 
+import app.db.models  # noqa: F401
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
-
 from app.db.base import Base
 from app.db.models.profiles import SearchProfile, UserProfile
 from app.services.search_history_service import SearchHistoryService
@@ -35,9 +32,9 @@ from app.services.source_adapters.models import (
     SourceSearchInput,
 )
 from app.services.source_adapters.registry import SourceAdapterRegistry
-
-import app.db.models  # noqa: F401
-
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 # ---------------------------------------------------------------------------
 # Заглушки адаптеров

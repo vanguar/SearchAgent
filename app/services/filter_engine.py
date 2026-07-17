@@ -66,6 +66,7 @@ class FilterEngine:
         profile: SearchProfileContext,
         *,
         signals: VacancySignalSnapshot | None = None,
+        search_mode: str | None = None,
     ) -> FilterResult:
         resolved_signals = signals or inspect_vacancy(canonical, profile)
 
@@ -117,10 +118,17 @@ class FilterEngine:
             target = rejection_hits if profile.low_barrier_focus else review_hits
             target.append(RuleHit(code="experience_mismatch", label_ru="просят заметный профильный опыт"))
 
+        # A worldwide-remote run must never hard-reject on geography: the user explicitly
+        # opted out of a local filter. Treat the run as worldwide either when the search mode
+        # says so or when the profile's preferred locations describe a global/remote search.
+        worldwide_search = (
+            search_mode == "remote_worldwide"
+            or is_remote_worldwide_location(profile.preferred_locations)
+        )
         if (
             profile.preferred_locations
             and profile.relocation_ready is False
-            and not is_remote_worldwide_location(profile.preferred_locations)
+            and not worldwide_search
             and resolved_signals.location_match is False
         ):
             rejection_hits.append(RuleHit(code="location_mismatch", label_ru="локация не совпадает с профилем"))
@@ -268,8 +276,8 @@ def _dedupe_hits(hits: list[RuleHit] | tuple[RuleHit, ...]) -> tuple[RuleHit, ..
 
 def explain_filter_decision(canonical: CanonicalVacancyGroup, profile: SearchProfileContext) -> dict[str, object]:
     """Return a compact machine-readable explanation for one filter/scoring decision."""
-    from app.services.scorer import VacancyScorer
     from app.services.rule_catalog import HOT_BUCKET_MIN_SCORE, MAYBE_BUCKET_MIN_SCORE, inspect_vacancy
+    from app.services.scorer import VacancyScorer
 
     engine = FilterEngine()
     signals = inspect_vacancy(canonical, profile)

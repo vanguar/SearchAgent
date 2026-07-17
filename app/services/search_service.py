@@ -5,11 +5,14 @@ import re
 import threading
 from collections import Counter
 from collections.abc import Callable, Sequence
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING
 
 from app.core.logging import logger
 from app.services.filter_engine import FilterEngine
 from app.services.hashers import normalize_text_for_fingerprint
+from app.services.match_explainer import MatchExplainer
+from app.services.normalization_models import CanonicalVacancyGroup, NormalizedVacancyRecord
 from app.services.relevance_memory_service import FeedbackLabel, ProfileFeedbackMemory, RelevanceMemoryService
 from app.services.role_family import (
     RoleFamily,
@@ -18,31 +21,9 @@ from app.services.role_family import (
     families_are_compatible,
     is_specific_family,
 )
-from app.services.match_explainer import MatchExplainer
-from app.services.normalization_models import CanonicalVacancyGroup, NormalizedVacancyRecord
-from app.services.search_profile_resolver import DatabaseSearchProfileResolver
+from app.services.role_intent import normalize_role_intent
 from app.services.rule_catalog import HOT_BUCKET_MIN_SCORE, MAYBE_BUCKET_MIN_SCORE, inspect_vacancy
 from app.services.scorer import VacancyScorer
-from app.services.search_models import (
-    DedupPreviewItem,
-    FilterResult,
-    HiddenFilteredItem,
-    RelevanceBand,
-    RuleHit,
-    SearchAttemptRecord,
-    SearchAttemptSummary,
-    SearchBucket,
-    SearchProfileContext,
-    SearchQueryResultGroup,
-    SearchResultItem,
-    SearchRunResult,
-    SearchSourceState,
-    ScoreResult,
-    SourceStatusKind,
-)
-from app.services.source_adapters.errors import SourceAdapterError
-from app.services.source_adapters.models import AdapterSearchResponse, SourceAdapterDescriptor, SourceRecordPreview, SourceSearchInput
-from app.services.role_intent import normalize_role_intent
 from app.services.search_fallback import (
     ENOUGH_HOT,
     ENOUGH_NON_REJECTED,
@@ -51,7 +32,33 @@ from app.services.search_fallback import (
     MAX_LLM_STAGES,
     get_fallback_keywords,
     get_intent_fallback_keywords,
+    get_profile_fallback_keywords,
     is_low_language_profile,
+)
+from app.services.search_models import (
+    DedupPreviewItem,
+    FilterResult,
+    HiddenFilteredItem,
+    RelevanceBand,
+    RuleHit,
+    ScoreResult,
+    SearchAttemptRecord,
+    SearchAttemptSummary,
+    SearchBucket,
+    SearchProfileContext,
+    SearchQueryResultGroup,
+    SearchResultItem,
+    SearchRunResult,
+    SearchSourceState,
+    SourceStatusKind,
+)
+from app.services.search_profile_resolver import DatabaseSearchProfileResolver
+from app.services.source_adapters.errors import SourceAdapterError
+from app.services.source_adapters.models import (
+    AdapterSearchResponse,
+    SourceAdapterDescriptor,
+    SourceRecordPreview,
+    SourceSearchInput,
 )
 from app.services.source_adapters.registry import SourceAdapterRegistry
 from app.services.summary_service import SummaryService
@@ -67,6 +74,12 @@ _EXPLICIT_IRRELEVANT_SCORE_CAP = MAYBE_BUCKET_MIN_SCORE - 1
 _RUSSIAN_LANGUAGE_SOURCE_IDS = frozenset({"hh", "dou_rss", "djinni_rss"})
 _DUAL_MODE_SOURCE_IDS = frozenset({"arbeitnow", "greenhouse", "jooble", "lever"})
 _CYRILLIC_RE = re.compile(r"[А-Яа-яЁёІіЇїЄєҐґ]")
+# Upper bound on concurrent source fetches per search attempt (I/O-bound network calls).
+_MAX_FETCH_WORKERS = 8
+# Upper bound on concurrent LLM enrichment calls for the final displayed results.
+_MAX_ENRICH_WORKERS = 8
+# Buckets whose items are rendered as cards (and therefore worth LLM enrichment).
+_DISPLAYED_BUCKETS: frozenset[SearchBucket] = frozenset({"hot", "maybe"})
 
 
 class SearchService:
@@ -112,6 +125,7 @@ class SearchService:
         progress_callback: Callable[[str, int, str | None, str | None], None] | None = None,
         stop_event: threading.Event | None = None,
         feedback_memory: ProfileFeedbackMemory | None = None,
+        enrich_with_llm: bool = True,
     ) -> SearchRunResult:
         resolved_profile = profile or self.get_profile_context(profile_id=profile_id)
         resolved_source_ids = self._resolve_source_ids(source_ids)
@@ -120,82 +134,38 @@ class SearchService:
         successful_responses: list[AdapterSearchResponse] = []
         failed_states: list[SearchSourceState] = []
 
-        for source_id in resolved_source_ids:
-            if stop_event is not None and stop_event.is_set():
-                break
-            descriptor: SourceAdapterDescriptor | None = None
-            try:
-                adapter = self.registry.get(source_id)
-                descriptor = adapter.describe()
-                logger.info(
-                    "source_adapter_start source_id=%s source_name=%r query=%r location=%r "
-                    "page=%d page_size=%d mode=%s enabled=%s",
-                    source_id,
-                    descriptor.display_name,
-                    search_input.query,
-                    search_input.location,
-                    search_input.page,
-                    search_input.page_size,
-                    search_input.search_mode,
-                    descriptor.enabled,
-                )
-                response = adapter.search(search_input)
-            except SourceAdapterError as exc:
-                logger.warning(
-                    "source_adapter_error source_id=%s source_name=%r code=%s retryable=%s message=%r",
-                    exc.source_id,
-                    exc.source_name,
-                    exc.code,
-                    exc.retryable,
-                    exc.message,
-                )
-                failed_states.append(
-                    SearchSourceState(
-                        source_id=exc.source_id,
-                        source_name=exc.source_name,
-                        status_label="Ошибка",
-                        status_kind="error",
-                        error_message=exc.message,
-                    )
-                )
-                continue
-            except Exception:
-                source_name = descriptor.display_name if descriptor is not None else source_id.upper()
-                logger.exception("search_service_unexpected_error source_id=%s", source_id)
-                failed_states.append(
-                    SearchSourceState(
-                        source_id=source_id,
-                        source_name=source_name,
-                        status_label="Ошибка",
-                        status_kind="error",
-                        error_message=f"Не удалось выполнить поиск по источнику {source_name}.",
-                    )
-                )
-                continue
+        # Sources are independent network calls — fetch them concurrently. Results are
+        # reassembled in the original resolved_source_ids order afterwards so that
+        # downstream dedup/scoring stays fully deterministic regardless of completion order.
+        active_source_ids = [
+            source_id
+            for source_id in resolved_source_ids
+            if not (stop_event is not None and stop_event.is_set())
+        ]
+        outcomes: dict[str, tuple[AdapterSearchResponse | None, SearchSourceState | None]] = {}
+        if active_source_ids:
+            max_workers = min(len(active_source_ids), _MAX_FETCH_WORKERS)
+            running_total = 0
+            with ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="src-fetch") as pool:
+                future_to_id = {
+                    pool.submit(self._fetch_source, source_id, search_input): source_id
+                    for source_id in active_source_ids
+                }
+                for future in as_completed(future_to_id):
+                    source_id = future_to_id[future]
+                    response, failed = future.result()
+                    outcomes[source_id] = (response, failed)
+                    if response is not None and progress_callback is not None:
+                        running_total += len(response.records)
+                        progress_callback("fetch", running_total, response.source_name, search_input.query)
 
-            logger.info(
-                "source_adapter_success source_id=%s source_name=%r raw=%d total=%s "
-                "page=%d page_size=%d warnings=%d raw_payload=%s",
-                response.source_id,
-                response.source_name,
-                len(response.records),
-                response.total_count,
-                response.page,
-                response.page_size,
-                len(response.warnings),
-                _summarize_raw_payload(response.raw_payload),
-            )
-            for warning in response.warnings:
-                logger.warning(
-                    "source_adapter_warning source_id=%s source_name=%r warning=%r",
-                    response.source_id,
-                    response.source_name,
-                    warning,
-                )
-            successful_responses.append(response)
-            fetched_records.extend(response.records)
-            if progress_callback is not None:
-                progress_callback("fetch", len(fetched_records), response.source_name, search_input.query)
+        for source_id in active_source_ids:
+            response, failed = outcomes.get(source_id, (None, None))
+            if response is not None:
+                successful_responses.append(response)
+                fetched_records.extend(response.records)
+            elif failed is not None:
+                failed_states.append(failed)
 
         if not successful_responses:
             source_states = tuple(
@@ -216,7 +186,7 @@ class SearchService:
                 results=(),
                 query_result_groups=(SearchQueryResultGroup(query=search_input.query),),
             )
-        
+
         if progress_callback is not None:
             progress_callback("postprocess", len(fetched_records), None, search_input.query)
 
@@ -242,6 +212,7 @@ class SearchService:
             if (hidden := self._build_hidden_filtered_item(
                 canonical=canonical,
                 profile=resolved_profile,
+                search_mode=search_input.search_mode,
             )) is not None
         )
 
@@ -253,6 +224,8 @@ class SearchService:
                 profile=resolved_profile,
                 feedback_memory=feedback_memory,
                 search_query=search_input.query,
+                search_mode=search_input.search_mode,
+                enrich_with_llm=enrich_with_llm,
             )) is not None
         )
         ordered_results = tuple(sorted(results, key=_result_sort_key))
@@ -310,12 +283,27 @@ class SearchService:
             resolved_profile,
             source_ids=resolved_source_ids,
         )
-        explicit_profile_keywords: tuple[str, ...] = ()
         if profile_terms:
             effective_primary_query = profile_terms[0]
-            query_family = classify_query_ru(effective_primary_query)
-            fallback_keywords = profile_terms[1:]
-            explicit_profile_keywords = fallback_keywords
+            # Family from the role intent (handles already-German terms like "lager", which
+            # classify_query_ru — Russian-only — would mislabel as GENERIC).
+            primary_intent = normalize_role_intent(effective_primary_query)
+            query_family = (
+                primary_intent.family
+                if primary_intent is not None
+                else classify_query_ru(effective_primary_query)
+            )
+            # Broaden with same-family alternative titles for German/western sources only;
+            # Russian-only source runs keep the raw profile terms.
+            fallback_keywords = get_profile_fallback_keywords(
+                profile_terms=profile_terms,
+                family=query_family,
+                role_primary_de=primary_intent.primary_de if primary_intent is not None else "",
+                broaden=(
+                    is_specific_family(query_family)
+                    and not _uses_only_russian_language_sources(resolved_source_ids)
+                ),
+            )
         else:
             intent = normalize_role_intent(primary_query)
             if intent is not None:
@@ -338,6 +326,8 @@ class SearchService:
         def _run(query: str) -> SearchRunResult:
             if progress_callback is not None:
                 progress_callback("attempt", 0, None, query)
+            # Attempts are scored deterministically (no LLM). LLM enrichment is applied once,
+            # at the end, to the winning attempt's displayed results only — see _enrich_run_result.
             return self.search(
                 search_input=dataclasses.replace(search_input, query=query),
                 source_ids=resolved_source_ids,
@@ -345,6 +335,7 @@ class SearchService:
                 progress_callback=progress_callback,
                 stop_event=stop_event,
                 feedback_memory=feedback_memory,
+                enrich_with_llm=False,
             )
 
         def _non_rejected(r: SearchRunResult) -> int:
@@ -520,6 +511,9 @@ class SearchService:
             if exhaustive_search and multiple_attempts
             else best_result
         )
+        # Enrich once: only the winning attempt's displayed (hot+maybe) results get LLM
+        # translation/summaries. Everything above ran deterministically for speed.
+        result_for_summary = self._enrich_run_result(result_for_summary)
         exhaustive_query_label = "all profile queries" if profile_terms else "all planned queries"
         summary = SearchAttemptSummary(
             primary_query=primary_query,
@@ -628,6 +622,151 @@ class SearchService:
             )
         )
 
+    def _enrich_run_result(self, result: SearchRunResult) -> SearchRunResult:
+        """Apply LLM translation/summaries to the displayed (hot+maybe) results only, once.
+
+        Scoring/bucketing already happened deterministically. Here we replace just the
+        translated_title_ru/summary_ru of the cards the user will actually see, in parallel.
+        No-op when there is no LLM client or nothing to display.
+        """
+        if self._llm_client is None:
+            return result
+        display_items = [item for item in result.results if item.bucket in _DISPLAYED_BUCKETS]
+        if not display_items:
+            return result
+
+        enriched_by_key: dict[str, SearchResultItem] = {}
+        max_workers = min(len(display_items), _MAX_ENRICH_WORKERS)
+        with ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="llm-enrich") as pool:
+            future_to_key = {
+                pool.submit(self._enrich_item, item): item.canonical_group.canonical_key
+                for item in display_items
+            }
+            for future in as_completed(future_to_key):
+                key = future_to_key[future]
+                try:
+                    enriched_by_key[key] = future.result()
+                except Exception:
+                    # A single enrichment failure must not drop the card — keep it deterministic.
+                    logger.warning("llm_enrichment_failed canonical_key=%s", key)
+
+        if not enriched_by_key:
+            return result
+
+        def _swap(item: SearchResultItem) -> SearchResultItem:
+            return enriched_by_key.get(item.canonical_group.canonical_key, item)
+
+        new_results = tuple(_swap(item) for item in result.results)
+        new_groups = tuple(
+            dataclasses.replace(
+                group,
+                hot_results=tuple(_swap(item) for item in group.hot_results),
+                maybe_results=tuple(_swap(item) for item in group.maybe_results),
+            )
+            for group in result.query_result_groups
+        )
+        return dataclasses.replace(
+            result,
+            results=new_results,
+            hot_results=tuple(item for item in new_results if item.bucket == "hot"),
+            maybe_results=tuple(item for item in new_results if item.bucket == "maybe"),
+            rejected_results=tuple(item for item in new_results if item.bucket == "rejected"),
+            query_result_groups=new_groups,
+        )
+
+    def _enrich_item(self, item: SearchResultItem) -> SearchResultItem:
+        """Recompute the LLM-backed title/summary for a single displayed result."""
+        translated_title_ru = self.translation_service.translate_title(
+            normalized_title=item.canonical_group.normalized_title,
+            original_title=item.primary_record.original_title,
+            use_llm=True,
+        )
+        summary_ru = self.summary_service.build_summary(
+            item.canonical_group,
+            item.signals,
+            translated_title_ru=translated_title_ru,
+            use_llm=True,
+        )
+        return dataclasses.replace(
+            item,
+            translated_title_ru=translated_title_ru,
+            summary_ru=summary_ru,
+        )
+
+    def _fetch_source(
+        self,
+        source_id: str,
+        search_input: SourceSearchInput,
+    ) -> tuple[AdapterSearchResponse | None, SearchSourceState | None]:
+        """Fetch one source. Returns (response, None) on success or (None, failed_state) on error.
+
+        Safe to run from a worker thread: adapters are stateless and share no mutable state.
+        """
+        descriptor: SourceAdapterDescriptor | None = None
+        try:
+            adapter = self.registry.get(source_id)
+            descriptor = adapter.describe()
+            logger.info(
+                "source_adapter_start source_id=%s source_name=%r query=%r location=%r "
+                "page=%d page_size=%d mode=%s enabled=%s",
+                source_id,
+                descriptor.display_name,
+                search_input.query,
+                search_input.location,
+                search_input.page,
+                search_input.page_size,
+                search_input.search_mode,
+                descriptor.enabled,
+            )
+            response = adapter.search(search_input)
+        except SourceAdapterError as exc:
+            logger.warning(
+                "source_adapter_error source_id=%s source_name=%r code=%s retryable=%s message=%r",
+                exc.source_id,
+                exc.source_name,
+                exc.code,
+                exc.retryable,
+                exc.message,
+            )
+            return None, SearchSourceState(
+                source_id=exc.source_id,
+                source_name=exc.source_name,
+                status_label="Ошибка",
+                status_kind="error",
+                error_message=exc.message,
+            )
+        except Exception:
+            source_name = descriptor.display_name if descriptor is not None else source_id.upper()
+            logger.exception("search_service_unexpected_error source_id=%s", source_id)
+            return None, SearchSourceState(
+                source_id=source_id,
+                source_name=source_name,
+                status_label="Ошибка",
+                status_kind="error",
+                error_message=f"Не удалось выполнить поиск по источнику {source_name}.",
+            )
+
+        logger.info(
+            "source_adapter_success source_id=%s source_name=%r raw=%d total=%s "
+            "page=%d page_size=%d warnings=%d raw_payload=%s",
+            response.source_id,
+            response.source_name,
+            len(response.records),
+            response.total_count,
+            response.page,
+            response.page_size,
+            len(response.warnings),
+            _summarize_raw_payload(response.raw_payload),
+        )
+        for warning in response.warnings:
+            logger.warning(
+                "source_adapter_warning source_id=%s source_name=%r warning=%r",
+                response.source_id,
+                response.source_name,
+                warning,
+            )
+        return response, None
+
     def _build_result_item(
         self,
         *,
@@ -635,10 +774,14 @@ class SearchService:
         profile: SearchProfileContext,
         feedback_memory: ProfileFeedbackMemory | None = None,
         search_query: str | None = None,
+        search_mode: str | None = None,
+        enrich_with_llm: bool = True,
     ) -> SearchResultItem | None:
         primary_record = _pick_primary_record(canonical)
         signals = inspect_vacancy(canonical, profile)
-        filter_result = self.filter_engine.evaluate(canonical, profile, signals=signals)
+        filter_result = self.filter_engine.evaluate(
+            canonical, profile, signals=signals, search_mode=search_mode
+        )
         if filter_result.hard_reject:
             return None
 
@@ -674,6 +817,7 @@ class SearchService:
             signals=signals,
             filter_result=filter_result,
             feedback_adjustment=feedback_adjustment,
+            search_mode=search_mode,
         )
         score_result = _apply_explicit_feedback_to_score(score_result, explicit_feedback_label)
         bucket = _assign_bucket(filter_result=filter_result, score=score_result.score)
@@ -682,11 +826,13 @@ class SearchService:
         translated_title_ru = self.translation_service.translate_title(
             normalized_title=canonical.normalized_title,
             original_title=primary_record.original_title,
+            use_llm=enrich_with_llm,
         )
         summary_ru = self.summary_service.build_summary(
             canonical,
             signals,
             translated_title_ru=translated_title_ru,
+            use_llm=enrich_with_llm,
         )
         feedback_note_ru = _explicit_feedback_note(explicit_feedback_label) or feedback_note_ru
         explanation_ru = self.match_explainer.explain_with_feedback_note(
@@ -718,10 +864,13 @@ class SearchService:
         *,
         canonical: CanonicalVacancyGroup,
         profile: SearchProfileContext,
+        search_mode: str | None = None,
     ) -> HiddenFilteredItem | None:
         primary_record = _pick_primary_record(canonical)
         signals = inspect_vacancy(canonical, profile)
-        filter_result = self.filter_engine.evaluate(canonical, profile, signals=signals)
+        filter_result = self.filter_engine.evaluate(
+            canonical, profile, signals=signals, search_mode=search_mode
+        )
         if not filter_result.hard_reject:
             return None
 

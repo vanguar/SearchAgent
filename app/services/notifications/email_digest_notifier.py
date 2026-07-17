@@ -63,7 +63,7 @@ class EmailDigestNotifier:
 
 def _format_body(payload: DigestPayload) -> str:
     lines = [
-        f"SmartJob — дайджест поиска",
+        "SmartJob — дайджест поиска",
         f"Профиль: {payload.profile_label}",
         "",
         f"Горячих вакансий: {payload.hot_count}",

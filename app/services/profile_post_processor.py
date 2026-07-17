@@ -16,8 +16,6 @@ from app.services.profile_role_taxonomy import (
     RoleFamily,
     classify_roles,
     get_physical_families,
-    is_it_profile,
-    requires_shift_question,
 )
 
 # Canonical country normalisations

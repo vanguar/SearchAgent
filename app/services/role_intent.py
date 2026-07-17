@@ -8,8 +8,8 @@ from __future__ import annotations
 from app.services._role_intent_lexicon import (  # noqa: F401  (re-export RoleIntent)
     IT_WORD_RE,
     ROLE_INTENT_MAP,
-    RoleIntent,
     SORTED_INTENT_KEYS,
+    RoleIntent,
 )
 
 __all__ = ["RoleIntent", "normalize_role_intent"]

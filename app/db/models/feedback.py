@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey, Index, Integer, String, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column
-
 from app.db.base import Base
 from app.db.models.mixins import TimestampMixin
+from sqlalchemy import ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column
 
 FEEDBACK_LABELS: frozenset[str] = frozenset({"relevant", "weak", "irrelevant"})
 

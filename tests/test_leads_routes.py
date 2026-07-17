@@ -3,15 +3,14 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
-from fastapi.testclient import TestClient
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
-
 from app.db.models.email import EmailMessage, EmailThread
 from app.main import create_app
 from app.services.cover_letter_service import CoverLetterService
 from app.services.resume_service import ResumeService
 from app.web.routes.leads import get_lead_service
+from fastapi.testclient import TestClient
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 
 def _candidate_form_data() -> dict[str, str]:

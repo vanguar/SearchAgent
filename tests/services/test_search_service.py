@@ -1,6 +1,5 @@
 import logging
 
-from app.services.search_models import SearchProfileContext
 from app.services.relevance_feedback_service import RelevanceFeedbackService
 from app.services.relevance_memory_service import (
     FeedbackPattern,
@@ -8,11 +7,14 @@ from app.services.relevance_memory_service import (
     RelevanceMemoryService,
     SourceQualitySignal,
 )
+from app.services.search_models import SearchProfileContext
 from app.services.search_service import SearchService
 from app.services.source_adapters.base import BaseSourceAdapter
 from app.services.source_adapters.errors import AdapterRequestError
 from app.services.source_adapters.models import AdapterSearchResponse, SourceRecordPreview, SourceSearchInput
 from app.services.source_adapters.registry import SourceAdapterRegistry
+from app.services.summary_service import SummaryService
+from app.services.translation_service import TranslationService
 
 
 class StubProfileResolver:
@@ -338,6 +340,78 @@ class DeliveryAdapter(BaseSourceAdapter):
             page_size=search_input.page_size,
             raw_payload={"source": "adzuna"},
         )
+
+
+class _CountingLLMHelper:
+    """Stands in for the LLM-backed translation/summary helper, counting invocations."""
+
+    def __init__(self) -> None:
+        self.translate_calls = 0
+        self.summarize_calls = 0
+
+    def translate_title(self, text: str) -> str:
+        self.translate_calls += 1
+        return f"RU:{text[:12]}"
+
+    def summarize(self, text: str) -> str:
+        self.summarize_calls += 1
+        return "Краткое описание"
+
+
+def _enrichment_service(helper: _CountingLLMHelper) -> SearchService:
+    translation = TranslationService(helper=helper)
+    summary = SummaryService(helper=helper, translation_service=translation)
+    registry = SourceAdapterRegistry(adapters=(BAAdapter(), CareerjetAdapter()))
+    return SearchService(
+        registry=registry,
+        profile_resolver=StubProfileResolver(),
+        translation_service=translation,
+        summary_service=summary,
+        llm_client=object(),  # non-None: enables _enrich_run_result
+    )
+
+
+def test_search_scoring_pass_makes_no_llm_calls() -> None:
+    helper = _CountingLLMHelper()
+    service = _enrichment_service(helper)
+
+    result = service.search(
+        search_input=SourceSearchInput(query="lager", page=1, page_size=5),
+        enrich_with_llm=False,
+    )
+
+    assert helper.translate_calls == 0
+    assert helper.summarize_calls == 0
+    # deterministic scoring still produced buckets
+    assert len(result.hot_results) + len(result.maybe_results) >= 1
+
+
+def test_enrich_run_result_enriches_only_displayed_results_once() -> None:
+    helper = _CountingLLMHelper()
+    service = _enrichment_service(helper)
+
+    base = service.search(
+        search_input=SourceSearchInput(query="lager", page=1, page_size=5),
+        enrich_with_llm=False,
+    )
+    displayed = len(base.hot_results) + len(base.maybe_results)
+    assert displayed >= 1
+
+    enriched = service._enrich_run_result(base)
+
+    # Exactly one summary call per displayed card — not per candidate, not per attempt.
+    assert helper.summarize_calls == displayed
+    for item in enriched.hot_results + enriched.maybe_results:
+        assert item.summary_ru == "Краткое описание"
+
+
+def test_enrich_run_result_is_noop_without_llm_client() -> None:
+    registry = SourceAdapterRegistry(adapters=(BAAdapter(),))
+    service = SearchService(registry=registry, profile_resolver=StubProfileResolver())  # llm_client=None
+
+    base = service.search(search_input=SourceSearchInput(query="lager", page=1, page_size=5))
+
+    assert service._enrich_run_result(base) is base
 
 
 def test_search_service_orchestrates_dedup_filtering_scoring_and_bucketing() -> None:

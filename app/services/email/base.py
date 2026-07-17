@@ -143,7 +143,7 @@ class EmailLeadMatchResult:
         return self.candidates[0]
 
     @classmethod
-    def empty(cls) -> "EmailLeadMatchResult":
+    def empty(cls) -> EmailLeadMatchResult:
         return cls(status="none", summary_ru="Совпадений с лидами пока нет.", candidates=())
 
 

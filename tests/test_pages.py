@@ -2,11 +2,9 @@ import re
 from unittest.mock import patch
 
 import pytest
-from fastapi.testclient import TestClient
-
 from app.main import create_app
 from app.services.llm_client import LLMStatus, _set_runtime_status
-
+from fastapi.testclient import TestClient
 
 PAGE_CASES: tuple[tuple[str, str, str], ...] = (
     ("/dashboard", "Главная", "Главная"),

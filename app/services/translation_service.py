@@ -45,16 +45,32 @@ class TranslationService:
 
     def __init__(self, *, helper: TranslationHelper | None = None) -> None:
         self.helper = helper
+        # Per-instance cache to avoid re-calling the LLM for identical titles within one
+        # search run (the service is constructed per request).
+        self._llm_cache: dict[str, str | None] = {}
 
-    def translate_title(self, *, normalized_title: str, original_title: str | None = None) -> str | None:
+    def translate_title(
+        self,
+        *,
+        normalized_title: str,
+        original_title: str | None = None,
+        use_llm: bool = True,
+    ) -> str | None:
         candidate = normalize_text_for_fingerprint(normalized_title or original_title)
         if not candidate:
             return None
 
-        if self.helper is not None:
-            translated = self.helper.translate_title(candidate)
-            if translated:
-                return translated.strip()
+        if use_llm and self.helper is not None:
+            if candidate in self._llm_cache:
+                cached = self._llm_cache[candidate]
+                if cached:
+                    return cached
+            else:
+                translated = self.helper.translate_title(candidate)
+                normalized_translated = translated.strip() if translated else None
+                self._llm_cache[candidate] = normalized_translated
+                if normalized_translated:
+                    return normalized_translated
 
         direct = _KNOWN_TITLE_TRANSLATIONS.get(candidate)
         if direct:

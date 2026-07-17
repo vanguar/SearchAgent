@@ -1,5 +1,11 @@
 ﻿from app.schemas.audit import UserActionAuditSchema
-from app.schemas.crm import ApplicationLeadSchema, InterviewEventSchema, LeadEventSchema, ManualNoteSchema, ReminderTaskSchema
+from app.schemas.crm import (
+    ApplicationLeadSchema,
+    InterviewEventSchema,
+    LeadEventSchema,
+    ManualNoteSchema,
+    ReminderTaskSchema,
+)
 from app.schemas.documents import CoverLetterTemplateSchema, ResumeSchema, ResumeVersionSchema
 from app.schemas.email import EmailMessageSchema, EmailThreadSchema
 from app.schemas.profiles import SearchProfileSchema, UserProfileSchema

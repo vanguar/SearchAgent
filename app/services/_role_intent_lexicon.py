@@ -725,6 +725,124 @@ ROLE_INTENT_MAP: dict[str, RoleIntent] = {
         RoleFamily.GENERIC, "helfer",
         ("aushilfe", "hilfskraft", "lagerhelfer"), "helper",
     ),
+
+    # ---- ADDED: rarer roles (RU/UA/EN → DE). German keywords verified on BA. ----
+    # DRIVING
+    "таксист": RoleIntent(RoleFamily.DRIVING, "taxifahrer", ("fahrer", "personenbeförderung", "kraftfahrer"), "taxi driver"),
+    "таксі": RoleIntent(RoleFamily.DRIVING, "taxifahrer", ("fahrer", "personenbeförderung"), "taxi driver"),
+    "taxi driver": RoleIntent(RoleFamily.DRIVING, "taxifahrer", ("fahrer", "personenbeförderung"), "taxi driver"),
+    "taxifahrer": RoleIntent(RoleFamily.DRIVING, "taxifahrer", ("fahrer", "personenbeförderung"), "taxi driver"),
+    "дальнобойщик": RoleIntent(RoleFamily.DRIVING, "berufskraftfahrer", ("lkw-fahrer", "kraftfahrer", "fahrer"), "truck driver"),
+    "далекобійник": RoleIntent(RoleFamily.DRIVING, "berufskraftfahrer", ("lkw-fahrer", "kraftfahrer"), "truck driver"),
+    "berufskraftfahrer": RoleIntent(RoleFamily.DRIVING, "berufskraftfahrer", ("lkw-fahrer", "kraftfahrer", "fahrer"), "professional driver"),
+
+    # WAREHOUSE — forklift
+    "водитель погрузчика": RoleIntent(RoleFamily.WAREHOUSE, "staplerfahrer", ("stapler", "lagerhelfer", "kommissionierer"), "forklift driver"),
+    "оператор погрузчика": RoleIntent(RoleFamily.WAREHOUSE, "staplerfahrer", ("stapler", "lagerhelfer", "kommissionierer"), "forklift operator"),
+    "водій навантажувача": RoleIntent(RoleFamily.WAREHOUSE, "staplerfahrer", ("stapler", "lagerhelfer"), "forklift driver"),
+    "forklift": RoleIntent(RoleFamily.WAREHOUSE, "staplerfahrer", ("stapler", "lagerhelfer", "kommissionierer"), "forklift driver"),
+    "staplerfahrer": RoleIntent(RoleFamily.WAREHOUSE, "staplerfahrer", ("stapler", "lagerhelfer", "kommissionierer"), "forklift driver"),
+
+    # KITCHEN
+    "бармен": RoleIntent(RoleFamily.KITCHEN, "barkeeper", ("barmann", "gastro", "kellner"), "bartender"),
+    "бариста": RoleIntent(RoleFamily.KITCHEN, "barista", ("gastro", "kellner"), "barista"),
+    "bartender": RoleIntent(RoleFamily.KITCHEN, "barkeeper", ("barmann", "gastro", "kellner"), "bartender"),
+    "barista": RoleIntent(RoleFamily.KITCHEN, "barista", ("gastro", "kellner"), "barista"),
+    "barkeeper": RoleIntent(RoleFamily.KITCHEN, "barkeeper", ("barmann", "gastro", "kellner"), "bartender"),
+    "пекарь": RoleIntent(RoleFamily.KITCHEN, "bäcker", ("bäckerei", "backstube", "gastro"), "baker"),
+    "пекар": RoleIntent(RoleFamily.KITCHEN, "bäcker", ("bäckerei", "backstube"), "baker"),
+    "baker": RoleIntent(RoleFamily.KITCHEN, "bäcker", ("bäckerei", "backstube"), "baker"),
+    "bäcker": RoleIntent(RoleFamily.KITCHEN, "bäcker", ("bäckerei", "backstube"), "baker"),
+    "кондитер": RoleIntent(RoleFamily.KITCHEN, "konditor", ("konditorei", "bäcker", "gastro"), "confectioner"),
+    "konditor": RoleIntent(RoleFamily.KITCHEN, "konditor", ("konditorei", "bäcker"), "confectioner"),
+    "мойщик посуды": RoleIntent(RoleFamily.KITCHEN, "spülkraft", ("küchenhilfe", "küchenhelfer", "gastro"), "dishwasher"),
+    "посудомойщик": RoleIntent(RoleFamily.KITCHEN, "spülkraft", ("küchenhilfe", "küchenhelfer"), "dishwasher"),
+    "dishwasher": RoleIntent(RoleFamily.KITCHEN, "spülkraft", ("küchenhilfe", "küchenhelfer"), "dishwasher"),
+    "spülkraft": RoleIntent(RoleFamily.KITCHEN, "spülkraft", ("küchenhilfe", "küchenhelfer"), "dishwasher"),
+    "мясник": RoleIntent(RoleFamily.KITCHEN, "metzger", ("fleischer", "fleischerei", "gastro"), "butcher"),
+    "м'ясник": RoleIntent(RoleFamily.KITCHEN, "metzger", ("fleischer", "fleischerei"), "butcher"),
+    "butcher": RoleIntent(RoleFamily.KITCHEN, "metzger", ("fleischer", "fleischerei"), "butcher"),
+    "metzger": RoleIntent(RoleFamily.KITCHEN, "metzger", ("fleischer", "fleischerei"), "butcher"),
+
+    # HEALTHCARE
+    "врач": RoleIntent(RoleFamily.HEALTHCARE, "arzt", ("mediziner", "facharzt", "klinik"), "doctor"),
+    "лікар": RoleIntent(RoleFamily.HEALTHCARE, "arzt", ("mediziner", "facharzt"), "doctor"),
+    "doctor": RoleIntent(RoleFamily.HEALTHCARE, "arzt", ("mediziner", "facharzt"), "doctor"),
+    "physician": RoleIntent(RoleFamily.HEALTHCARE, "arzt", ("mediziner", "facharzt"), "physician"),
+    "arzt": RoleIntent(RoleFamily.HEALTHCARE, "arzt", ("mediziner", "facharzt"), "doctor"),
+    "физиотерапевт": RoleIntent(RoleFamily.HEALTHCARE, "physiotherapeut", ("physiotherapie", "therapeut"), "physiotherapist"),
+    "фізіотерапевт": RoleIntent(RoleFamily.HEALTHCARE, "physiotherapeut", ("physiotherapie", "therapeut"), "physiotherapist"),
+    "physiotherapist": RoleIntent(RoleFamily.HEALTHCARE, "physiotherapeut", ("physiotherapie", "therapeut"), "physiotherapist"),
+    "physiotherapeut": RoleIntent(RoleFamily.HEALTHCARE, "physiotherapeut", ("physiotherapie", "therapeut"), "physiotherapist"),
+    "стоматолог": RoleIntent(RoleFamily.HEALTHCARE, "zahnarzt", ("zahnmedizin", "arzt"), "dentist"),
+    "dentist": RoleIntent(RoleFamily.HEALTHCARE, "zahnarzt", ("zahnmedizin", "arzt"), "dentist"),
+    "zahnarzt": RoleIntent(RoleFamily.HEALTHCARE, "zahnarzt", ("zahnmedizin", "arzt"), "dentist"),
+
+    # CONSTRUCTION / SKILLED TRADES
+    "маляр": RoleIntent(RoleFamily.CONSTRUCTION, "maler", ("lackierer", "anstreicher", "bau"), "painter"),
+    "painter": RoleIntent(RoleFamily.CONSTRUCTION, "maler", ("lackierer", "anstreicher"), "painter"),
+    "maler": RoleIntent(RoleFamily.CONSTRUCTION, "maler", ("lackierer", "anstreicher"), "painter"),
+    "плиточник": RoleIntent(RoleFamily.CONSTRUCTION, "fliesenleger", ("fliesen", "bau"), "tiler"),
+    "плиточник-облицовщик": RoleIntent(RoleFamily.CONSTRUCTION, "fliesenleger", ("fliesen", "bau"), "tiler"),
+    "tiler": RoleIntent(RoleFamily.CONSTRUCTION, "fliesenleger", ("fliesen", "bau"), "tiler"),
+    "fliesenleger": RoleIntent(RoleFamily.CONSTRUCTION, "fliesenleger", ("fliesen", "bau"), "tiler"),
+    "штукатур": RoleIntent(RoleFamily.CONSTRUCTION, "stuckateur", ("verputzer", "trockenbau", "bau"), "plasterer"),
+    "plasterer": RoleIntent(RoleFamily.CONSTRUCTION, "stuckateur", ("verputzer", "trockenbau"), "plasterer"),
+    "stuckateur": RoleIntent(RoleFamily.CONSTRUCTION, "stuckateur", ("verputzer", "trockenbau"), "plasterer"),
+    "плотник": RoleIntent(RoleFamily.CONSTRUCTION, "zimmermann", ("zimmerer", "tischler", "schreiner"), "carpenter"),
+    "столяр": RoleIntent(RoleFamily.CONSTRUCTION, "tischler", ("schreiner", "holz", "möbel"), "joiner"),
+    "тесля": RoleIntent(RoleFamily.CONSTRUCTION, "zimmermann", ("zimmerer", "tischler"), "carpenter"),
+    "carpenter": RoleIntent(RoleFamily.CONSTRUCTION, "tischler", ("schreiner", "zimmermann"), "carpenter"),
+    "joiner": RoleIntent(RoleFamily.CONSTRUCTION, "tischler", ("schreiner", "holz"), "joiner"),
+    "tischler": RoleIntent(RoleFamily.CONSTRUCTION, "tischler", ("schreiner", "zimmermann"), "joiner"),
+    "schreiner": RoleIntent(RoleFamily.CONSTRUCTION, "schreiner", ("tischler", "holz"), "joiner"),
+    "каменщик": RoleIntent(RoleFamily.CONSTRUCTION, "maurer", ("hochbau", "bau"), "mason"),
+    "муляр": RoleIntent(RoleFamily.CONSTRUCTION, "maurer", ("hochbau", "bau"), "mason"),
+    "mason": RoleIntent(RoleFamily.CONSTRUCTION, "maurer", ("hochbau", "bau"), "mason"),
+    "maurer": RoleIntent(RoleFamily.CONSTRUCTION, "maurer", ("hochbau", "bau"), "mason"),
+    "кровельщик": RoleIntent(RoleFamily.CONSTRUCTION, "dachdecker", ("dach", "bau"), "roofer"),
+    "покрівельник": RoleIntent(RoleFamily.CONSTRUCTION, "dachdecker", ("dach", "bau"), "roofer"),
+    "roofer": RoleIntent(RoleFamily.CONSTRUCTION, "dachdecker", ("dach", "bau"), "roofer"),
+    "dachdecker": RoleIntent(RoleFamily.CONSTRUCTION, "dachdecker", ("dach", "bau"), "roofer"),
+    "сантехник": RoleIntent(RoleFamily.CONSTRUCTION, "anlagenmechaniker", ("installateur", "klempner", "sanitär"), "plumber"),
+    "сантехнік": RoleIntent(RoleFamily.CONSTRUCTION, "anlagenmechaniker", ("installateur", "klempner"), "plumber"),
+    "plumber": RoleIntent(RoleFamily.CONSTRUCTION, "anlagenmechaniker", ("installateur", "klempner", "sanitär"), "plumber"),
+    "installateur": RoleIntent(RoleFamily.CONSTRUCTION, "installateur", ("klempner", "sanitär", "anlagenmechaniker"), "plumber"),
+    "anlagenmechaniker": RoleIntent(RoleFamily.CONSTRUCTION, "anlagenmechaniker", ("installateur", "sanitär"), "plumber"),
+    "автомеханик": RoleIntent(RoleFamily.CONSTRUCTION, "kfz-mechaniker", ("kfz-mechatroniker", "mechaniker", "werkstatt"), "car mechanic"),
+    "автослесарь": RoleIntent(RoleFamily.CONSTRUCTION, "kfz-mechaniker", ("kfz-mechatroniker", "mechaniker", "werkstatt"), "auto mechanic"),
+    "автомеханік": RoleIntent(RoleFamily.CONSTRUCTION, "kfz-mechaniker", ("kfz-mechatroniker", "mechaniker"), "car mechanic"),
+    "car mechanic": RoleIntent(RoleFamily.CONSTRUCTION, "kfz-mechaniker", ("kfz-mechatroniker", "mechaniker", "werkstatt"), "car mechanic"),
+    "kfz-mechaniker": RoleIntent(RoleFamily.CONSTRUCTION, "kfz-mechaniker", ("kfz-mechatroniker", "mechaniker"), "car mechanic"),
+
+    # PRODUCTION — textile
+    "швея": RoleIntent(RoleFamily.PRODUCTION, "näherin", ("näher", "textil", "schneider"), "seamstress"),
+    "швачка": RoleIntent(RoleFamily.PRODUCTION, "näherin", ("näher", "textil"), "seamstress"),
+    "портной": RoleIntent(RoleFamily.PRODUCTION, "schneider", ("näher", "textil"), "tailor"),
+    "seamstress": RoleIntent(RoleFamily.PRODUCTION, "näherin", ("näher", "textil"), "seamstress"),
+    "tailor": RoleIntent(RoleFamily.PRODUCTION, "schneider", ("näher", "textil"), "tailor"),
+    "näherin": RoleIntent(RoleFamily.PRODUCTION, "näherin", ("näher", "textil"), "seamstress"),
+
+    # AGRICULTURE
+    "сборщик урожая": RoleIntent(RoleFamily.AGRICULTURE, "erntehelfer", ("ernte", "landwirtschaft"), "harvest worker"),
+    "збирач урожаю": RoleIntent(RoleFamily.AGRICULTURE, "erntehelfer", ("ernte", "landwirtschaft"), "harvest worker"),
+    "harvest worker": RoleIntent(RoleFamily.AGRICULTURE, "erntehelfer", ("ernte", "landwirtschaft"), "harvest worker"),
+    "erntehelfer": RoleIntent(RoleFamily.AGRICULTURE, "erntehelfer", ("ernte", "landwirtschaft"), "harvest worker"),
+
+    # OFFICE — call center
+    "оператор колл-центра": RoleIntent(RoleFamily.OFFICE, "callcenter", ("kundenservice", "kundenbetreuung", "telefonist"), "call center agent"),
+    "оператор call-центра": RoleIntent(RoleFamily.OFFICE, "callcenter", ("kundenservice", "kundenbetreuung"), "call center agent"),
+    "call center": RoleIntent(RoleFamily.OFFICE, "callcenter", ("kundenservice", "kundenbetreuung"), "call center agent"),
+    "callcenter": RoleIntent(RoleFamily.OFFICE, "callcenter", ("kundenservice", "kundenbetreuung"), "call center agent"),
+
+    # SECURITY
+    "сторож": RoleIntent(RoleFamily.SECURITY, "sicherheitsdienst", ("wachschutz", "security", "wachmann"), "watchman"),
+    "watchman": RoleIntent(RoleFamily.SECURITY, "sicherheitsdienst", ("wachschutz", "security", "wachmann"), "watchman"),
+
+    # GENERIC — unskilled labor
+    "разнорабочий": RoleIntent(RoleFamily.GENERIC, "helfer", ("aushilfe", "hilfskraft", "bauhelfer", "produktionshelfer"), "general laborer"),
+    "різноробочий": RoleIntent(RoleFamily.GENERIC, "helfer", ("aushilfe", "hilfskraft"), "general laborer"),
+    "general laborer": RoleIntent(RoleFamily.GENERIC, "helfer", ("aushilfe", "hilfskraft"), "general laborer"),
 }
 
 # Sorted keys (longest first) for greedy longest-match lookup.
