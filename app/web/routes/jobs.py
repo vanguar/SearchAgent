@@ -8,6 +8,7 @@ from collections.abc import Mapping
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData
 
 from app.core.constants import PAGE_META
@@ -649,7 +650,10 @@ async def jobs_search_results(
         )
         feedback_memory = _build_feedback_memory(db, profile_id)
         try:
-            search_result = search_service.orchestrated_search(
+            # Долгий синхронный поиск (сеть + retry) — уводим в worker-поток,
+            # иначе event loop блокируется и сервер перестаёт отвечать.
+            search_result = await run_in_threadpool(
+                search_service.orchestrated_search,
                 search_input=search_input,
                 source_ids=_resolve_source_ids(form_values, search_service),
                 profile_id=profile_id,

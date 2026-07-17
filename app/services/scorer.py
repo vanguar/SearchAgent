@@ -25,7 +25,7 @@ _CORE_STACK_RULES: tuple[tuple[str, str, int, tuple[str, ...]], ...] = (
     ("stack_mvp_tools", "MVP/internal tools", 6, (" mvp ", "startup", "internal tools", "interne tools")),
 )
 _NON_CORE_STACK_RULES: tuple[tuple[str, str, int, tuple[str, ...]], ...] = (
-    ("stack_java_only", "стек скорее Java без Python", -4, ("java",)),
+    ("stack_java_only", "стек скорее Java без Python", -4, (" java ",)),
     ("stack_dotnet_csharp_only", "стек скорее .NET/C# без Python", -5, (" net ", " dotnet", "csharp")),
     ("stack_php_only", "стек скорее PHP без Python", -5, (" php ", "symfony", "laravel")),
     ("stack_devops_only", "DevOps без Python/backend stack", -6, ("devops", "azure devops", "kubernetes", "terraform")),

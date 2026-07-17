@@ -28,6 +28,16 @@ def _env_float(name: str, default: float) -> float:
         return default
 
 
+def _env_int(name: str, default: int) -> int:
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+    try:
+        return int(raw_value)
+    except ValueError:
+        return default
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     """Runtime settings for local app bootstrap."""
@@ -66,7 +76,7 @@ class Settings:
     # Размер фрагмента описания вакансии (символов).
     # Больше символов → нормализатор получает больше контекста для сигналов.
     source_careerjet_fragment_size: int = field(
-        default_factory=lambda: int(os.getenv("SOURCE_CAREERJET_FRAGMENT_SIZE", "500"))
+        default_factory=lambda: _env_int("SOURCE_CAREERJET_FRAGMENT_SIZE", 500)
     )
 
     # --- EURES ---
@@ -173,7 +183,7 @@ class Settings:
     # --- SMTP notifications ---
     notification_smtp_host: str | None = field(default_factory=lambda: os.getenv("NOTIFICATION_SMTP_HOST"))
     notification_smtp_port: int = field(
-        default_factory=lambda: int(os.getenv("NOTIFICATION_SMTP_PORT", "587"))
+        default_factory=lambda: _env_int("NOTIFICATION_SMTP_PORT", 587)
     )
     notification_smtp_user: str | None = field(default_factory=lambda: os.getenv("NOTIFICATION_SMTP_USER"))
     notification_smtp_password: str | None = field(default_factory=lambda: os.getenv("NOTIFICATION_SMTP_PASSWORD"))
