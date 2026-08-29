@@ -112,6 +112,7 @@ class DatabaseSearchProfileResolver:
                 physical_work_ok=search_profile.physical_work_ok,
                 housing_needed=search_profile.housing_needed,
                 start_availability_text=search_profile.start_availability_text,
+                driver_license=getattr(search_profile, "driver_license", None),
                 no_german_required=bool(search_profile.no_german_required),
                 section24_interpreted=legal_status.section24,
                 search_query_terms=tuple(search_profile.search_query_terms or ()),

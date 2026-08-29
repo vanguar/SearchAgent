@@ -74,6 +74,7 @@ class SearchProfileContext:
     no_german_required: bool = False
     section24_interpreted: bool = False
     search_query_terms: tuple[str, ...] = ()
+    driver_license: str | None = None
 
     @classmethod
     def fallback(cls, *, note_ru: str) -> SearchProfileContext:
@@ -147,6 +148,9 @@ class VacancySignalSnapshot:
     strong_experience_required: bool = False
     entry_level_signal: bool = False
     sponsorship_ambiguity: bool = False
+    required_driver_license_categories: tuple[str, ...] = ()
+    allowed_driver_license_categories: tuple[str, ...] = ()
+    optional_driver_license_categories: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

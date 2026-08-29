@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from app.services.driver_license_signal_extractor import extract_driver_license_requirements
 from app.services.hashers import normalize_text_for_fingerprint
 from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.search_models import RuleHit, SearchProfileContext, VacancySignalSnapshot, normalize_profile_text
@@ -294,6 +295,7 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         combined_text=combined_text,
         raw_roles=profile.excluded_roles,
     )
+    driver_license_requirement = extract_driver_license_requirements(build_driver_license_text(canonical))
     location_match, location_hits = _match_profile_locations(canonical, profile)
 
     return VacancySignalSnapshot(
@@ -302,6 +304,9 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         negative_role_hits=negative_role_hits,
         desired_role_hits=desired_role_hits,
         excluded_role_hits=excluded_role_hits,
+        required_driver_license_categories=driver_license_requirement.required,
+        allowed_driver_license_categories=driver_license_requirement.allowed,
+        optional_driver_license_categories=driver_license_requirement.optional,
         location_match=location_match,
         location_hits=location_hits,
         strong_german_required=canonical.language_signals.strong_german_required
@@ -343,6 +348,13 @@ def build_title_text(canonical: CanonicalVacancyGroup) -> str:
     parts: list[str] = [canonical.normalized_title]
     parts.extend(record.original_title for record in canonical.source_records)
     return normalize_text_for_fingerprint(" ".join(part for part in parts if part))
+
+
+def build_driver_license_text(canonical: CanonicalVacancyGroup) -> str:
+    parts: list[str] = [canonical.normalized_title]
+    for record in canonical.source_records:
+        parts.extend((record.original_title, record.body_text or ""))
+    return "\n".join(part for part in parts if part)
 
 
 def _match_rules(text: str, rules: tuple[TextRule, ...]) -> tuple[RuleHit, ...]:

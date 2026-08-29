@@ -110,6 +110,7 @@ def test_database_search_profile_resolver_uses_section24_interpretation_for_work
         physical_work_ok=True,
         housing_needed=False,
         start_availability_text=None,
+        driver_license="B",
         no_german_required=False,
         search_query_terms=None,
     )
@@ -130,6 +131,7 @@ def test_database_search_profile_resolver_uses_section24_interpretation_for_work
     assert result.work_authorized is True
     assert result.section24_interpreted is True
     assert result.low_german is False
+    assert result.driver_license == "B"
 
 
 def test_database_search_profile_resolver_opens_session_without_db_reachability_precheck() -> None:

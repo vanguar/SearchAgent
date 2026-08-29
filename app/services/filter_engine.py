@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 
+from app.services.driver_license_signal_extractor import extract_profile_driver_license_categories
 from app.services.hashers import normalize_text_for_fingerprint
 from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.profile_parser import (
@@ -102,6 +103,10 @@ class FilterEngine:
                 RuleHit(code="school_transport_mismatch", label_ru="школьные пассажирские перевозки исключены")
             )
 
+        driver_license_mismatch = _driver_license_mismatch_hit(resolved_signals, profile)
+        if driver_license_mismatch is not None:
+            rejection_hits.append(driver_license_mismatch)
+
         family_mismatch = _check_profession_family_mismatch(canonical, profile)
         if family_mismatch:
             rejection_hits.append(RuleHit(
@@ -197,6 +202,31 @@ def _is_driver_b_fernverkehr_profile(profile: SearchProfileContext) -> bool:
 
 def _is_school_transport(combined_text: str) -> bool:
     return any(pattern.search(combined_text) for pattern in _SCHOOL_TRANSPORT_PATTERNS)
+
+
+def _driver_license_mismatch_hit(
+    signals: VacancySignalSnapshot,
+    profile: SearchProfileContext,
+) -> RuleHit | None:
+    profile_categories = set(extract_profile_driver_license_categories(profile.driver_license))
+    if profile_categories != {"B"}:
+        return None
+    if "B" in signals.allowed_driver_license_categories:
+        return None
+
+    incompatible_categories = tuple(
+        category
+        for category in ("C", "C1", "CE", "C1E", "D", "DE")
+        if category in signals.required_driver_license_categories
+    )
+    if not incompatible_categories:
+        return None
+
+    required = "/".join(incompatible_categories)
+    return RuleHit(
+        code="driver_license_mismatch",
+        label_ru=f"требуется категория {required}, у профиля указана категория B",
+    )
 
 
 def _is_clear_role_mismatch(signals: VacancySignalSnapshot, profile: SearchProfileContext) -> bool:

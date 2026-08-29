@@ -758,6 +758,98 @@ def test_driver_b_fernverkehr_does_not_treat_other_driving_as_school_transport()
         assert not any(hit.code == "school_transport_mismatch" for hit in result.rejection_hits), title
 
 
+def test_driver_b_profile_rejects_explicit_higher_license_requirements() -> None:
+    profile = _build_profile(
+        desired_roles=(DRIVER_B_FERNVERKEHR_ROLE,),
+        search_query_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+        driver_license="B",
+        german_level=None,
+    )
+    vacancies = (
+        ("LKW Fahrer Kl. CE (m/w/d) im Fernverkehr", "Fernverkehr national."),
+        ("Berufskraftfahrer Fernverkehr", "Führerschein CE erforderlich."),
+        ("Kraftfahrer", "Fahrerlaubnis C/CE zwingend erforderlich."),
+        ("LKW-Fahrer", "Führerschein Klasse C erforderlich."),
+        ("Busfahrer", "Führerschein Klasse D erforderlich."),
+        ("Fahrer", "Fahrerlaubnisklasse C1E erforderlich."),
+        ("LKW-Fahrer", "Führerscheinklasse C1 erforderlich."),
+        ("Truck driver", "Driving licence class CE required."),
+    )
+
+    for title, body in vacancies:
+        result = FilterEngine().evaluate(_build_canonical(title=title, body=body), profile)
+
+        assert result.hard_reject is True, title
+        assert any(hit.code == "driver_license_mismatch" for hit in result.rejection_hits), title
+
+
+def test_driver_b_profile_allows_b_alternatives_optional_higher_categories_and_unspecified_titles() -> None:
+    profile = _build_profile(
+        desired_roles=(DRIVER_B_FERNVERKEHR_ROLE,),
+        search_query_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+        driver_license="B",
+        german_level=None,
+    )
+    vacancies = (
+        ("Sprinterfahrer bis 3,5 t", "Führerschein Klasse B."),
+        ("Transporterfahrer", "Klasse B ausreichend."),
+        ("Fahrer Klasse B oder C", "Fahrten innerhalb Deutschlands."),
+        ("Fahrer", "Führerschein B erforderlich, C von Vorteil."),
+        ("Fahrer", "Fahrerlaubnis B/C."),
+        ("Kraftfahrer", "Führerschein mindestens Klasse B."),
+        ("LKW-Fahrer", "Klasse B ausreichend, Führerschein CE wünschenswert."),
+        ("Van driver", "Driving licence class B or C."),
+        ("Truck driver", "Class B sufficient. Class CE preferred."),
+        ("Berufskraftfahrer/in", "Fahrten innerhalb Deutschlands."),
+    )
+
+    for title, body in vacancies:
+        result = FilterEngine().evaluate(_build_canonical(title=title, body=body), profile)
+
+        assert not any(hit.code == "driver_license_mismatch" for hit in result.rejection_hits), title
+
+
+def test_driver_b_profile_handles_conjunction_alternative_and_negated_requirement() -> None:
+    profile = _build_profile(
+        desired_roles=(DRIVER_B_FERNVERKEHR_ROLE,),
+        search_query_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+        driver_license="B",
+        german_level=None,
+    )
+    cases = (
+        ("Klasse B und CE erforderlich", True),
+        ("Klasse B oder CE", False),
+        ("CE erforderlich, B reicht nicht aus", True),
+        ("CE erforderlich und Klasse C wünschenswert", True),
+        ("Kein LKW-Führerschein erforderlich, Klasse B genügt", False),
+        ("Führerschein CE nicht erforderlich", False),
+    )
+
+    for body, expected_reject in cases:
+        result = FilterEngine().evaluate(_build_canonical(title="Fahrer", body=body), profile)
+        has_mismatch = any(hit.code == "driver_license_mismatch" for hit in result.rejection_hits)
+
+        assert has_mismatch is expected_reject, body
+
+
+def test_driver_license_filter_is_inactive_without_b_only_profile_license() -> None:
+    canonical = _build_canonical(
+        title="LKW Fahrer Kl. CE",
+        body="Führerschein CE zwingend erforderlich.",
+    )
+
+    for driver_license in (None, "C", "CE"):
+        profile = _build_profile(
+            desired_roles=(DRIVER_B_FERNVERKEHR_ROLE,),
+            search_query_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+            driver_license=driver_license,
+            german_level=None,
+        )
+        result = FilterEngine().evaluate(canonical, profile)
+
+        assert not any(hit.code == "driver_license_mismatch" for hit in result.rejection_hits)
+
+
 def test_basic_german_profile_rejects_explicit_b1_or_stronger_requirements() -> None:
     profile = _build_profile(
         desired_roles=(DRIVER_B_FERNVERKEHR_ROLE,),
