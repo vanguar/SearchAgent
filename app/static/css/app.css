@@ -2269,3 +2269,35 @@ body {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* ── Statistics: segmented period switcher (v2) ──────────── */
+.seg {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f2ede4;
+}
+
+.seg__item {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 13px;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-soft);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s;
+}
+
+.seg__item:hover {
+  color: var(--text-main);
+}
+
+.seg__item--active {
+  background: var(--text-main);
+  color: #fdfbf9;
+}

@@ -18,12 +18,12 @@
         {% endif %}
       </p>
     </div>
-    <div class="action-row">
+    <div class="seg" role="group" aria-label="Период">
       {% for option in stats_dashboard.window_links %}
         {% if option.is_active %}
-        <span class="status-pill">{{ option.label_ru }}</span>
+        <span class="seg__item seg__item--active" aria-current="true">{{ option.label_ru }}</span>
         {% else %}
-        <a href="{{ option.url }}" class="ghost-btn">{{ option.label_ru }}</a>
+        <a href="{{ option.url }}" class="seg__item">{{ option.label_ru }}</a>
         {% endif %}
       {% endfor %}
     </div>
