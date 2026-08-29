@@ -521,16 +521,21 @@ body {
 .thread-item,
 .match-item,
 .email-message-card {
-  border: 1px solid #e4dccc;
-  border-radius: 8px;
-  background: #f8f3ea;
-  padding: 12px 14px;
-  transition: border-color 0.12s;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-card);
+  padding: 14px 16px;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+.thread-item:hover {
+  border-color: #d9cdbf;
 }
 
 .thread-item.is-selected {
-  border-color: #d0a882;
-  background: #fff5ec;
+  border-color: #dcc0b1;
+  background: #fdf6f1;
+  box-shadow: inset 3px 0 0 0 var(--accent);
 }
 
 .thread-link {
