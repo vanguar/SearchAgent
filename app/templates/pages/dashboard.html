@@ -1,20 +1,154 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="cards-grid">
+
+<div class="dash-actions">
+  {% if dashboard and dashboard.owner_context %}
+  <span class="profile-pill"><span class="profile-pill__dot" aria-hidden="true">●</span> Профиль: {{ dashboard.owner_context.profile_label }}</span>
+  {% else %}
+  <span class="profile-pill profile-pill--muted">Профиль не выбран</span>
+  {% endif %}
+  <a class="btn-primary" href="/jobs">Запустить поиск</a>
+</div>
+
+{% if dashboard and dashboard.warning_message %}
+<article class="panel">
+  <div class="notice warning">{{ dashboard.warning_message }}</div>
+</article>
+{% endif %}
+
+{% set summary = dashboard.summary if dashboard else None %}
+
+<section class="dash-hero">
+  <p class="dash-hero__label">Следующий шаг</p>
+  {% if not dashboard or not dashboard.owner_context or summary.total_leads == 0 %}
+  <h2 class="dash-hero__title">Сохраните первую вакансию из поиска</h2>
+  <p class="dash-hero__text">Запустите поиск, откройте карточки и добавьте подходящие вакансии в отклики — здесь появится ваш следующий шаг.</p>
+  <div class="dash-hero__actions">
+    <a class="btn-on-dark" href="/jobs">Перейти к поиску</a>
+  </div>
+  {% elif summary.due_follow_ups > 0 %}
+  <h2 class="dash-hero__title">{{ summary.due_follow_ups }} фоллоу-ап(ов) пора отправить</h2>
+  <p class="dash-hero__text">Есть отклики, где уже пора напомнить о себе. Начните с них, чтобы не терять контакт.</p>
+  <div class="dash-hero__actions">
+    <a class="btn-on-dark" href="/leads">Открыть очередь</a>
+  </div>
+  {% elif summary.active_leads > 0 %}
+  <h2 class="dash-hero__title">{{ summary.active_leads }} активных откликов в работе</h2>
+  <p class="dash-hero__text">Проверьте статусы и назначьте следующие шаги по активным откликам.</p>
+  <div class="dash-hero__actions">
+    <a class="btn-on-dark" href="/leads">Открыть очередь</a>
+  </div>
+  {% else %}
+  <h2 class="dash-hero__title">Все отклики под контролем</h2>
+  <p class="dash-hero__text">Просроченных фоллоу-апов нет. Можно запустить новый поиск и добавить свежие вакансии.</p>
+  <div class="dash-hero__actions">
+    <a class="btn-on-dark" href="/jobs">Новый поиск</a>
+  </div>
+  {% endif %}
+</section>
+
+<section class="dash-stats">
   <article class="panel stat-card">
-    <p class="muted">Сегодня</p>
-    <strong>0 новых вакансий</strong>
+    <p class="muted">Всего лидов</p>
+    <strong>{{ summary.total_leads if summary else 0 }}</strong>
+    <p class="muted">Все сохранённые вакансии и отклики.</p>
   </article>
   <article class="panel stat-card">
-    <p class="muted">Отклики</p>
-    <strong>0 активных процессов</strong>
+    <p class="muted">Активные</p>
+    <strong>{{ summary.active_leads if summary else 0 }}</strong>
+    <p class="muted">Ещё не в архиве, требуют внимания.</p>
   </article>
   <article class="panel stat-card">
-    <p class="muted">Фокус</p>
-    <strong>Обновить профиль поиска</strong>
+    <p class="muted">Отклики отправлены</p>
+    <strong>{{ summary.applied_leads if summary else 0 }}</strong>
+    <p class="muted">
+      {% if summary and summary.due_follow_ups > 0 %}{{ summary.due_follow_ups }} пора напомнить{% else %}Ждём ответа компаний.{% endif %}
+    </p>
+  </article>
+  <article class="panel stat-card">
+    <p class="muted">Интервью</p>
+    <strong>{{ summary.scheduled_interviews if summary else 0 }}</strong>
+    <p class="muted">Запланированные собеседования.</p>
   </article>
 </section>
 
-{% include "partials/section_hint_loader.html" %}
+<section class="split-layout">
+  <div class="content-stack">
+    <article class="panel">
+      <div class="panel-actions">
+        <h3>Последние отклики</h3>
+        <a class="ghost-btn" href="/leads">Все отклики</a>
+      </div>
+      {% if dashboard and dashboard.leads %}
+      <ul class="dash-recent">
+        {% for lead_card in dashboard.leads[:6] %}
+        <li class="dash-recent__row">
+          <a class="dash-recent__main" href="/leads/{{ lead_card.lead.id }}">
+            <span class="dash-recent__title">{{ lead_card.lead.vacancy_title }}</span>
+            <span class="muted dash-recent__meta">
+              {{ lead_card.lead.company_name or "Компания не указана" }}
+              {% if lead_card.lead.location_text %} · {{ lead_card.lead.location_text }}{% endif %}
+            </span>
+          </a>
+          <span class="status-pill status-{{ lead_card.lead.status or 'new' }}">{{ lead_card.status_label_ru }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="muted">Пока нет сохранённых откликов. Сохраните вакансию из поиска — она появится здесь.</p>
+      {% endif %}
+      <p class="muted dash-note">
+        Лента «новое с прошлого запуска» с результатами поиска появится, когда будет read-model истории поиска
+        (требуется отдельный backend read-model).
+      </p>
+    </article>
+  </div>
+
+  <aside class="content-stack">
+    <article class="panel">
+      <h3>Напоминания</h3>
+      {% if dashboard and dashboard.reminders %}
+      <ul class="dash-reminders">
+        {% for reminder in dashboard.reminders %}
+        <li class="dash-reminders__row">
+          <span class="dash-reminders__dot" aria-hidden="true">●</span>
+          <div>
+            <strong>{{ reminder.title }}</strong>
+            {% if reminder.due_at %}
+            <br /><span class="muted">{{ reminder.due_at.strftime("%d.%m.%Y %H:%M") }}</span>
+            {% endif %}
+            {% if reminder.details %}
+            <br /><span class="muted">{{ reminder.details }}</span>
+            {% endif %}
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="muted">Открытых напоминаний нет.</p>
+      {% endif %}
+    </article>
+
+    <article class="panel">
+      <h3>Источники</h3>
+      {% if source_descriptors %}
+      {% set active_sources = source_descriptors | selectattr("enabled") | list %}
+      {% set disabled_sources = source_descriptors | rejectattr("enabled") | list %}
+      <p class="muted">
+        Активны {{ active_sources | length }} из {{ source_descriptors | length }}.
+        {% if disabled_sources %}
+        Отключены: {{ disabled_sources | map(attribute="display_name") | join(", ") }}.
+        {% endif %}
+      </p>
+      {% else %}
+      <p class="muted">Статус источников доступен на странице настроек.</p>
+      {% endif %}
+      <div class="panel-actions dash-sources__actions">
+        <a class="ghost-btn" href="/settings">Настроить источники</a>
+      </div>
+    </article>
+  </aside>
+</section>
+
 {% endblock %}
