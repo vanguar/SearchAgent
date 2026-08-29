@@ -1,6 +1,10 @@
 from app.services.filter_engine import FilterEngine
 from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.normalizer import VacancyNormalizer
+from app.services.profile_parser import (
+    DRIVER_B_FERNVERKEHR_ROLE,
+    DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+)
 from app.services.scorer import VacancyScorer
 from app.services.search_models import SearchProfileContext
 from app.services.search_service import _assign_bucket
@@ -304,3 +308,198 @@ def test_head_of_engineering_is_lower_than_hands_on_ai_engineer() -> None:
     assert ai_score > head_score
     assert head_bucket != "hot"
     assert "title_head_manager" in head_negatives
+
+
+def _build_driver_b_profile() -> SearchProfileContext:
+    return _build_profile(
+        profile_label=DRIVER_B_FERNVERKEHR_ROLE,
+        desired_roles=(DRIVER_B_FERNVERKEHR_ROLE,),
+        search_query_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+        excluded_roles=("Paketzustellung", "Paketbote", "Postzustellung", "Briefzustellung"),
+        preferred_locations=("Deutschland",),
+        german_level="basic",
+    )
+
+
+def _score_driver_b(
+    title: str,
+    body: str,
+) -> tuple[int, str, set[str], set[str], bool]:
+    filter_engine = FilterEngine()
+    scorer = VacancyScorer(filter_engine=filter_engine)
+    profile = _build_driver_b_profile()
+    canonical = _build_canonical(title=title, body=body)
+    filter_result = filter_engine.evaluate(canonical, profile)
+    score_result = scorer.score(canonical, profile, filter_result=filter_result)
+    return (
+        score_result.score,
+        _assign_bucket(filter_result=filter_result, score=score_result.score),
+        {hit.code for hit in score_result.positive_hits},
+        {hit.code for hit in score_result.negative_hits},
+        filter_result.hard_reject,
+    )
+
+
+def test_driver_b_fernverkehr_direct_few_stops_ranks_above_local_delivery() -> None:
+    priority_score, priority_bucket, priority_hits, _, _ = _score_driver_b(
+        "Sprinterfahrer im Fernverkehr",
+        "Deutschlandweite Direktfahrten mit 2–4 Abladestellen.",
+    )
+    local_score, local_bucket, _, local_negatives, local_rejected = _score_driver_b(
+        "Fahrer Klasse B",
+        "Lokale Warenlieferung.",
+    )
+
+    assert priority_score > local_score
+    assert priority_bucket == "hot"
+    assert local_bucket == "maybe"
+    assert local_rejected is False
+    assert {
+        "driver_long_distance",
+        "driver_direct_runs",
+        "driver_nationwide_routes",
+        "driver_few_stops",
+        "driver_vehicle_fit",
+        "driver_long_route_few_stops_combo",
+    } <= priority_hits
+    assert "driver_local_delivery" in local_negatives
+
+
+def test_driver_b_long_distance_few_stops_ranks_above_local_class_b() -> None:
+    long_score, _, long_hits, _, _ = _score_driver_b(
+        "Transporterfahrer",
+        "Lange Strecken mit 3 Stopps pro Tour.",
+    )
+    local_score, _, _, _, _ = _score_driver_b(
+        "Fahrer Klasse B",
+        "Lokale Touren im Stadtgebiet.",
+    )
+
+    assert long_score > local_score
+    assert {
+        "driver_long_distance",
+        "driver_few_stops",
+        "driver_vehicle_fit",
+        "driver_long_route_few_stops_combo",
+    } <= long_hits
+
+
+def test_driver_b_mass_parcel_stops_receive_substantial_soft_penalty() -> None:
+    regular_score, _, _, _, _ = _score_driver_b(
+        "Fahrer Klasse B",
+        "Warenbeförderung.",
+    )
+    mass_score, mass_bucket, _, mass_negatives, hard_reject = _score_driver_b(
+        "Fahrer Klasse B",
+        "120 Stopps täglich, Pakete an Privatkunden.",
+    )
+
+    assert regular_score - mass_score >= 30
+    assert mass_bucket == "rejected"
+    assert hard_reject is False
+    assert {"driver_mass_stop_count", "driver_door_to_door_delivery"} <= mass_negatives
+
+
+def test_driver_b_medical_delivery_title_is_not_automatically_negative() -> None:
+    _, _, _, negatives, hard_reject = _score_driver_b(
+        "Auslieferungsfahrer Medizinprodukte",
+        "3 Kliniken, 250 km täglich.",
+    )
+
+    assert hard_reject is False
+    assert not any(code.startswith("driver_") for code in negatives)
+
+
+def test_driver_b_kurier_direct_runs_are_high_relevance() -> None:
+    score, bucket, positives, _, hard_reject = _score_driver_b(
+        "Kurierfahrer für Direktfahrten deutschlandweit",
+        "Direkte Touren innerhalb Deutschlands.",
+    )
+
+    assert hard_reject is False
+    assert bucket == "hot"
+    assert score >= 70
+    assert {"driver_direct_runs", "driver_nationwide_routes"} <= positives
+
+
+def test_driver_b_nahverkehr_is_lower_than_fernverkehr_without_hard_reject() -> None:
+    fern_score, _, _, _, _ = _score_driver_b(
+        "Fahrer Klasse B im Fernverkehr",
+        "Lange Strecken.",
+    )
+    local_score, _, _, local_negatives, local_rejected = _score_driver_b(
+        "Fahrer Klasse B im Nahverkehr",
+        "Lokale Touren.",
+    )
+
+    assert fern_score > local_score
+    assert local_rejected is False
+    assert "driver_local_delivery" in local_negatives
+
+
+def test_driver_b_route_signals_do_not_affect_other_profiles() -> None:
+    canonical = _build_canonical(
+        title="Sprinterfahrer im Fernverkehr",
+        body="Deutschlandweite Direktfahrten mit 2–4 Abladestellen und 120 Stopps täglich.",
+    )
+
+    for profile in (_build_profile(), _build_it_profile()):
+        filter_engine = FilterEngine()
+        filter_result = filter_engine.evaluate(canonical, profile)
+        score_result = VacancyScorer(filter_engine=filter_engine).score(
+            canonical,
+            profile,
+            filter_result=filter_result,
+        )
+        codes = {
+            hit.code
+            for hit in (*score_result.positive_hits, *score_result.negative_hits)
+        }
+        assert not any(code.startswith("driver_") for code in codes)
+
+
+def test_driver_b_positive_route_vocabulary_is_recognized() -> None:
+    cases = (
+        ("Langstrecke.", "driver_long_distance"),
+        ("Langstrecken.", "driver_long_distance"),
+        ("Längere Fahrstrecken.", "driver_long_distance"),
+        ("Weite Strecken.", "driver_long_distance"),
+        ("Sonderfahrten.", "driver_special_express_runs"),
+        ("Expressfahrten.", "driver_special_express_runs"),
+        ("Bundesweite Touren.", "driver_nationwide_routes"),
+        ("Überregionale Touren.", "driver_nationwide_routes"),
+        ("Mehrtagestouren.", "driver_multiday_routes"),
+        ("Wenige Stopps.", "driver_few_stops"),
+        ("Wenige Abladestellen.", "driver_few_stops"),
+        ("Wenige Entladestellen.", "driver_few_stops"),
+        ("Wenige Kunden pro Tour.", "driver_few_stops"),
+        ("1–5 Stopps.", "driver_few_stops"),
+        ("2–4 Abladestellen.", "driver_few_stops"),
+        ("Planensprinter.", "driver_vehicle_fit"),
+        ("Koffersprinter.", "driver_vehicle_fit"),
+        ("Kleintransporter bis 3,5 t.", "driver_vehicle_fit"),
+    )
+
+    for text, expected_code in cases:
+        _, _, positives, _, _ = _score_driver_b("Fahrer Klasse B", text)
+        assert expected_code in positives, text
+
+
+def test_driver_b_local_mass_delivery_vocabulary_is_recognized() -> None:
+    cases = (
+        ("Regionale Auslieferung.", "driver_local_delivery"),
+        ("Einsatz im Stadtgebiet.", "driver_local_delivery"),
+        ("Feste Zustelltour.", "driver_local_delivery"),
+        ("Viele Stopps.", "driver_many_stops"),
+        ("Täglich viele Stopps.", "driver_many_stops"),
+        ("Viele Kunden.", "driver_many_stops"),
+        ("50 Stopps.", "driver_mass_stop_count"),
+        ("100–150 Stopps täglich.", "driver_mass_stop_count"),
+        ("Tür-zu-Tür Zustellung.", "driver_door_to_door_delivery"),
+        ("Pakete an Privatkunden.", "driver_door_to_door_delivery"),
+    )
+
+    for text, expected_code in cases:
+        _, _, _, negatives, hard_reject = _score_driver_b("Fahrer Klasse B", text)
+        assert hard_reject is False, text
+        assert expected_code in negatives, text

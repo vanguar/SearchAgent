@@ -1,7 +1,13 @@
 from __future__ import annotations
 
+import re
+
 from app.services.filter_engine import FilterEngine
 from app.services.normalization_models import CanonicalVacancyGroup
+from app.services.profile_parser import (
+    DRIVER_B_FERNVERKEHR_ROLE,
+    DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+)
 from app.services.rule_catalog import BASE_SCORE, inspect_vacancy
 from app.services.search_models import (
     FilterResult,
@@ -37,6 +43,118 @@ _TITLE_SHAPE_PENALTIES: tuple[tuple[str, str, int, tuple[str, ...]], ...] = (
     ("title_devops_only", "title выглядит как DevOps-only", -24, ("devops", "site reliability", "sre")),
     ("title_head_manager", "title выглядит как руководящая роль", -24, ("head of", "engineering manager", "manager", "leiter")),
 )
+
+_DRIVER_B_POSITIVE_RULES: tuple[tuple[str, str, int, tuple[str, ...]], ...] = (
+    (
+        "driver_long_distance",
+        "дальние маршруты",
+        10,
+        (
+            r"\bfernverkehr\w*",
+            r"\blangstreck\w*",
+            r"\blange\s+strecken\b",
+            r"\blangere\s+fahrstrecken\b",
+            r"\bweite\s+strecken\b",
+        ),
+    ),
+    (
+        "driver_direct_runs",
+        "прямые рейсы",
+        10,
+        (r"\bdirektfahrt\w*",),
+    ),
+    (
+        "driver_special_express_runs",
+        "специальные или срочные рейсы",
+        8,
+        (
+            r"\bsonderfahrt\w*",
+            r"\bexpressfahrt\w*",
+            r"\bsonder\s+und\s+expressfahrt\w*",
+        ),
+    ),
+    (
+        "driver_nationwide_routes",
+        "маршруты по всей Германии",
+        5,
+        (r"\bbundesweit\w*", r"\bdeutschlandweit\w*", r"\buberregional\w*"),
+    ),
+    (
+        "driver_multiday_routes",
+        "многодневные рейсы",
+        6,
+        (r"\bmehrtagestour\w*",),
+    ),
+    (
+        "driver_few_stops",
+        "небольшое количество остановок",
+        8,
+        (
+            r"\bwenige\s+(?:stopps?|abladestellen|entladestellen)\b",
+            r"\bwenige\s+kunden\s+pro\s+tour\b",
+            r"\b[1-5]\s+(?:stopps?|abladestellen|entladestellen)\b",
+            r"\b[1-5]\s+[1-5]\s+(?:stopps?|abladestellen|entladestellen)\b",
+        ),
+    ),
+    (
+        "driver_vehicle_fit",
+        "подходящий Sprinter или Transporter до 3,5 т",
+        4,
+        (
+            r"\b(?:planensprinter|koffersprinter|kleintransporter|sprinter|transporter)\w*",
+            r"\b(?:bis\s+)?3\s+5\s*t\b",
+        ),
+    ),
+    (
+        "driver_class_b",
+        "права категории B",
+        1,
+        (r"\bklasse\s+b\b",),
+    ),
+)
+_DRIVER_B_NEGATIVE_RULES: tuple[tuple[str, str, int, tuple[str, ...]], ...] = (
+    (
+        "driver_local_delivery",
+        "локальная или региональная развозка",
+        -10,
+        (
+            r"\bnahverkehr\w*",
+            r"\b(?:lokal|regional)\w*\s+(?:ausliefer|warenliefer|liefer|tour|transport|warenbeforder)\w*",
+            r"\bstadtgebiet\w*",
+            r"\bfeste\s+zustelltour\w*",
+        ),
+    ),
+    (
+        "driver_many_stops",
+        "много остановок или клиентов",
+        -18,
+        (
+            r"\b(?:taglich\s+)?viele\s+(?:zustell)?stopps?\b",
+            r"\b(?:taglich\s+)?viele\s+kunden\b",
+        ),
+    ),
+    (
+        "driver_mass_stop_count",
+        "массовая развозка с 50 и более остановками",
+        -24,
+        (r"\b(?:[5-9]\d|[1-9]\d{2,})\s+(?:zustell)?stopps?\b",),
+    ),
+    (
+        "driver_door_to_door_delivery",
+        "массовая доставка от двери к двери",
+        -12,
+        (r"\btur\s+zu\s+tur\b", r"\bpakete?\s+an\s+privatkunden\b"),
+    ),
+)
+_DRIVER_B_LONG_ROUTE_CODES = frozenset({
+    "driver_long_distance",
+    "driver_direct_runs",
+    "driver_nationwide_routes",
+    "driver_multiday_routes",
+})
+_DRIVER_B_POSITIVE_BONUS_CAP = 28
+_DRIVER_B_NEGATIVE_PENALTY_FLOOR = -36
+_DRIVER_B_LONG_ROUTE_FEW_STOPS_BONUS = 5
 
 
 def _search_terms_match_vacancy(combined_text: str, search_query_terms: tuple[str, ...]) -> bool:
@@ -103,6 +221,23 @@ class VacancyScorer:
         ):
             score += 10
             positive_hits.append(RuleHit(code="search_term_match", label_ru="соответствует поисковому термину профиля", weight=10))
+
+        driver_positive_hits, driver_negative_hits = _score_driver_b_route_fit(
+            resolved_signals.combined_text,
+            profile,
+        )
+        if driver_positive_hits:
+            score += min(
+                _DRIVER_B_POSITIVE_BONUS_CAP,
+                sum(hit.weight for hit in driver_positive_hits),
+            )
+            positive_hits.extend(driver_positive_hits)
+        if driver_negative_hits:
+            score += max(
+                _DRIVER_B_NEGATIVE_PENALTY_FLOOR,
+                sum(hit.weight for hit in driver_negative_hits),
+            )
+            negative_hits.extend(driver_negative_hits)
 
         core_stack_hits = _score_core_stack(resolved_signals.combined_text, profile)
         core_stack_bonus = min(_CORE_STACK_BONUS_CAP, sum(hit.weight for hit in core_stack_hits))
@@ -273,6 +408,49 @@ def _score_non_core_stack(text: str) -> list[RuleHit]:
         RuleHit(code=code, label_ru=label, weight=weight)
         for code, label, weight, tokens in _NON_CORE_STACK_RULES
         if any(token in padded for token in tokens)
+    ]
+
+
+def _score_driver_b_route_fit(
+    text: str,
+    profile: SearchProfileContext,
+) -> tuple[list[RuleHit], list[RuleHit]]:
+    if not _profile_is_driver_b_fernverkehr(profile):
+        return [], []
+
+    positive_hits = _match_weighted_rules(text, _DRIVER_B_POSITIVE_RULES)
+    positive_codes = {hit.code for hit in positive_hits}
+    if (
+        positive_codes.intersection(_DRIVER_B_LONG_ROUTE_CODES)
+        and "driver_few_stops" in positive_codes
+    ):
+        positive_hits.append(
+            RuleHit(
+                code="driver_long_route_few_stops_combo",
+                label_ru="длинный маршрут с небольшим количеством точек",
+                weight=_DRIVER_B_LONG_ROUTE_FEW_STOPS_BONUS,
+            )
+        )
+
+    return positive_hits, _match_weighted_rules(text, _DRIVER_B_NEGATIVE_RULES)
+
+
+def _profile_is_driver_b_fernverkehr(profile: SearchProfileContext) -> bool:
+    target_role = normalize_profile_text(DRIVER_B_FERNVERKEHR_ROLE)
+    return (
+        any(normalize_profile_text(role) == target_role for role in profile.desired_roles)
+        or tuple(profile.search_query_terms) == DRIVER_B_FERNVERKEHR_SEARCH_TERMS
+    )
+
+
+def _match_weighted_rules(
+    text: str,
+    rules: tuple[tuple[str, str, int, tuple[str, ...]], ...],
+) -> list[RuleHit]:
+    return [
+        RuleHit(code=code, label_ru=label, weight=weight)
+        for code, label, weight, patterns in rules
+        if any(re.search(pattern, text) for pattern in patterns)
     ]
 
 
