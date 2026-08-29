@@ -11,12 +11,21 @@
   {% endif %}
 
   {% if funnel_dashboard.stages %}
-  <ol class="compact-list">
+  {% set funnel_base = funnel_dashboard.stages[0].count %}
+  <ol class="funnel">
     {% for stage in funnel_dashboard.stages %}
-    <li>
-      <strong>{{ stage.label_ru }}: {{ stage.count }}</strong>
-      <br />
-      <span class="muted">{{ stage.subtitle_ru }}</span>
+    {% set stage_pct = (stage.count / funnel_base * 100) if funnel_base else 0 %}
+    <li class="funnel__row">
+      <div class="funnel__head">
+        <span class="funnel__label">{{ stage.label_ru }}</span>
+        <span class="funnel__count">{{ stage.count }}</span>
+      </div>
+      <div class="funnel__track" aria-hidden="true">
+        <div class="funnel__bar" style="width: {{ stage_pct | round(1) }}%;"></div>
+      </div>
+      {% if stage.subtitle_ru %}
+      <span class="muted funnel__sub">{{ stage.subtitle_ru }}</span>
+      {% endif %}
     </li>
     {% endfor %}
   </ol>
