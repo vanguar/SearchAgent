@@ -1748,3 +1748,28 @@ body {
 .import-details[open] .import-details__summary::after {
   transform: rotate(180deg);
 }
+
+/* ── Quality empty state ─────────────────────────────────── */
+.empty-panel {
+  padding: 34px 28px;
+}
+
+.empty-panel__body {
+  max-width: 62ch;
+  display: grid;
+  gap: 10px;
+}
+
+.empty-panel__body h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.empty-panel__actions {
+  margin-top: 6px;
+}
+
+.empty-panel__note {
+  margin-top: 6px;
+  font-size: 0.84rem;
+}

@@ -1,10 +1,21 @@
 {% extends "base.html" %}
 
 {% block content %}
-{% set title = "Планирование интервью" %}
-{% set description = "Скелет для фиксации даты, формата и заметок по собеседованиям." %}
-{% set button_label = "Добавить интервью (позже)" %}
-{% include "partials/empty_state.html" %}
-
-{% include "partials/section_hint_loader.html" %}
+<article class="panel empty-panel">
+  <div class="empty-panel__body">
+    <h3>Собеседования ведутся внутри откликов</h3>
+    <p class="muted">
+      Дату, формат, интервьюера и заметки можно назначить в карточке конкретного отклика —
+      там же виден список запланированных встреч по этой вакансии.
+    </p>
+    <div class="empty-panel__actions">
+      <a class="btn-primary" href="/leads">Перейти к откликам</a>
+    </div>
+    <p class="muted empty-panel__note">
+      Единая лента ближайших собеседований с обратным отсчётом появится, когда будет
+      отдельный агрегированный backend read-model по интервью. Сейчас данные хранятся
+      по каждому отклику отдельно, поэтому здесь показано нейтральное состояние без выдуманных чисел.
+    </p>
+  </div>
+</article>
 {% endblock %}
