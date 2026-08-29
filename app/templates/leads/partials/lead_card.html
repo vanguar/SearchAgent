@@ -1,11 +1,11 @@
-<article class="panel lead-card {% if lead_card.follow_up_due %}lead-card-due{% endif %}">
-  <div class="lead-card-head">
-    <div>
-      <h3>{{ lead_card.lead.vacancy_title }}</h3>
+<article class="lcard{% if lead_card.follow_up_due %} lcard--due{% endif %}">
+  <div class="lcard__top">
+    <div class="lcard__titles">
+      <h3 class="lcard__title">{{ lead_card.lead.vacancy_title }}</h3>
       {% if lead_card.lead.translated_title_ru %}
-      <p class="muted">{{ lead_card.lead.translated_title_ru }}</p>
+      <p class="lcard__subtitle">{{ lead_card.lead.translated_title_ru }}</p>
       {% endif %}
-      <p class="muted">
+      <p class="lcard__meta">
         {{ lead_card.lead.company_name or "Компания не указана" }}
         {% if lead_card.lead.location_text %} · {{ lead_card.lead.location_text }}{% endif %}
         {% if lead_card.lead.source_name %} · {{ lead_card.lead.source_name }}{% endif %}
@@ -15,14 +15,10 @@
   </div>
 
   {% if lead_card.lead.summary_ru %}
-  <p>{{ lead_card.lead.summary_ru }}</p>
+  <p class="lcard__summary">{{ lead_card.lead.summary_ru }}</p>
   {% endif %}
 
-  <dl class="lead-meta-grid">
-    <div>
-      <dt>Что сделано</dt>
-      <dd>{{ lead_card.status_label_ru }}</dd>
-    </div>
+  <dl class="lcard__facts">
     <div>
       <dt>Следующий шаг</dt>
       <dd>
@@ -44,19 +40,19 @@
   </dl>
 
   {% if lead_card.follow_up_due %}
-  <div class="notice warning">Фоллоу-ап уже пора отправить.</div>
+  <p class="lcard__flag">● Фоллоу-ап уже пора отправить.</p>
   {% endif %}
 
   {% if lead_card.latest_note %}
-  <p class="muted">Последняя заметка: {{ lead_card.latest_note }}</p>
+  <p class="lcard__note">Последняя заметка: {{ lead_card.latest_note }}</p>
   {% endif %}
 
-  <div class="panel-actions">
-    <a href="/leads/{{ lead_card.lead.id }}" class="btn-primary">Открыть карточку</a>
+  <div class="lcard__actions">
+    <a href="/leads/{{ lead_card.lead.id }}" class="btn btn--dark">Открыть карточку</a>
     {% if lead_card.lead.original_url %}
     <form method="post" action="/leads/{{ lead_card.lead.id }}/open-original" target="_blank" class="inline-form">
       <input type="hidden" name="original_url" value="{{ lead_card.lead.original_url }}" />
-      <button type="submit" class="ghost-btn">Открыть оригинал</button>
+      <button type="submit" class="btn btn--outline">Открыть оригинал</button>
     </form>
     {% endif %}
   </div>
