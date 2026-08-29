@@ -22,6 +22,7 @@ from app.services.source_adapters.models import (
 )
 
 _BA_PUBLIC_JOBSEARCH_URL = "https://www.arbeitsagentur.de/jobsuche/suche"
+_BA_SEARCH_PATH = "/pc/v6/jobs"
 
 
 class BAAdapter(BaseSourceAdapter):
@@ -58,17 +59,21 @@ class BAAdapter(BaseSourceAdapter):
     def search(self, search_input: SourceSearchInput) -> AdapterSearchResponse:
         self.ensure_enabled()
 
-        endpoint = f"{self.settings.source_ba_base_url.rstrip('/')}/pc/v4/jobs"
+        endpoint = f"{self.settings.source_ba_base_url.rstrip('/')}{_BA_SEARCH_PATH}"
         location = _effective_location(search_input)
-        params = {
+        params: dict[str, Any] = {
             "was": search_input.query or None,
-            "wo": location or None,
-            "umkreis": search_input.radius_km,
             "page": search_input.page,
             "size": search_input.page_size,
-            "angebotsart": 1,
         }
-        headers = {"X-API-Key": self.settings.source_ba_api_key}
+        if location:
+            params["wo"] = location
+            if search_input.radius_km is not None:
+                params["umkreis"] = search_input.radius_km
+        headers = {
+            "X-API-Key": self.settings.source_ba_api_key,
+            "Accept": "application/json",
+        }
 
         logger.info("ba_search query=%r location=%r radius=%s page=%s", params.get("was"), params.get("wo"), params.get("umkreis"), params.get("page"))
 
@@ -80,11 +85,13 @@ class BAAdapter(BaseSourceAdapter):
                 timeout_seconds=self.settings.source_adapter_timeout_seconds,
             )
         except HttpTransportError as exc:
-            status_hint = f" HTTP {exc.status_code}." if exc.status_code is not None else ""
             raise AdapterRequestError(
                 source_id=self.source_id,
                 source_name=self.display_name,
-                message=f"Не удалось получить ответ от BA.{status_hint} {exc.message}".strip(),
+                message=_format_request_error(exc),
+                retryable=_is_retryable_status(exc.status_code),
+                status_code=exc.status_code,
+                response_message=exc.message,
             ) from exc
         except HttpDecodeError as exc:
             raise AdapterResponseError(
@@ -101,12 +108,12 @@ class BAAdapter(BaseSourceAdapter):
                 message="BA search response имеет неожиданный формат верхнего уровня.",
             )
 
-        raw_items = payload.get("stellenangebote", [])
+        raw_items = payload.get("ergebnisliste", payload.get("stellenangebote", []))
         if not isinstance(raw_items, list):
             raise AdapterResponseError(
                 source_id=self.source_id,
                 source_name=self.display_name,
-                message="BA search response не содержит список stellenangebote.",
+                message="BA search response не содержит список ergebnisliste.",
             )
 
         records: list[SourceRecordPreview] = []
@@ -114,11 +121,8 @@ class BAAdapter(BaseSourceAdapter):
 
         for raw_item in raw_items:
             if not isinstance(raw_item, Mapping):
-                raise AdapterResponseError(
-                    source_id=self.source_id,
-                    source_name=self.display_name,
-                    message="BA search response содержит запись неожиданного типа.",
-                )
+                skipped_without_id += 1
+                continue
 
             record = self._parse_record(raw_item)
             if record is None:
@@ -145,7 +149,7 @@ class BAAdapter(BaseSourceAdapter):
         )
 
     def _parse_record(self, raw_item: Mapping[str, Any]) -> SourceRecordPreview | None:
-        reference = _to_text(raw_item.get("refnr"))
+        reference = _to_text(raw_item.get("referenznummer")) or _to_text(raw_item.get("refnr"))
         external_id = reference or _to_text(raw_item.get("hashId"))
         if external_id is None:
             return None
@@ -156,10 +160,15 @@ class BAAdapter(BaseSourceAdapter):
             source_name=self.display_name,
             external_id=external_id,
             source_reference=reference,
-            title=_to_text(raw_item.get("beruf")) or "Без названия",
-            company=_to_text(raw_item.get("arbeitgeber")),
-            location=_format_location(raw_item.get("arbeitsort")),
-            posted_at=_to_text(raw_item.get("aktuelleVeroeffentlichungsdatum")),
+            title=(
+                _to_text(raw_item.get("stellenangebotsTitel"))
+                or _to_text(raw_item.get("beruf"))
+                or _to_text(raw_item.get("hauptberuf"))
+                or "Без названия"
+            ),
+            company=_to_text(raw_item.get("firma")) or _to_text(raw_item.get("arbeitgeber")),
+            location=_extract_location(raw_item),
+            posted_at=_extract_publication_date(raw_item),
             detail_url=detail_url,
             raw_payload=dict(raw_item),
         )
@@ -176,7 +185,10 @@ def _effective_location(search_input: SourceSearchInput) -> str | None:
     """BA `wo` is a place field; `remote` should not be sent as a city."""
     if search_input.search_mode == "remote_worldwide":
         return None
-    return search_input.location
+    location = _to_text(search_input.location)
+    if location and location.casefold() in {"deutschland", "germany"}:
+        return None
+    return location
 
 
 def _to_int(value: Any) -> int | None:
@@ -189,14 +201,40 @@ def _to_int(value: Any) -> int | None:
         return None
 
 
+def _extract_location(raw_item: Mapping[str, Any]) -> str | None:
+    raw_locations = raw_item.get("stellenlokationen")
+    if isinstance(raw_locations, list):
+        for raw_location in raw_locations:
+            if not isinstance(raw_location, Mapping):
+                continue
+            address = raw_location.get("adresse")
+            formatted = _format_location(address)
+            if formatted:
+                return formatted
+    return _format_location(raw_item.get("arbeitsort"))
+
+
+def _extract_publication_date(raw_item: Mapping[str, Any]) -> str | None:
+    direct = (
+        _to_text(raw_item.get("aktuelleVeroeffentlichungsdatum"))
+        or _to_text(raw_item.get("datumErsteVeroeffentlichung"))
+    )
+    if direct:
+        return direct
+    publication_range = raw_item.get("veroeffentlichungszeitraum")
+    if isinstance(publication_range, Mapping):
+        return _to_text(publication_range.get("von"))
+    return None
+
+
 def _format_location(raw_location: Any) -> str | None:
     if not isinstance(raw_location, Mapping):
         return None
 
     plz = _to_text(raw_location.get("plz"))
     ort = _to_text(raw_location.get("ort"))
-    region = _to_text(raw_location.get("region"))
-    land = _to_text(raw_location.get("land"))
+    region = _format_enum_text(raw_location.get("bundesland") or raw_location.get("region"))
+    land = _format_enum_text(raw_location.get("land"))
 
     parts: list[str] = []
     city_label = " ".join(part for part in (plz, ort) if part)
@@ -209,6 +247,35 @@ def _format_location(raw_location: Any) -> str | None:
         parts.append(land)
 
     return ", ".join(parts) or None
+
+
+def _format_enum_text(value: Any) -> str | None:
+    text = _to_text(value)
+    if text is None:
+        return None
+    if "_" in text or text.isupper():
+        return text.replace("_", " ").title()
+    return text
+
+
+def _is_retryable_status(status_code: int | None) -> bool:
+    return status_code is None or status_code == 429 or status_code >= 500
+
+
+def _format_request_error(error: HttpTransportError) -> str:
+    status_code = error.status_code
+    if status_code == 403:
+        return "BA API отклонил запрос (HTTP 403): endpoint или authentication contract недействителен."
+    if status_code == 404:
+        return "BA API endpoint не найден (HTTP 404)."
+    if status_code == 429:
+        return "BA API временно ограничил частоту запросов (HTTP 429)."
+    if status_code is not None and status_code >= 500:
+        return f"BA API временно недоступен (HTTP {status_code})."
+    if status_code is None and "timed out" in error.message.casefold():
+        return "Истекло время ожидания ответа BA API."
+    status_hint = f" (HTTP {status_code})" if status_code is not None else ""
+    return f"Не удалось получить ответ от BA{status_hint}: {error.message}".strip()
 
 
 def _build_ba_detail_url(identifier: str) -> str:
