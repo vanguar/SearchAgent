@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import html
+
 from fastapi import Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -10,6 +12,10 @@ from app.services.llm_client import LLMStatus, get_runtime_status
 
 settings = Settings()
 templates = Jinja2Templates(directory=str(settings.templates_dir))
+# Presentation-only helper: decode HTML entities (e.g. double-encoded "&amp;")
+# in visible text. Jinja autoescaping still re-escapes the result on render,
+# so this is safe — it never bypasses escaping and never touches stored data.
+templates.env.filters["unescape"] = html.unescape
 
 
 def _display_llm_status() -> str:
