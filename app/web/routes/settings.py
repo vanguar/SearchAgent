@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
 from app.core.config import Settings
 from app.core.constants import PAGE_META
 from app.services.llm_client import LLMStatus, build_llm_client, get_runtime_status
+from app.services.search_service import SearchService
+from app.web.deps import get_search_service
 from app.web.views import render_page
 
 router = APIRouter(tags=["web-settings"])
@@ -35,7 +37,10 @@ _LLM_STATUS_LABELS: dict[LLMStatus, dict[str, str]] = {
 
 
 @router.get("/settings", response_class=HTMLResponse)
-def settings_page(request: Request) -> HTMLResponse:
+def settings_page(
+    request: Request,
+    search_service: SearchService = Depends(get_search_service),
+) -> HTMLResponse:
     meta = PAGE_META["settings"]
     settings = Settings()
     # Вызываем build_llm_client, чтобы при отсутствии ключа обновить _runtime_status.
@@ -56,5 +61,8 @@ def settings_page(request: Request) -> HTMLResponse:
             "llm_status_detail": status_info["detail"],
             "llm_status_css": status_info["css_class"],
             "llm_model": settings.openai_model,
+            # Read-only: реестр дескрипторов источников (без сети/записи),
+            # тот же вызов, что и на GET /jobs.
+            "source_descriptors": search_service.list_sources(),
         },
     )
