@@ -1358,21 +1358,22 @@ body {
   font-weight: 600;
 }
 
-/* ── Dashboard screen ────────────────────────────────────── */
-.dash-actions {
+/* ── Dashboard screen (redesign v2) ──────────────────────── */
+.dash-topbar {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
-  margin: -6px 0 16px;
+  margin: -8px 0 18px;
   flex-wrap: wrap;
+  max-width: 1320px;
 }
 
 .profile-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 13px;
+  gap: 7px;
+  padding: 7px 14px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--bg-card);
@@ -1389,6 +1390,30 @@ body {
   color: var(--text-soft);
 }
 
+/* Accent / on-dark button variants (compound selectors keep them
+   winning over the base .btn regardless of source order). */
+.btn.btn--accent {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btn.btn--accent:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.btn.btn--light {
+  background: #fbf7f3;
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #241b19;
+}
+
+.btn.btn--light:hover {
+  background: #fff;
+}
+
+/* Kept for other screens (Leads, Interviews). */
 .btn-primary {
   display: inline-flex;
   align-items: center;
@@ -1412,64 +1437,7 @@ body {
   border-color: var(--accent-hover);
 }
 
-.dash-hero {
-  background: #221d1b;
-  color: #f3ece7;
-  border-radius: 14px;
-  padding: 22px 24px;
-  margin-bottom: 14px;
-}
-
-.dash-hero__label {
-  margin: 0 0 8px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #b0a49d;
-}
-
-.dash-hero__title {
-  margin: 0;
-  font-size: 1.4rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.dash-hero__text {
-  margin: 8px 0 0;
-  max-width: 60ch;
-  font-size: 0.92rem;
-  color: #c8bdb6;
-}
-
-.dash-hero__actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 16px;
-  flex-wrap: wrap;
-}
-
-.btn-on-dark {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 15px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 9px;
-  background: #fbf7f3;
-  color: #241b19;
-  font: inherit;
-  font-size: 0.86rem;
-  font-weight: 600;
-  text-decoration: none;
-  transition: background 0.12s;
-}
-
-.btn-on-dark:hover {
-  background: #fff;
-}
-
+/* Kept for the Leads summary grid (pages/leads.html reuses .dash-stats). */
 .dash-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1487,12 +1455,145 @@ body {
   line-height: 1.1;
 }
 
+.dash-warning {
+  max-width: 1320px;
+  margin-bottom: 14px;
+}
+
+.dash-hero {
+  max-width: 1320px;
+  background: linear-gradient(135deg, #26201d 0%, #1d1815 100%);
+  color: #f3ece7;
+  border-radius: 16px;
+  padding: 26px 28px;
+  margin-bottom: 16px;
+}
+
+.dash-hero__label {
+  margin: 0 0 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #a89b93;
+}
+
+.dash-hero__title {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+
+.dash-hero__text {
+  margin: 10px 0 0;
+  max-width: 64ch;
+  font-size: 0.93rem;
+  line-height: 1.55;
+  color: #c8bdb6;
+}
+
+.dash-hero__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+/* KPI row */
+.dash-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+  max-width: 1320px;
+}
+
+.kpi {
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--bg-card);
+}
+
+.kpi__label {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
+
+.kpi__value {
+  margin: 6px 0 4px;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+}
+
+.kpi__sub {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
+
+/* Split layout */
+.dash-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  max-width: 1320px;
+}
+
+.dash-side {
+  display: grid;
+  gap: 16px;
+}
+
+.card {
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--bg-card);
+}
+
+.card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.card__title {
+  margin: 0 0 2px;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.dash-link {
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.dash-link:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
+.dash-panel__empty {
+  margin: 10px 0 0;
+}
+
 .dash-recent {
   list-style: none;
-  margin: 12px 0 0;
+  margin: 8px 0 0;
   padding: 0;
-  display: grid;
-  gap: 2px;
 }
 
 .dash-recent__row {
@@ -1500,7 +1601,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 4px;
+  padding: 12px 0;
   border-top: 1px solid var(--line);
 }
 
@@ -1510,7 +1611,7 @@ body {
 
 .dash-recent__main {
   display: grid;
-  gap: 2px;
+  gap: 3px;
   text-decoration: none;
   color: inherit;
   min-width: 0;
@@ -1519,6 +1620,7 @@ body {
 .dash-recent__title {
   font-weight: 600;
   font-size: 0.92rem;
+  color: var(--text-main);
 }
 
 .dash-recent__main:hover .dash-recent__title {
@@ -1526,39 +1628,53 @@ body {
 }
 
 .dash-recent__meta {
-  font-size: 0.84rem;
+  font-size: 0.83rem;
+  color: var(--text-soft);
 }
 
 .dash-note {
-  margin-top: 12px;
-  font-size: 0.82rem;
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 0.8rem;
 }
 
 .dash-reminders {
   list-style: none;
-  margin: 12px 0 0;
+  margin: 10px 0 0;
   padding: 0;
   display: grid;
-  gap: 12px;
+  gap: 13px;
 }
 
 .dash-reminders__row {
   display: flex;
   gap: 9px;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
 }
 
 .dash-reminders__dot {
   color: var(--accent);
-  font-size: 0.6rem;
-  margin-top: 5px;
+  font-size: 0.55rem;
+  margin-top: 6px;
 }
 
-.dash-sources__actions {
-  margin-top: 12px;
+.dash-sources__summary {
+  margin: 4px 0 0;
 }
 
-@media (max-width: 900px) {
+.dash-sources__btn {
+  margin-top: 14px;
+}
+
+@media (max-width: 1000px) {
+  .dash-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .dash-kpis,
   .dash-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
