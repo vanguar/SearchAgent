@@ -1,103 +1,98 @@
 {% extends "base.html" %}
 
 {% block content %}
-
-<article class="panel">
-  <h3>ИИ-интеграция</h3>
-  <p class="muted">
-    ИИ используется только для: разбора профиля, перевода заголовков и коротких резюме вакансий.
-    Детерминированная логика поиска, фильтрации и скоринга от ИИ не зависит.
-  </p>
-
-  <div class="settings-status-row">
-    <div class="settings-status-row__body">
-      <div class="settings-status-row__head">
-        {% if llm_status == "configured" or llm_status == "extraction_succeeded" %}
-        <span class="badge-success">{{ llm_status_label }}</span>
-        {% elif llm_status == "provider_error" %}
-        <span class="badge-warning">{{ llm_status_label }}</span>
-        {% else %}
-        <span class="badge-disabled">{{ llm_status_label }}</span>
-        {% endif %}
+<div class="settings-grid">
+  <div class="settings-main">
+    <section class="card">
+      <div class="card__head">
+        <h3 class="card__title">Источники вакансий</h3>
       </div>
-      <p class="settings-status-row__detail">{{ llm_status_detail }}</p>
-      {% if llm_status == "configured" or llm_status == "provider_error" or llm_status == "extraction_succeeded" %}
-      <p class="muted settings-status-row__hint">Модель: {{ llm_model }}</p>
+      {% if source_descriptors %}
+      {% set active_sources = source_descriptors | selectattr("enabled") | list %}
+      <p class="muted settings-lead">
+        Активны {{ active_sources | length }} из {{ source_descriptors | length }}. Выключенные не участвуют в поиске.
+      </p>
+
+      <ul class="src-list">
+        {% for source in source_descriptors %}
+        <li class="src-row">
+          <div class="src-row__info">
+            <span class="src-row__name">{{ source.display_name }}</span>
+            {% if source.status_detail %}
+            <span class="src-row__desc">{{ source.status_detail }}</span>
+            {% endif %}
+          </div>
+          <div class="src-row__right">
+            <span class="scope-badge">
+              {% if source.global_remote %}Remote{% else %}Германия{% endif %}
+            </span>
+            <span
+              class="switch {% if source.enabled and source.status_kind != 'error' %}switch--on{% endif %}"
+              role="img"
+              aria-label="{{ 'Источник активен' if source.enabled else 'Источник выключен' }}"
+              title="Управляется конфигурацией приложения (.env)"
+            ><span class="switch__knob"></span></span>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+
+      <p class="muted settings-note">
+        Источники включаются и отключаются в конфигурации приложения (файл <code class="settings-code">.env</code>).
+        Здесь показан их фактический статус только для чтения; живые результаты по каждому источнику видны на странице «Поиск вакансий».
+      </p>
+      {% else %}
+      <p class="muted">
+        Список источников пока недоступен в этом разделе — требуется отдельный backend read-model.
+        Фактический статус источников доступен на странице «Поиск вакансий».
+      </p>
       {% endif %}
-    </div>
+    </section>
   </div>
 
-  {% if llm_status == "missing_config" %}
-  <p class="muted settings-note">
-    Чтобы включить ИИ: задайте <code class="settings-code">OPENAI_API_KEY</code>
-    в файле <code class="settings-code">.env</code> и перезапустите приложение.
-    Без ключа система продолжает работать в детерминированном режиме.
-  </p>
-  {% endif %}
-
-  {% if llm_status == "provider_error" %}
-  <p class="muted settings-note">
-    Проверьте лимиты и корректность ключа OpenAI. Детерминированный режим продолжает работать.
-  </p>
-  {% endif %}
-</article>
-
-<article class="panel">
-  <h3>Источники вакансий</h3>
-  {% if source_descriptors %}
-  {% set active_sources = source_descriptors | selectattr("enabled") | list %}
-  {% set disabled_sources = source_descriptors | rejectattr("enabled") | list %}
-  <p class="muted">
-    Активны {{ active_sources | length }} из {{ source_descriptors | length }}.
-    {% if disabled_sources %}
-    Отключены: {{ disabled_sources | map(attribute="display_name") | join(", ") }}.
-    {% endif %}
-  </p>
-
-  <ul class="source-list">
-    {% for source in source_descriptors %}
-    <li class="source-row">
-      <div class="source-row__main">
-        <span class="source-row__name">{{ source.display_name }}</span>
-        <span class="source-row__meta">
-          <span class="scope-badge">
-            {% if source.global_remote %}Remote worldwide{% else %}Germany · локально{% endif %}
-          </span>
-          {% if source.status_kind == "success" %}
-          <span class="badge-success">{{ source.status_label }}</span>
-          {% elif source.status_kind == "warning" %}
-          <span class="badge-warning">{{ source.status_label }}</span>
-          {% elif source.status_kind == "error" %}
-          <span class="badge-error">{{ source.status_label }}</span>
-          {% else %}
-          <span class="badge-disabled">{{ source.status_label }}</span>
-          {% endif %}
-        </span>
-        {% if source.status_detail %}
-        <span class="muted source-row__detail">{{ source.status_detail }}</span>
+  <aside class="settings-side">
+    <section class="card">
+      <div class="ai-head">
+        {% if llm_status == "configured" or llm_status == "extraction_succeeded" %}
+        <span class="ai-dot ai-dot--ok" aria-hidden="true">●</span>
+        {% elif llm_status == "provider_error" %}
+        <span class="ai-dot ai-dot--warn" aria-hidden="true">●</span>
+        {% else %}
+        <span class="ai-dot ai-dot--off" aria-hidden="true">●</span>
         {% endif %}
+        <h3 class="card__title">{{ llm_status_label }}</h3>
       </div>
-    </li>
-    {% endfor %}
-  </ul>
+      <p class="muted">{{ llm_status_detail }}</p>
 
-  <p class="muted settings-note">
-    Источники включаются и отключаются в конфигурации приложения. Здесь показан их фактический статус
-    в режиме только для чтения; живые результаты по каждому источнику видны на странице «Поиск вакансий».
-  </p>
-  {% else %}
-  <p class="muted">
-    Список источников пока недоступен в этом разделе — требуется отдельный backend read-model для страницы настроек.
-    Фактический статус источников доступен на странице «Поиск вакансий».
-  </p>
-  {% endif %}
-</article>
+      {% if llm_status == "configured" or llm_status == "provider_error" or llm_status == "extraction_succeeded" %}
+      <div class="ai-model">
+        <span class="muted">Модель</span>
+        <code class="settings-code">{{ llm_model }}</code>
+      </div>
+      {% endif %}
 
-<article class="panel">
-  <h3>Другие настройки</h3>
-  <p class="muted">
-    Язык интерфейса — русский. Дополнительные параметры отображения и уведомлений появятся в следующих версиях.
-  </p>
-</article>
+      <a class="btn btn--outline ai-check" href="/settings">Проверить ключ</a>
 
+      {% if llm_status == "missing_config" %}
+      <p class="muted settings-note">
+        Задайте <code class="settings-code">OPENAI_API_KEY</code> в <code class="settings-code">.env</code> и перезапустите приложение.
+        Без ключа система работает в детерминированном режиме.
+      </p>
+      {% endif %}
+      {% if llm_status == "provider_error" %}
+      <p class="muted settings-note">
+        Проверьте лимиты и корректность ключа OpenAI. Детерминированный режим продолжает работать.
+      </p>
+      {% endif %}
+    </section>
+
+    <section class="card">
+      <h3 class="card__title">Приложение</h3>
+      <p class="muted">
+        Язык интерфейса — русский. Параметры отображения, уведомлений и экспорта данных появятся в следующих версиях —
+        для их сохранения нужен отдельный backend read/write model.
+      </p>
+    </section>
+  </aside>
+</div>
 {% endblock %}
