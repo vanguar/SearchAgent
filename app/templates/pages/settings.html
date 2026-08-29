@@ -1,45 +1,103 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="space-y-6">
 
-  <div class="bg-white border border-gray-200 rounded-lg p-5">
-    <h2 class="text-base font-semibold text-gray-900 mb-1">LLM-интеграция</h2>
-    <p class="text-sm text-gray-500 mb-4">
-      LLM используется только для: парсинга профиля, перевода заголовков, кратких резюме вакансий.
-      Детерминированная логика поиска, фильтрации и скоринга от LLM не зависит.
-    </p>
+<article class="panel">
+  <h3>ИИ-интеграция</h3>
+  <p class="muted">
+    ИИ используется только для: разбора профиля, перевода заголовков и коротких резюме вакансий.
+    Детерминированная логика поиска, фильтрации и скоринга от ИИ не зависит.
+  </p>
 
-    <div class="flex items-start gap-3 p-4 rounded-md bg-gray-50 border border-gray-100">
-      <div class="flex-1">
-        <p class="text-sm font-medium {{ llm_status_css }}">{{ llm_status_label }}</p>
-        <p class="text-sm text-gray-600 mt-0.5">{{ llm_status_detail }}</p>
-        {% if llm_status == "configured" or llm_status == "provider_error" or llm_status == "extraction_succeeded" %}
-        <p class="text-xs text-gray-400 mt-1">Модель: {{ llm_model }}</p>
+  <div class="settings-status-row">
+    <div class="settings-status-row__body">
+      <div class="settings-status-row__head">
+        {% if llm_status == "configured" or llm_status == "extraction_succeeded" %}
+        <span class="badge-success">{{ llm_status_label }}</span>
+        {% elif llm_status == "provider_error" %}
+        <span class="badge-warning">{{ llm_status_label }}</span>
+        {% else %}
+        <span class="badge-disabled">{{ llm_status_label }}</span>
         {% endif %}
       </div>
+      <p class="settings-status-row__detail">{{ llm_status_detail }}</p>
+      {% if llm_status == "configured" or llm_status == "provider_error" or llm_status == "extraction_succeeded" %}
+      <p class="muted settings-status-row__hint">Модель: {{ llm_model }}</p>
+      {% endif %}
     </div>
-
-    {% if llm_status == "missing_config" %}
-    <p class="text-xs text-gray-400 mt-3">
-      Чтобы включить LLM: задайте
-      <code class="bg-gray-100 px-1 rounded">OPENAI_API_KEY</code>
-      в файле <code class="bg-gray-100 px-1 rounded">.env</code> и перезапустите приложение.
-    </p>
-    {% endif %}
-
-    {% if llm_status == "provider_error" %}
-    <p class="text-xs text-red-400 mt-3">
-      Проверьте лимиты OpenAI и корректность ключа.
-      Детерминированный режим продолжает работать.
-    </p>
-    {% endif %}
   </div>
 
-  <div class="bg-white border border-gray-200 rounded-lg p-5">
-    <h2 class="text-base font-semibold text-gray-900 mb-1">Другие настройки</h2>
-    <p class="text-sm text-gray-400">Настройки языка и отображения — в следующих версиях.</p>
-  </div>
+  {% if llm_status == "missing_config" %}
+  <p class="muted settings-note">
+    Чтобы включить ИИ: задайте <code class="settings-code">OPENAI_API_KEY</code>
+    в файле <code class="settings-code">.env</code> и перезапустите приложение.
+    Без ключа система продолжает работать в детерминированном режиме.
+  </p>
+  {% endif %}
 
-</div>
+  {% if llm_status == "provider_error" %}
+  <p class="muted settings-note">
+    Проверьте лимиты и корректность ключа OpenAI. Детерминированный режим продолжает работать.
+  </p>
+  {% endif %}
+</article>
+
+<article class="panel">
+  <h3>Источники вакансий</h3>
+  {% if source_descriptors %}
+  {% set active_sources = source_descriptors | selectattr("enabled") | list %}
+  {% set disabled_sources = source_descriptors | rejectattr("enabled") | list %}
+  <p class="muted">
+    Активны {{ active_sources | length }} из {{ source_descriptors | length }}.
+    {% if disabled_sources %}
+    Отключены: {{ disabled_sources | map(attribute="display_name") | join(", ") }}.
+    {% endif %}
+  </p>
+
+  <ul class="source-list">
+    {% for source in source_descriptors %}
+    <li class="source-row">
+      <div class="source-row__main">
+        <span class="source-row__name">{{ source.display_name }}</span>
+        <span class="source-row__meta">
+          <span class="scope-badge">
+            {% if source.global_remote %}Remote worldwide{% else %}Germany · локально{% endif %}
+          </span>
+          {% if source.status_kind == "success" %}
+          <span class="badge-success">{{ source.status_label }}</span>
+          {% elif source.status_kind == "warning" %}
+          <span class="badge-warning">{{ source.status_label }}</span>
+          {% elif source.status_kind == "error" %}
+          <span class="badge-error">{{ source.status_label }}</span>
+          {% else %}
+          <span class="badge-disabled">{{ source.status_label }}</span>
+          {% endif %}
+        </span>
+        {% if source.status_detail %}
+        <span class="muted source-row__detail">{{ source.status_detail }}</span>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+
+  <p class="muted settings-note">
+    Источники включаются и отключаются в конфигурации приложения. Здесь показан их фактический статус
+    в режиме только для чтения; живые результаты по каждому источнику видны на странице «Поиск вакансий».
+  </p>
+  {% else %}
+  <p class="muted">
+    Список источников пока недоступен в этом разделе — требуется отдельный backend read-model для страницы настроек.
+    Фактический статус источников доступен на странице «Поиск вакансий».
+  </p>
+  {% endif %}
+</article>
+
+<article class="panel">
+  <h3>Другие настройки</h3>
+  <p class="muted">
+    Язык интерфейса — русский. Дополнительные параметры отображения и уведомлений появятся в следующих версиях.
+  </p>
+</article>
+
 {% endblock %}
