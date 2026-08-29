@@ -21,11 +21,14 @@
         Дождитесь завершения обработки уже найденных вакансий: система доделывает дедупликацию, фильтрацию и подготовку промежуточной выдачи.
       </div>
       {% endif %}
-      <div class="search-progress__bar search-progress__bar--{{ phase_code }}" aria-hidden="true">
-        <img class="search-progress__snail"
-             src="{{ url_for('static', path='img/snail-progress.gif') }}"
-             style="animation-delay: -{{ snail_animation_offset }}s;"
-             alt="">
+      {% set progress_pct = 96 if stopping else ({"attempt": 18, "fetch": 55, "postprocess": 85}.get(phase_code, 10)) %}
+      <div class="progress-track"
+           role="progressbar"
+           aria-valuenow="{{ progress_pct }}"
+           aria-valuemin="0"
+           aria-valuemax="100"
+           aria-label="Прогресс поиска">
+        <div class="progress-track__fill" style="width: {{ progress_pct }}%;"></div>
       </div>
       <ol class="search-progress__steps" aria-label="Этапы поиска">
         <li class="{% if phase_code in ['attempt', 'fetch', 'postprocess'] %}is-active{% endif %}">Сбор</li>
