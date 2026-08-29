@@ -1719,3 +1719,32 @@ body {
     animation: none;
   }
 }
+
+/* ── Mail: collapsible import form ───────────────────────── */
+.import-details__summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.import-details__summary::-webkit-details-marker {
+  display: none;
+}
+
+.import-details__summary h3 {
+  margin: 0;
+}
+
+.import-details__summary::after {
+  content: "▾";
+  color: var(--text-soft);
+  transition: transform 0.15s;
+}
+
+.import-details[open] .import-details__summary::after {
+  transform: rotate(180deg);
+}

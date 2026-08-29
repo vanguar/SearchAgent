@@ -1,6 +1,10 @@
 <article class="panel">
-  <h3>Ручной импорт</h3>
-  <form class="stack-form" method="post" action="/email/import">
+  <details class="import-details">
+    <summary class="import-details__summary">
+      <h3>Ручной импорт письма</h3>
+      <span class="muted">Развернуть форму</span>
+    </summary>
+  <form class="stack-form top-gap" method="post" action="/email/import">
     <label for="import-mode">Что добавить</label>
     <select id="import-mode" name="import_mode">
       <option value="message">Цепочку и сообщение</option>
@@ -66,5 +70,6 @@
       Импортировать
     </button>
   </form>
-  <p class="muted">Если внешние ID пусты, система создаст локальные deterministic manual IDs.</p>
+  <p class="muted top-gap">Если внешние ID пусты, система создаст локальные deterministic manual IDs.</p>
+  </details>
 </article>
