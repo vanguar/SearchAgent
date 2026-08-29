@@ -52,7 +52,7 @@
   {% endif %}
 
   <div class="panel-actions">
-    <a href="/leads/{{ lead_card.lead.id }}" class="ghost-btn">Открыть карточку</a>
+    <a href="/leads/{{ lead_card.lead.id }}" class="btn-primary">Открыть карточку</a>
     {% if lead_card.lead.original_url %}
     <form method="post" action="/leads/{{ lead_card.lead.id }}/open-original" target="_blank" class="inline-form">
       <input type="hidden" name="original_url" value="{{ lead_card.lead.original_url }}" />
