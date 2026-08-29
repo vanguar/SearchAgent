@@ -13,10 +13,10 @@
   </div>
 
   <div class="chip-row">
-    {% for role in entry.profile.desired_roles %}
+    {% for role in entry.profile.desired_roles or [] %}
     <span class="chip chip--role">{{ role }}</span>
     {% endfor %}
-    {% for location in entry.profile.preferred_locations %}
+    {% for location in entry.profile.preferred_locations or [] %}
     <span class="chip chip--place">{{ location }}</span>
     {% endfor %}
     {% if entry.profile.relocation_ready is not none %}
