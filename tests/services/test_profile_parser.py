@@ -1,6 +1,10 @@
 from unittest.mock import MagicMock
 
-from app.services.profile_parser import ProfileParser
+from app.services.profile_parser import (
+    DRIVER_B_FERNVERKEHR_ROLE,
+    DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+    ProfileParser,
+)
 
 EXAMPLE_TEXT = (
     "Я в Германии, по 24 параграфу, немецкого почти не знаю, английский слабый, "
@@ -165,6 +169,83 @@ def test_parser_explicit_driver_job_adds_driver_role_via_followup() -> None:
 
     assert "Водитель" in draft.desired_roles
     assert draft.driving_license == "B"
+
+
+def test_parser_negated_search_for_driver_does_not_add_driver_role() -> None:
+    draft = ProfileParser().parse("Не ищу работу водителем")
+
+    assert "Водитель" not in draft.desired_roles
+    assert DRIVER_B_FERNVERKEHR_ROLE not in draft.desired_roles
+
+
+def test_parser_negated_wish_to_work_as_driver_does_not_add_driver_role() -> None:
+    draft = ProfileParser().parse("Не хочу работать водителем")
+
+    assert "Водитель" not in draft.desired_roles
+    assert DRIVER_B_FERNVERKEHR_ROLE not in draft.desired_roles
+
+
+def test_parser_negated_consideration_of_driver_work_does_not_add_driver_role() -> None:
+    draft = ProfileParser().parse("Не рассматриваю работу водителем")
+
+    assert "Водитель" not in draft.desired_roles
+    assert DRIVER_B_FERNVERKEHR_ROLE not in draft.desired_roles
+
+
+def test_parser_negated_plan_to_work_as_driver_does_not_add_driver_role() -> None:
+    draft = ProfileParser().parse("Не планирую работать водителем")
+
+    assert "Водитель" not in draft.desired_roles
+    assert DRIVER_B_FERNVERKEHR_ROLE not in draft.desired_roles
+
+
+def test_parser_positive_driver_b_fernverkehr_intent_still_activates_profile() -> None:
+    draft = ProfileParser().parse(
+        "Ищу работу водителем категории B на Sprinter в Fernverkehr"
+    )
+
+    assert draft.desired_roles == [DRIVER_B_FERNVERKEHR_ROLE]
+    assert tuple(draft.search_query_terms) == DRIVER_B_FERNVERKEHR_SEARCH_TERMS
+
+
+def test_parser_extracts_specialized_driver_b_fernverkehr_profile() -> None:
+    parser = ProfileParser()
+
+    draft = parser.parse(
+        "Ищу работу водителем с Führerschein Klasse B. Предпочитаю дальние поездки "
+        "на Sprinter или Transporter до 3,5 т по Германии. Интересуют Fernverkehr, "
+        "Direktfahrten, Sonderfahrten и Expressfahrten. Не интересует массовая Paketzustellung."
+    )
+
+    assert draft.desired_roles == [DRIVER_B_FERNVERKEHR_ROLE]
+    assert draft.driving_license == "B"
+    assert draft.preferred_regions == ["Deutschland"]
+    assert tuple(draft.search_query_terms) == DRIVER_B_FERNVERKEHR_SEARCH_TERMS
+    assert "Mass parcel delivery" in draft.excluded_roles
+    assert not {"Paketzusteller", "Paketbote", "Postzusteller", "Briefzusteller"} & set(
+        draft.search_query_terms
+    )
+
+
+def test_parser_license_b_with_it_intent_does_not_create_driver_role() -> None:
+    draft = ProfileParser().parse(
+        "У меня есть Führerschein Klasse B, ищу Python Developer работу в Германии."
+    )
+
+    assert draft.driving_license == "B"
+    assert "Python Developer" in draft.desired_roles
+    assert DRIVER_B_FERNVERKEHR_ROLE not in draft.desired_roles
+    assert "Водитель" not in draft.desired_roles
+
+
+def test_parser_license_b_with_python_backend_intent_does_not_create_driver_role() -> None:
+    draft = ProfileParser().parse(
+        "Führerschein Klasse B, ищу Python Backend работу"
+    )
+
+    assert draft.driving_license == "B"
+    assert DRIVER_B_FERNVERKEHR_ROLE not in draft.desired_roles
+    assert "Водитель" not in draft.desired_roles
 
 
 def test_parser_multiple_preferred_regions_do_not_set_current_city() -> None:

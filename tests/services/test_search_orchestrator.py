@@ -7,8 +7,11 @@ from unittest.mock import MagicMock
 from app.services.search_fallback import (
     get_fallback_keywords,
     get_intent_fallback_keywords,
+    get_profile_fallback_keywords,
     is_low_language_profile,
 )
+from app.services.profile_parser import DRIVER_B_FERNVERKEHR_SEARCH_TERMS
+from app.services.role_family import RoleFamily
 from app.services.search_models import (
     SearchAttemptSummary,
     SearchProfileContext,
@@ -99,9 +102,6 @@ def test_warehouse_fallback_includes_family_synonyms() -> None:
 
 def test_fallback_keywords_dedupe_case_insensitively() -> None:
     """A profile term and a pool term differing only in case must not produce two queries."""
-    from app.services.role_family import RoleFamily
-    from app.services.search_fallback import get_profile_fallback_keywords
-
     kws = get_profile_fallback_keywords(
         profile_terms=("Lagerarbeiter", "Lagermitarbeiter"),
         family=RoleFamily.WAREHOUSE,
@@ -112,6 +112,32 @@ def test_fallback_keywords_dedupe_case_insensitively() -> None:
     assert len(lowered) == len(set(lowered))  # no case-insensitive duplicates
     assert sum(1 for k in kws if k.lower() == "lagermitarbeiter") == 1
     assert "lagerarbeiter" not in lowered  # primary excluded case-insensitively
+
+
+def test_specialized_driver_b_terms_fill_attempt_limit_without_parcel_pollution() -> None:
+    keywords = get_profile_fallback_keywords(
+        profile_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+        family=RoleFamily.DRIVING,
+        role_primary_de="fahrer",
+        broaden=True,
+    )
+
+    assert keywords == DRIVER_B_FERNVERKEHR_SEARCH_TERMS[1:]
+    assert "zusteller" not in keywords
+    assert "lieferfahrer" not in keywords
+
+
+def test_regular_delivery_profile_keeps_existing_driver_fallbacks() -> None:
+    keywords = get_profile_fallback_keywords(
+        profile_terms=("Fahrer",),
+        family=RoleFamily.DRIVING,
+        role_primary_de="fahrer",
+        broaden=True,
+    )
+
+    assert "kurier" in keywords
+    assert "zusteller" in keywords
+    assert "lieferfahrer" in keywords
 
 
 def test_skilled_trade_fallback_is_not_polluted_by_sibling_trades() -> None:
@@ -259,6 +285,75 @@ def test_germany_local_runs_all_profile_search_terms_even_when_primary_is_enough
     assert result.attempt_summary.final_query_used == "all profile queries"
     assert len(result.hot_results) == 4
     assert len(result.maybe_results) == 5
+
+
+def test_it_profile_attempts_do_not_contain_driver_b_terms() -> None:
+    svc = _make_service([_make_result()])
+    svc.get_profile_context = MagicMock(
+        return_value=_make_profile(
+            desired_roles=("Python Developer",),
+            search_query_terms=("Python Entwickler", "Backend Developer"),
+        )
+    )
+
+    result = svc.orchestrated_search(search_input=_make_search_input("ignored"), profile_id=1)
+
+    queries = [attempt.query_used for attempt in result.attempt_summary.attempts]
+    forbidden = ("fahrer", "sprinter", "transporter", "fernverkehr", "direktfahrten")
+    assert not any(token in query.casefold() for query in queries for token in forbidden)
+
+
+def test_driver_b_profile_runs_all_specialized_queries_in_order() -> None:
+    svc = _make_service([_make_result()])
+    svc.get_profile_context = MagicMock(
+        return_value=_make_profile(
+            desired_roles=("Driver B – Fernverkehr",),
+            search_query_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+        )
+    )
+
+    result = svc.orchestrated_search(search_input=_make_search_input("ignored"), profile_id=2)
+
+    queries = [attempt.query_used for attempt in result.attempt_summary.attempts]
+    assert queries == list(DRIVER_B_FERNVERKEHR_SEARCH_TERMS)
+    for expected in (
+        "Fahrer Klasse B",
+        "Sprinterfahrer",
+        "Transporterfahrer",
+        "Fernverkehr",
+        "Direktfahrten",
+        "Sonderfahrten",
+        "Expressfahrten",
+    ):
+        assert any(expected in query for query in queries)
+    assert "zusteller" not in {query.casefold() for query in queries}
+    assert "lieferfahrer" not in {query.casefold() for query in queries}
+
+
+def test_profile_switching_it_driver_it_keeps_query_plans_isolated() -> None:
+    it_profile = _make_profile(
+        desired_roles=("Python Developer",),
+        search_query_terms=("Python Entwickler", "Backend Developer"),
+    )
+    driver_profile = _make_profile(
+        desired_roles=("Driver B – Fernverkehr",),
+        search_query_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+    )
+    profiles = {1: it_profile, 2: driver_profile}
+    svc = _make_service([_make_result()])
+    svc.get_profile_context = MagicMock(side_effect=lambda *, profile_id=None: profiles[profile_id])
+
+    it_first = svc.orchestrated_search(search_input=_make_search_input("ignored"), profile_id=1)
+    driver = svc.orchestrated_search(search_input=_make_search_input("ignored"), profile_id=2)
+    it_again = svc.orchestrated_search(search_input=_make_search_input("ignored"), profile_id=1)
+
+    it_first_queries = [attempt.query_used for attempt in it_first.attempt_summary.attempts]
+    driver_queries = [attempt.query_used for attempt in driver.attempt_summary.attempts]
+    it_again_queries = [attempt.query_used for attempt in it_again.attempt_summary.attempts]
+    assert it_first_queries == it_again_queries
+    assert it_first_queries[:2] == ["Python Entwickler", "Backend Developer"]
+    assert driver_queries == list(DRIVER_B_FERNVERKEHR_SEARCH_TERMS)
+    assert not set(it_first_queries) & set(driver_queries)
 
 
 def test_saved_profile_desired_roles_become_search_tabs_when_terms_missing() -> None:

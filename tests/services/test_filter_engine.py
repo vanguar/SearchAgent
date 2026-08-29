@@ -2,6 +2,10 @@
 from app.services.filter_engine import FilterEngine, _classify_body_family
 from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.normalizer import VacancyNormalizer
+from app.services.profile_parser import (
+    DRIVER_B_FERNVERKEHR_ROLE,
+    DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+)
 from app.services.role_family import RoleFamily
 from app.services.scorer import VacancyScorer
 from app.services.search_models import SearchProfileContext
@@ -673,6 +677,130 @@ def test_production_ml_engineer_is_not_manual_production_reject() -> None:
     rejection_codes = {hit.code for hit in result.rejection_hits}
     assert "profession_family_mismatch" not in rejection_codes
     assert "clear_role_mismatch" not in rejection_codes
+
+
+def test_driver_b_fernverkehr_titles_are_not_hard_rejected_as_role_mismatch() -> None:
+    profile = _build_profile(
+        desired_roles=("Водитель категории B", "Fernverkehr"),
+        search_query_terms=(
+            "Fahrer Klasse B",
+            "Sprinterfahrer",
+            "Transporterfahrer",
+            "Fahrer bis 3,5 t",
+            "Fernverkehr Fahrer",
+            "Direktfahrten",
+        ),
+    )
+
+    for title in (
+        "Sprinterfahrer",
+        "Transporterfahrer",
+        "Fahrer Klasse B",
+        "Fahrer bis 3,5 t",
+        "Fernverkehr Fahrer",
+        "Kurierfahrer für Direktfahrten",
+        "Planensprinter Fahrer",
+        "Auslieferungsfahrer",
+    ):
+        result = FilterEngine().evaluate(
+            _build_canonical(title=title, body="Fahrten innerhalb Deutschlands."),
+            profile,
+        )
+        rejection_codes = {hit.code for hit in result.rejection_hits}
+        assert result.hard_reject is False, title
+        assert "profession_family_mismatch" not in rejection_codes, title
+        assert "clear_role_mismatch" not in rejection_codes, title
+
+
+def test_driver_b_fernverkehr_rejects_explicit_school_transport() -> None:
+    profile = _build_profile(
+        desired_roles=(DRIVER_B_FERNVERKEHR_ROLE,),
+        search_query_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+        german_level="basic",
+    )
+
+    for title in (
+        "Fahrer Klasse B im Schülerverkehr",
+        "Fahrer für Schülerbeförderung",
+        "Schulbus Klasse B",
+        "Schulbusfahrer Klasse B",
+        "Schulfahrdienst Fahrer",
+        "Fahrdienst für Schüler",
+        "Fahrer für Schülertransport",
+        "Beförderung von Schülern",
+    ):
+        result = FilterEngine().evaluate(
+            _build_canonical(title=title, body="Fahrten innerhalb Deutschlands."),
+            profile,
+        )
+        assert result.hard_reject is True, title
+        assert any(hit.code == "school_transport_mismatch" for hit in result.rejection_hits), title
+
+
+def test_driver_b_fernverkehr_does_not_treat_other_driving_as_school_transport() -> None:
+    profile = _build_profile(
+        desired_roles=(DRIVER_B_FERNVERKEHR_ROLE,),
+        search_query_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+        german_level="basic",
+    )
+
+    for title in (
+        "Fahrer Klasse B im Fernverkehr",
+        "Fahrer für Direktfahrten",
+        "Fahrdienst für medizinische Transporte",
+        "Transporterfahrer",
+        "Sprinterfahrer",
+    ):
+        result = FilterEngine().evaluate(
+            _build_canonical(title=title, body="Fahrten innerhalb Deutschlands."),
+            profile,
+        )
+        assert not any(hit.code == "school_transport_mismatch" for hit in result.rejection_hits), title
+
+
+def test_basic_german_profile_rejects_explicit_b1_or_stronger_requirements() -> None:
+    profile = _build_profile(
+        desired_roles=(DRIVER_B_FERNVERKEHR_ROLE,),
+        search_query_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+        german_level="basic",
+    )
+
+    for requirement in (
+        "Deutsch mindestens B1 erforderlich.",
+        "B1 Deutsch erforderlich.",
+        "Deutsch B2 erforderlich.",
+        "Gute Deutschkenntnisse erforderlich.",
+        "Sehr gute Deutschkenntnisse.",
+        "Fließende Deutschkenntnisse.",
+        "Verhandlungssicheres Deutsch.",
+    ):
+        result = FilterEngine().evaluate(
+            _build_canonical(title="Fahrer Klasse B", body=requirement),
+            profile,
+        )
+        assert result.hard_reject is True, requirement
+        assert any(hit.code == "strong_german_mismatch" for hit in result.rejection_hits), requirement
+
+
+def test_basic_german_profile_allows_absent_or_explicitly_low_language_requirement() -> None:
+    profile = _build_profile(
+        desired_roles=(DRIVER_B_FERNVERKEHR_ROLE,),
+        search_query_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+        german_level="basic",
+    )
+
+    for requirement in (
+        "Deutschkenntnisse nicht erforderlich.",
+        "Deutsch nicht erforderlich.",
+        "Grundkenntnisse ausreichend.",
+        "Einfache Deutschkenntnisse.",
+        "Fahrten innerhalb Deutschlands.",
+    ):
+        result = FilterEngine().evaluate(
+            _build_canonical(title="Fahrer Klasse B", body=requirement),
+            profile,
+        )
+        assert not any(hit.code == "strong_german_mismatch" for hit in result.rejection_hits), requirement
 
 
 def test_produktentwickler_without_software_python_or_api_is_not_hot() -> None:

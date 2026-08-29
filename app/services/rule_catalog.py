@@ -58,7 +58,7 @@ POSITIVE_ROLE_FAMILIES: tuple[TextRule, ...] = (
     TextRule(
         code="delivery_driving_family",
         label_ru="роль в доставке или вождении",
-        patterns=(r"\bfahrer\w*", r"\bzusteller\w*", r"\bkurier\w*", r"\blieferfahrer\w*", r"\bkraftfahrer\w*"),
+        patterns=(r"\b\w*fahrer\w*", r"\bzusteller\w*", r"\bkurier\w*", r"\blieferfahrer\w*", r"\bkraftfahrer\w*"),
     ),
 )
 
@@ -102,9 +102,9 @@ STRONG_GERMAN_REQUIREMENT_RULE = TextRule(
     code="strong_german_requirement",
     label_ru="явно требуют хороший немецкий",
     patterns=(
-        r"\b(?:sehr gute|gute|fliessende|fliessend|verhandlungssichere|verhandlungssicher|sichere|b2|c1|c2)\s+deutsch",
-        r"\bdeutsch\s+(?:b2|c1|c2)\b",
-        r"\bdeutschkenntnisse\b.{0,80}\b(?:erforderlich|vorausgesetzt|zwingend|required|mandatory|must)\b",
+        r"\b(?:sehr gute|gute|fliessend(?:e|er|es|en)?|verhandlungssicher(?:e|er|es|en)?|sichere|b1|b2|c1|c2)\s+deutsch",
+        r"\bdeutsch(?:kenntnisse)?\s+(?:mindestens\s+)?(?:b1|b2|c1|c2)\b",
+        r"\bdeutschkenntnisse\b(?!\s*.{0,30}\b(?:nicht|keine)\s+(?:erforderlich|notwendig)\b).{0,80}\b(?:erforderlich|vorausgesetzt|zwingend|required|mandatory|must)\b",
         r"\bgerman\b.*\b(?:required|must|mandatory)\b",
     ),
 )

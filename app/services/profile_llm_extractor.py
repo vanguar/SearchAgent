@@ -46,7 +46,9 @@ _EXTRACTION_PROMPT = """\
 9. "есть права B" / "права категории B" / "водительское удостоверение B" → \
 driving_license="B". НЕ добавляй "Водитель"/"Driver" в desired_roles!
 10. "Водитель" / "Driver" / "Fahrer" в desired_roles допустим ТОЛЬКО если написано: \
-"ищу работу водителем", "хочу работать водителем", "ищу курьера", "delivery driver".
+"ищу работу водителем", "ищу работу в Германии водителем", "хочу работать водителем", \
+"ищу курьера", "delivery driver". Указание страны/города между словами "работу" и \
+"водителем" не отменяет явное водительское job intent.
 11. В evidence_by_field["driving_license"] напиши точную цитату из текста.
 
 ЛОКАЦИЯ:
@@ -85,6 +87,16 @@ legal_status="section_24", work_authorization=true.
 Пример для Python-разработчика: ["Python Entwickler", "Backend Developer", "Software Engineer", "FastAPI"]. \
 Пример для складского: ["Lagerist", "Lagerhelfer", "Kommissionierer", "Warehouse Worker"]. \
 НЕ использовать русские слова в search_query_terms!
+25a. Если есть ЯВНОЕ намерение искать работу водителем категории B и указаны \
+Sprinter/Transporter вместе с Fernverkehr, Direktfahrten, Sonderfahrten или Expressfahrten, \
+используй desired_roles=["Driver B – Fernverkehr"] и специализированные search_query_terms: \
+["Fahrer Klasse B", "Sprinterfahrer", "Transporterfahrer", "Fahrer bis 3,5 t", \
+"Fahrer Klasse B Fernverkehr", "Sprinterfahrer Fernverkehr", "Transporterfahrer Fernverkehr", \
+"Fernverkehr Fahrer", "Fahrer Klasse B Direktfahrten", "Fahrer Klasse B Sonderfahrten", \
+"Fahrer Klasse B Expressfahrten", "Planensprinter Fahrer", "Koffersprinter Fahrer"]. \
+Не активируй этот профиль только из-за наличия прав B. Paketzusteller, Paketbote, \
+Postzusteller и Briefzusteller не добавляй в positive search_query_terms; при явном отказе \
+от массовой Paketzustellung помести её в excluded_roles/negative_query_terms.
 
 ВОПРОСЫ:
 26. questions_needed — только действительно неизвестные КРИТИЧЕСКИЕ поля. \

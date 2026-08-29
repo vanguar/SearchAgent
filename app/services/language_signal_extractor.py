@@ -6,9 +6,9 @@ from app.services.hashers import normalize_text_for_fingerprint
 from app.services.normalization_models import LanguageSignals
 
 _STRONG_GERMAN_PATTERNS = (
-    r"\b(?:sehr gute|gute|fliessende|fliessend|verhandlungssichere|verhandlungssicher|sichere|b2|c1|c2)\s+deutsch",
-    r"\bdeutsch\s+(?:b2|c1|c2)\b",
-    r"\bdeutschkenntnisse\b.{0,80}\b(?:erforderlich|vorausgesetzt|zwingend|required|mandatory)\b",
+    r"\b(?:sehr gute|gute|fliessend(?:e|er|es|en)?|verhandlungssicher(?:e|er|es|en)?|sichere|b1|b2|c1|c2)\s+deutsch",
+    r"\bdeutsch(?:kenntnisse)?\s+(?:mindestens\s+)?(?:b1|b2|c1|c2)\b",
+    r"\bdeutschkenntnisse\b(?!\s*.{0,30}\b(?:nicht|keine)\s+(?:erforderlich|notwendig)\b).{0,80}\b(?:erforderlich|vorausgesetzt|zwingend|required|mandatory)\b",
     r"\bgerman\b.*\b(?:required|must|mandatory)\b",
 )
 _LOW_LANGUAGE_PATTERNS = (

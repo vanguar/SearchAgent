@@ -83,6 +83,23 @@ def test_german_assembly_still_matches_production_family() -> None:
         assert any(hit.code == "production_family" for hit in signals.positive_role_hits), title
 
 
+def test_compound_fahrer_titles_receive_existing_positive_driver_signal() -> None:
+    from app.services.rule_catalog import inspect_vacancy
+
+    profile = _build_profile(
+        desired_roles=("Водитель категории B",),
+        search_query_terms=("Fahrer Klasse B", "Sprinterfahrer", "Transporterfahrer"),
+    )
+    for title in ("Sprinterfahrer", "Transporterfahrer", "Auslieferungsfahrer"):
+        signals = inspect_vacancy(
+            _build_canonical(title=title, body="Fahrten mit einem Transporter."),
+            profile,
+        )
+        assert any(
+            hit.code == "delivery_driving_family" for hit in signals.positive_role_hits
+        ), title
+
+
 def test_scorer_skips_location_penalty_in_remote_worldwide_mode() -> None:
     """Worldwide-remote must not penalize a geographic 'mismatch' — mirrors FilterEngine."""
     filter_engine = FilterEngine()

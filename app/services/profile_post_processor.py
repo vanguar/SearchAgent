@@ -12,6 +12,12 @@ Applied after LLM extraction (or conservative fallback). Responsibilities:
 from __future__ import annotations
 
 from app.services.profile_extraction_model import ProfileExtractionResult
+from app.services.profile_parser import (
+    DRIVER_B_FERNVERKEHR_ROLE,
+    DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+    has_explicit_driver_job_intent,
+    is_driver_b_fernverkehr_intent,
+)
 from app.services.profile_role_taxonomy import (
     RoleFamily,
     classify_roles,
@@ -46,19 +52,6 @@ _LEGAL_STATUS_MAP: dict[str, str] = {
     "work_visa": "work_visa",
     "other": "other",
 }
-
-# Phrases that indicate explicit intent to work as a driver
-_DRIVER_INTENT_PHRASES: tuple[str, ...] = (
-    "ищу работу водителем",
-    "работа водителем",
-    "хочу работать водителем",
-    "ищу водителя",
-    "ищу курьера",
-    "работаю водителем",
-    "delivery driver",
-    "driver job",
-    "fahrer stelle",
-)
 
 # German city name mappings for preferred_regions normalisation
 _REGION_ALIASES: dict[str, str] = {
@@ -135,6 +128,7 @@ def process(result: ProfileExtractionResult, raw_text_lower: str = "") -> Profil
     _normalize_regions(data)
     _ensure_remote_worldwide_regions(data, raw_text_lower)
     _normalize_lists(data)
+    _canonicalize_driver_b_fernverkehr(data, raw_text_lower)
 
     _classify_role_families(data)
     _enforce_exclusion_priority(data)
@@ -253,6 +247,16 @@ def _classify_role_families(data: dict) -> None:
 # Safety rules
 # ---------------------------------------------------------------------------
 
+def _canonicalize_driver_b_fernverkehr(data: dict, raw_text_lower: str) -> None:
+    if not is_driver_b_fernverkehr_intent(
+        text=raw_text_lower,
+        driving_license=data.get("driving_license"),
+    ):
+        return
+    data["desired_roles"] = [DRIVER_B_FERNVERKEHR_ROLE]
+    data["search_query_terms"] = list(DRIVER_B_FERNVERKEHR_SEARCH_TERMS)
+
+
 def _enforce_exclusion_priority(data: dict) -> None:
     """Excluded always wins: remove from desired anything that appears in excluded."""
     excluded_lower = {r.lower() for r in (data.get("excluded_roles") or [])}
@@ -286,10 +290,10 @@ def _protect_driver_role(data: dict, raw_text_lower: str) -> None:
 
     # Check evidence from LLM first
     evidence = (data.get("evidence_by_field") or {}).get("desired_roles", "") or ""
-    evidence_supports_driver = any(p in evidence.lower() for p in _DRIVER_INTENT_PHRASES)
+    evidence_supports_driver = has_explicit_driver_job_intent(evidence.lower())
 
     # Check raw text if available
-    text_supports_driver = any(p in raw_text_lower for p in _DRIVER_INTENT_PHRASES)
+    text_supports_driver = has_explicit_driver_job_intent(raw_text_lower)
 
     if not (evidence_supports_driver or text_supports_driver):
         data["desired_roles"] = [

@@ -91,6 +91,9 @@ class ProfileCatalogService:
                 car_available=source.car_available,
                 no_german_required=source.no_german_required,
                 notes=source.notes,
+                search_query_terms=list(source.search_query_terms) if source.search_query_terms else None,
+                search_query_de=source.search_query_de,
+                search_location_de=source.search_location_de,
             )
             db.add(copy)
             db.commit()
@@ -124,7 +127,10 @@ class ProfileCatalogService:
                 target.name = name.strip() or target.name
             if desired_roles_text is not None:
                 roles = [r.strip() for r in desired_roles_text.split(",") if r.strip()]
-                target.desired_roles = roles or None
+                normalized_roles = roles or None
+                if list(target.desired_roles or []) != list(normalized_roles or []):
+                    target.search_query_terms = None
+                target.desired_roles = normalized_roles
                 # Пересчитываем нормализованный query при изменении ролей
                 target.search_query_de = normalize_query_from_roles(target.desired_roles)
             if preferred_locations_text is not None:

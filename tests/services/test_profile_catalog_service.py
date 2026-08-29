@@ -74,6 +74,11 @@ def test_set_default_nonexistent_returns_false(db_session: Session) -> None:
 
 
 def test_duplicate_profile(db_session: Session, search_profile: SearchProfile) -> None:
+    search_profile.search_query_terms = ["Fahrer Klasse B", "Sprinterfahrer"]
+    search_profile.search_query_de = "Fahrer Klasse B"
+    search_profile.search_location_de = "Deutschland"
+    db_session.commit()
+
     service = ProfileCatalogService()
     copy = service.duplicate_profile(db_session, source_id=search_profile.id)
     assert copy is not None
@@ -81,6 +86,9 @@ def test_duplicate_profile(db_session: Session, search_profile: SearchProfile) -
     assert "копия" in copy.name
     assert copy.is_default is False
     assert copy.desired_roles == search_profile.desired_roles
+    assert copy.search_query_terms == search_profile.search_query_terms
+    assert copy.search_query_de == search_profile.search_query_de
+    assert copy.search_location_de == search_profile.search_location_de
 
 
 def test_duplicate_nonexistent_returns_none(db_session: Session) -> None:
@@ -104,6 +112,43 @@ def test_update_profile_roles(db_session: Session, search_profile: SearchProfile
     assert updated is not None
     assert "produktion" in updated.desired_roles
     assert "verpacker" in updated.desired_roles
+
+
+def test_update_profile_clears_stale_search_terms_when_roles_really_change(
+    db_session: Session, search_profile: SearchProfile
+) -> None:
+    search_profile.desired_roles = ["Python Developer"]
+    search_profile.search_query_terms = ["Python Entwickler", "Backend Entwickler"]
+    search_profile.search_query_de = "Python Entwickler"
+    db_session.commit()
+
+    updated = ProfileCatalogService().update_profile(
+        db_session,
+        profile_id=search_profile.id,
+        desired_roles_text="Driver B – Fernverkehr",
+    )
+
+    assert updated is not None
+    assert updated.desired_roles == ["Driver B – Fernverkehr"]
+    assert updated.search_query_terms is None
+    assert updated.search_query_de == "Driver"
+    assert "Python" not in (updated.search_query_de or "")
+
+
+def test_update_profile_keeps_search_terms_when_roles_are_unchanged(
+    db_session: Session, search_profile: SearchProfile
+) -> None:
+    search_profile.search_query_terms = ["lager", "logistik"]
+    db_session.commit()
+
+    updated = ProfileCatalogService().update_profile(
+        db_session,
+        profile_id=search_profile.id,
+        desired_roles_text="lager, logistik",
+    )
+
+    assert updated is not None
+    assert updated.search_query_terms == ["lager", "logistik"]
 
 
 def test_backfill_clears_location_for_remote_worldwide_profile(

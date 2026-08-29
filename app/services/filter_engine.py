@@ -1,7 +1,13 @@
 from __future__ import annotations
 
+import re
+
 from app.services.hashers import normalize_text_for_fingerprint
 from app.services.normalization_models import CanonicalVacancyGroup
+from app.services.profile_parser import (
+    DRIVER_B_FERNVERKEHR_ROLE,
+    DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+)
 from app.services.role_family import (
     RoleFamily,
     classify_desired_roles,
@@ -10,7 +16,13 @@ from app.services.role_family import (
     is_specific_family,
 )
 from app.services.rule_catalog import inspect_vacancy
-from app.services.search_models import FilterResult, RuleHit, SearchProfileContext, VacancySignalSnapshot
+from app.services.search_models import (
+    FilterResult,
+    RuleHit,
+    SearchProfileContext,
+    VacancySignalSnapshot,
+    normalize_profile_text,
+)
 from app.services.search_normalizer import is_remote_worldwide_location
 
 # Tokens so distinctive they identify a family even in long body text.
@@ -56,6 +68,14 @@ _NON_IT_WRITING_TITLE_TOKENS: frozenset[str] = frozenset({
     "editor",
 })
 
+_SCHOOL_TRANSPORT_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(
+        r"\b(?:schulerverkehr|schulerbeforderung|schulbus(?:fahrer)?|schulfahrdienst|schulertransport)\w*\b"
+    ),
+    re.compile(r"\bfahrdienst\s+fur\s+schuler\w*\b"),
+    re.compile(r"\bbeforderung\s+von\s+schuler\w*\b"),
+)
+
 
 class FilterEngine:
     """Deterministic hard filters for PHASE 7 search results."""
@@ -76,6 +96,11 @@ class FilterEngine:
 
         if resolved_signals.excluded_role_hits:
             rejection_hits.append(RuleHit(code="excluded_role", label_ru="роль исключена профилем"))
+
+        if _is_driver_b_fernverkehr_profile(profile) and _is_school_transport(resolved_signals.combined_text):
+            rejection_hits.append(
+                RuleHit(code="school_transport_mismatch", label_ru="школьные пассажирские перевозки исключены")
+            )
 
         family_mismatch = _check_profession_family_mismatch(canonical, profile)
         if family_mismatch:
@@ -161,6 +186,17 @@ def _collect_positive_hits(signals: VacancySignalSnapshot, profile: SearchProfil
     if signals.location_match:
         hits.append(RuleHit(code="location_fit", label_ru="локация совпадает с профилем"))
     return _dedupe_hits(hits)
+
+
+def _is_driver_b_fernverkehr_profile(profile: SearchProfileContext) -> bool:
+    target_role = normalize_profile_text(DRIVER_B_FERNVERKEHR_ROLE)
+    if any(normalize_profile_text(role) == target_role for role in profile.desired_roles):
+        return True
+    return tuple(profile.search_query_terms) == DRIVER_B_FERNVERKEHR_SEARCH_TERMS
+
+
+def _is_school_transport(combined_text: str) -> bool:
+    return any(pattern.search(combined_text) for pattern in _SCHOOL_TRANSPORT_PATTERNS)
 
 
 def _is_clear_role_mismatch(signals: VacancySignalSnapshot, profile: SearchProfileContext) -> bool:

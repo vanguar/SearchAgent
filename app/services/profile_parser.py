@@ -2,7 +2,7 @@
 
 Used ONLY when LLM is unavailable. Extracts only high-confidence fields
 via simple regex/keyword matching. Never guesses ambiguous fields.
-Roles are left empty — the validator will ask.
+Roles stay empty unless an explicit supported job intent is present.
 
 Rule: it is better to leave a field null and ask a question than to fill
 it incorrectly.
@@ -115,6 +115,49 @@ ROLE_PATTERNS: tuple[tuple[str, str], ...] = (
     ("внутренних бизнес-инструментов", "Internal Tools Developer"),
 )
 
+DRIVER_B_FERNVERKEHR_ROLE = "Driver B – Fernverkehr"
+DRIVER_B_FERNVERKEHR_SEARCH_TERMS: tuple[str, ...] = (
+    "Fahrer Klasse B",
+    "Sprinterfahrer",
+    "Transporterfahrer",
+    "Fahrer bis 3,5 t",
+    "Fahrer Klasse B Fernverkehr",
+    "Sprinterfahrer Fernverkehr",
+    "Transporterfahrer Fernverkehr",
+    "Fernverkehr Fahrer",
+    "Fahrer Klasse B Direktfahrten",
+    "Fahrer Klasse B Sonderfahrten",
+    "Fahrer Klasse B Expressfahrten",
+    "Planensprinter Fahrer",
+    "Koffersprinter Fahrer",
+)
+
+_EXPLICIT_DRIVER_JOB_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(
+        r"\bищу\s+(?:себе\s+)?(?:работу(?:\s+(?:в|по)\s+[a-zа-яё-]+)?\s+)?водител\w*"
+    ),
+    re.compile(r"\bхочу\s+работать\s+водител\w*"),
+    re.compile(
+        r"\bрассматриваю\s+(?:работу(?:\s+(?:в|по)\s+[a-zа-яё-]+)?\s+)?водител\w*"
+    ),
+    re.compile(r"\blooking\s+for\s+(?:a\s+)?(?:job\s+as\s+)?(?:driver|fahrer)\b"),
+    re.compile(r"\bsuche\s+(?:eine\s+)?(?:arbeit|stelle|job)\s+als\s+fahrer\b"),
+)
+_NEGATED_DRIVER_JOB_PREFIX = re.compile(r"\bне\s*$")
+
+_DRIVER_B_SPECIALIZATION_TOKENS: tuple[str, ...] = (
+    "sprinter",
+    "transporter",
+    "3,5 t",
+    "3.5 t",
+    "fernverkehr",
+    "direktfahrt",
+    "sonderfahrt",
+    "expressfahrt",
+    "planensprinter",
+    "koffersprinter",
+)
+
 EXCLUSION_PATTERNS: tuple[tuple[str, str], ...] = (
     ("senior-only", "Senior-only roles"),
     ("только senior", "Senior-only roles"),
@@ -161,6 +204,11 @@ EXCLUSION_PATTERNS: tuple[tuple[str, str], ...] = (
     ("низкоквалифицированные не-it", "Low-skilled non-IT jobs"),
     ("frontend без backend", "Frontend-only roles"),
     ("чистый frontend", "Frontend-only roles"),
+    ("paketzustellung", "Mass parcel delivery"),
+    ("paketzusteller", "Mass parcel delivery"),
+    ("paketbote", "Mass parcel delivery"),
+    ("postzusteller", "Mass parcel delivery"),
+    ("briefzusteller", "Mass parcel delivery"),
 )
 
 SEARCH_TERMS_BY_ROLE: dict[str, tuple[str, ...]] = {
@@ -181,6 +229,8 @@ SEARCH_TERMS_BY_ROLE: dict[str, tuple[str, ...]] = {
     "Data Extraction Developer": ("Data Extraction Developer", "Scraping Developer"),
     "MVP Developer": ("MVP Developer", "MVP Entwickler"),
     "Internal Tools Developer": ("Internal Tools Developer", "Backend Developer"),
+    DRIVER_B_FERNVERKEHR_ROLE: DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+    "Водитель": ("Fahrer",),
 }
 
 # Explicit markers for "I currently live in <city>"
@@ -201,6 +251,23 @@ def _contains_any(text: str, tokens: tuple[str, ...]) -> bool:
     return any(token in text for token in tokens)
 
 
+def has_explicit_driver_job_intent(text: str) -> bool:
+    for pattern in _EXPLICIT_DRIVER_JOB_PATTERNS:
+        for match in pattern.finditer(text):
+            if _NEGATED_DRIVER_JOB_PREFIX.search(text[:match.start()]):
+                continue
+            return True
+    return False
+
+
+def is_driver_b_fernverkehr_intent(*, text: str, driving_license: str | None) -> bool:
+    return (
+        driving_license == "B"
+        and has_explicit_driver_job_intent(text)
+        and _contains_any(text, _DRIVER_B_SPECIALIZATION_TOKENS)
+    )
+
+
 def _parse_bool_token(value: str | None) -> bool | None:
     if not value:
         return None
@@ -216,7 +283,7 @@ class ConservativeProfileParser:
     """Extract only high-confidence fields from free text. No LLM, no negation windows.
 
     Returns ProfileExtractionResult with only fields that can be reliably detected.
-    Roles are intentionally left empty — the validator will generate a question.
+    Roles stay empty unless an explicit supported job intent is present.
     """
 
     def parse(self, free_text: str, followup_answers: dict[str, str] | None = None) -> ProfileExtractionResult:
@@ -351,7 +418,15 @@ class ConservativeProfileParser:
 
     @staticmethod
     def _extract_driving_license(text: str) -> str | None:
-        if _contains_any(text, ("права категории b", "категория b", "права b", "führerschein b")):
+        if _contains_any(text, (
+            "права категории b",
+            "категория b",
+            "категории b",
+            "права b",
+            "führerschein b",
+            "führerschein klasse b",
+            "fuehrerschein klasse b",
+        )):
             return "B"
         if _contains_any(text, ("права есть", "есть права", "водительские права есть")):
             return "yes"
@@ -427,6 +502,16 @@ class ConservativeProfileParser:
     def _extract_desired_roles(text: str) -> list[str]:
         roles: list[str] = []
         seen: set[str] = set()
+        explicit_driver_intent = has_explicit_driver_job_intent(text)
+        if explicit_driver_intent:
+            driving_license = ConservativeProfileParser._extract_driving_license(text)
+            specialized_intent = is_driver_b_fernverkehr_intent(
+                text=text,
+                driving_license=driving_license,
+            )
+            role = DRIVER_B_FERNVERKEHR_ROLE if specialized_intent else "Водитель"
+            roles.append(role)
+            seen.add(role)
         for pattern, role in ROLE_PATTERNS:
             if pattern in text and role not in seen:
                 roles.append(role)
@@ -452,7 +537,12 @@ class ConservativeProfileParser:
         for pattern, label in EXCLUSION_PATTERNS:
             if pattern not in text:
                 continue
-            if label in {"Warehouse", "Production", "Manual physical work"} and not negative_context:
+            if label in {
+                "Warehouse",
+                "Production",
+                "Manual physical work",
+                "Mass parcel delivery",
+            } and not negative_context:
                 continue
             if label not in seen:
                 excluded.append(label)
