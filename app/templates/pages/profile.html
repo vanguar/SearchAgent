@@ -2,28 +2,28 @@
 {% from "profile/partials/profile_card.html" import render_profile_card %}
 
 {% block content %}
-<article class="panel">
-  <h3>Профили поиска</h3>
-  <p>Каждый профиль задаёт роли, регионы и предпочтения для поиска. Выберите нужный профиль перед запуском поиска.</p>
-  <a class="ghost-btn" href="/profile/intake">Создать новый профиль</a>
-</article>
-
 {% if profile_entries %}
-{% for entry in profile_entries %}
-{{ render_profile_card(entry) }}
-{% endfor %}
+<div class="profiles-list">
+  {% for entry in profile_entries %}
+  {{ render_profile_card(entry) }}
+  {% endfor %}
+</div>
 {% else %}
-<article class="panel">
-  <div class="notice info">
-    Профилей пока нет. <a href="/profile/intake">Заполните анкету</a>, чтобы создать первый профиль.
-  </div>
-</article>
+<div class="profiles-empty">
+  <p>Профилей пока нет. Создайте первый профиль, чтобы запускать поиск по своим ролям и регионам.</p>
+</div>
 {% endif %}
 
-<article class="panel">
-  <h3>Уведомления</h3>
-  <p>Отправить дайджест по активному профилю вручную:</p>
-  <div class="action-row">
+<a class="pcard-new" href="/profile/intake">
+  <span class="pcard-new__plus" aria-hidden="true">+</span> Новый профиль поиска
+</a>
+
+<section class="profiles-notify">
+  <div class="profiles-notify__head">
+    <h3>Уведомления</h3>
+    <p class="muted">Отправить дайджест по активному профилю вручную.</p>
+  </div>
+  <div class="profiles-notify__actions">
     <form
       method="post"
       action="/notifications/trigger/telegram"
@@ -32,7 +32,7 @@
       hx-swap="innerHTML"
       class="inline-form"
     >
-      <button type="submit" class="ghost-btn">Отправить в Telegram</button>
+      <button type="submit" class="btn btn--outline">Отправить в Telegram</button>
     </form>
     <form
       method="post"
@@ -42,11 +42,11 @@
       hx-swap="innerHTML"
       class="inline-form"
     >
-      <button type="submit" class="ghost-btn">Отправить на Email</button>
+      <button type="submit" class="btn btn--outline">Отправить на Email</button>
     </form>
   </div>
   <div id="notif-feedback" class="top-gap"></div>
-</article>
+</section>
 
 {% include "partials/section_hint_loader.html" %}
 {% endblock %}

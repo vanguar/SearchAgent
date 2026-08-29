@@ -1,63 +1,73 @@
 {% macro render_profile_card(entry) %}
-<article class="panel profile-card">
-  <div class="profile-card__head">
-    <h3 class="profile-card__name">{{ entry.profile.name }}</h3>
-    <div class="profile-card__badges">
+{% set roles = entry.profile.desired_roles or [] %}
+{% set places = entry.profile.preferred_locations or [] %}
+<article class="pcard{% if entry.is_default %} pcard--default{% endif %}">
+  <div class="pcard__main">
+    <div class="pcard__titlerow">
+      <h3 class="pcard__title">{{ entry.profile.name }}</h3>
       {% if entry.is_default %}
-      <span class="badge-success">по умолчанию</span>
+      <span class="pcard-badge pcard-badge--default">По умолчанию</span>
       {% endif %}
       {% if not entry.profile.is_active %}
-      <span class="badge-disabled">неактивный</span>
+      <span class="pcard-badge pcard-badge--muted">Неактивный</span>
       {% endif %}
     </div>
+
+    {% if roles or places or entry.profile.relocation_ready is not none or entry.profile.shift_ok or entry.profile.no_german_required %}
+    <div class="pcard__chips">
+      {% for role in roles[:3] %}
+      <span class="pchip pchip--role">{{ role }}</span>
+      {% endfor %}
+      {% if roles | length > 3 %}
+      <span class="pchip pchip--more">+{{ roles | length - 3 }}</span>
+      {% endif %}
+
+      {% if places %}
+      <span class="pchip pchip--place">{{ places[0] }}</span>
+      {% if places | length > 1 %}
+      <span class="pchip pchip--more">+{{ places | length - 1 }}</span>
+      {% endif %}
+      {% endif %}
+
+      {% if entry.profile.relocation_ready is not none %}
+      <span class="pchip pchip--cond">Переезд: {{ "готов" if entry.profile.relocation_ready else "не готов" }}</span>
+      {% endif %}
+      {% if entry.profile.shift_ok %}
+      <span class="pchip pchip--cond">Смены подходят</span>
+      {% endif %}
+      {% if entry.profile.no_german_required %}
+      <span class="pchip pchip--cond">Без немецкого</span>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if entry.profile.notes %}
+    <p class="pcard__notes">{{ entry.profile.notes }}</p>
+    {% endif %}
   </div>
 
-  <div class="chip-row">
-    {% for role in entry.profile.desired_roles or [] %}
-    <span class="chip chip--role">{{ role }}</span>
-    {% endfor %}
-    {% for location in entry.profile.preferred_locations or [] %}
-    <span class="chip chip--place">{{ location }}</span>
-    {% endfor %}
-    {% if entry.profile.relocation_ready is not none %}
-    <span class="chip">Переезд: {{ "готов" if entry.profile.relocation_ready else "не готов" }}</span>
-    {% endif %}
-    {% if entry.profile.shift_ok is not none %}
-    <span class="chip">Смены: {{ "подходят" if entry.profile.shift_ok else "не подходят" }}</span>
-    {% endif %}
-    {% if entry.profile.no_german_required %}
-    <span class="chip">Без обязательного немецкого</span>
-    {% endif %}
-  </div>
-
-  {% if entry.profile.notes %}
-  <p class="muted profile-card__notes">{{ entry.profile.notes }}</p>
-  {% endif %}
-
-  <div class="profile-card__actions">
-    <a class="btn-primary" href="/jobs?profile_id={{ entry.profile.id }}">Искать</a>
-    <a class="ghost-btn" href="/profile/{{ entry.profile.id }}/edit">Изменить</a>
-
-    <details class="action-menu">
-      <summary class="ghost-btn action-menu__trigger">Ещё</summary>
-      <div class="action-menu__body">
+  <div class="pcard__actions">
+    <a class="btn btn--dark" href="/jobs?profile_id={{ entry.profile.id }}">Искать</a>
+    <a class="btn btn--outline" href="/profile/{{ entry.profile.id }}/edit">Изменить</a>
+    <details class="pcard-menu">
+      <summary class="btn btn--outline pcard-menu__trigger" aria-label="Ещё действия" title="Ещё действия">•••</summary>
+      <div class="pcard-menu__body">
         {% if not entry.is_default %}
-        <form method="post" action="/profile/{{ entry.profile.id }}/set-default" class="inline-form">
-          <button type="submit" class="ghost-btn">Сделать по умолчанию</button>
+        <form method="post" action="/profile/{{ entry.profile.id }}/set-default" class="pcard-menu__form">
+          <button type="submit" class="pcard-menu__item">Сделать по умолчанию</button>
         </form>
         {% endif %}
-
-        <form method="post" action="/profile/{{ entry.profile.id }}/duplicate" class="inline-form">
-          <button type="submit" class="ghost-btn">Дублировать</button>
+        <form method="post" action="/profile/{{ entry.profile.id }}/duplicate" class="pcard-menu__form">
+          <button type="submit" class="pcard-menu__item">Дублировать</button>
         </form>
-
+        <div class="pcard-menu__divider" role="separator"></div>
         <form
           method="post"
           action="/profile/{{ entry.profile.id }}/delete"
-          class="inline-form"
+          class="pcard-menu__form"
           onsubmit='return confirm({{ ("Удалить профиль «" ~ entry.profile.name ~ "»? Это действие нельзя отменить.") | tojson }});'
         >
-          <button type="submit" class="ghost-btn ghost-btn--stop">Удалить</button>
+          <button type="submit" class="pcard-menu__item pcard-menu__item--danger">Удалить профиль</button>
         </form>
       </div>
     </details>

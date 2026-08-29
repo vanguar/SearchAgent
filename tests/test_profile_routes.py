@@ -197,7 +197,9 @@ def test_delete_last_profile_leaves_empty_state(
 
     response = client.get("/profile")
     assert response.status_code == 200
-    assert "Заполните анкету" in response.text
+    # Empty state still renders and keeps a path to create a profile (redesign v2).
+    assert "Профилей пока нет" in response.text
+    assert "/profile/intake" in response.text
 
 
 def test_delete_nonexistent_profile_still_redirects(client: TestClient) -> None:
