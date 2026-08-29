@@ -18,20 +18,16 @@
         <li class="src-row">
           <div class="src-row__info">
             <span class="src-row__name">{{ source.display_name }}</span>
-            {% if source.status_detail %}
-            <span class="src-row__desc">{{ source.status_detail }}</span>
-            {% endif %}
           </div>
           <div class="src-row__right">
             <span class="scope-badge">
               {% if source.global_remote %}Remote{% else %}Германия{% endif %}
             </span>
-            <span
-              class="switch {% if source.enabled and source.status_kind != 'error' %}switch--on{% endif %}"
-              role="img"
-              aria-label="{{ 'Источник активен' if source.enabled else 'Источник выключен' }}"
-              title="Управляется конфигурацией приложения (.env)"
-            ><span class="switch__knob"></span></span>
+            {% if source.enabled and source.status_kind != "error" %}
+            <span class="src-state src-state--on">Активен</span>
+            {% else %}
+            <span class="src-state src-state--off">Отключён</span>
+            {% endif %}
           </div>
         </li>
         {% endfor %}
