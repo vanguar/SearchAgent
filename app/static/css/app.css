@@ -2900,6 +2900,17 @@ body {
   flex: 0 0 auto;
 }
 
+/* Thread link/unlink actions: clear spacing, buttons sized to content. */
+.email-detail-actions {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.email-detail-actions__btn {
+  justify-self: start;
+}
+
 .mail-gmail-note {
   margin: -2px 4px 0;
   font-size: 0.82rem;
