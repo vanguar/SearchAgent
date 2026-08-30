@@ -2855,7 +2855,30 @@ body {
 }
 
 .email-layout {
-  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+}
+
+/* Keep both columns inside their tracks: grid children default to
+   min-width:auto, which lets long unbreakable strings (emails, German
+   titles) overflow under the neighbouring column. */
+.email-layout > .content-stack {
+  min-width: 0;
+}
+
+.email-layout .panel,
+.email-layout .thread-link {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.thread-link strong,
+.thread-item__from,
+.thread-item__cues,
+.email-message-card__from,
+.email-message-card__subject,
+.email-detail-head p {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .mail-gmail-note {
