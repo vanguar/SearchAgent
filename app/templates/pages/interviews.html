@@ -1,21 +1,100 @@
 {% extends "base.html" %}
 
 {% block content %}
+{% if dashboard.warning_message %}
+<article class="panel">
+  <div class="notice warning">{{ dashboard.warning_message }}</div>
+</article>
+{% endif %}
+
+{% set interview_cards = dashboard.leads | selectattr("lead.interview_at") | list %}
+{% set upcoming = interview_cards | selectattr("lead.interview_at", "upcoming_interview") | sort(attribute="lead.interview_at") | list %}
+{% set past = interview_cards | rejectattr("lead.interview_at", "upcoming_interview") | sort(attribute="lead.interview_at", reverse=True) | list %}
+
+{% if interview_cards %}
+<div class="iv-shell">
+  {% if upcoming %}
+  {% set next_card = upcoming[0] %}
+  {% set next_lead = next_card.lead %}
+  <section class="iv-hero">
+    <div class="iv-hero__date">
+      <strong>{{ next_lead.interview_at.strftime("%d") }}</strong>
+      <span>{{ next_lead.interview_at | ru_month }}</span>
+    </div>
+    <div class="iv-hero__body">
+      <span class="iv-hero__when">
+        {{ next_lead.interview_at | human_until }} · {{ next_lead.interview_at.strftime("%H:%M") }}
+      </span>
+      <h3 class="iv-hero__title">{{ (next_lead.translated_title_ru or next_lead.vacancy_title) | unescape }}</h3>
+      <p class="iv-hero__meta">
+        {{ next_lead.company_name or "Компания не указана" }}
+        {% if next_lead.source_name %} · {{ next_lead.source_name }}{% endif %}
+        {% if next_card.status_label_ru %} · {{ next_card.status_label_ru }}{% endif %}
+      </p>
+    </div>
+    <div class="iv-hero__actions">
+      <a class="btn btn--light" href="/leads/{{ next_lead.id }}">Открыть отклик</a>
+    </div>
+  </section>
+
+  {% if upcoming | length > 1 %}
+  <section class="card">
+    <div class="card__head"><h3 class="card__title">Ближайшие</h3></div>
+    <ul class="iv-list">
+      {% for card in upcoming[1:] %}
+      <li class="iv-row">
+        <span class="iv-row__date">{{ card.lead.interview_at.strftime("%d.%m") }}</span>
+        <span class="iv-row__time">{{ card.lead.interview_at.strftime("%H:%M") }}</span>
+        <span class="iv-row__main">
+          <a href="/leads/{{ card.lead.id }}">{{ (card.lead.translated_title_ru or card.lead.vacancy_title) | unescape }}</a>
+          <span class="iv-row__sub">{{ card.lead.company_name or "Компания не указана" }}</span>
+        </span>
+        <span class="iv-row__when muted">{{ card.lead.interview_at | human_until }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+  {% endif %}
+
+  {% if past %}
+  <section class="card">
+    <div class="card__head"><h3 class="card__title">Прошедшие</h3></div>
+    <ul class="iv-list">
+      {% for card in past %}
+      <li class="iv-row iv-row--past">
+        <span class="iv-row__date">{{ card.lead.interview_at.strftime("%d.%m") }}</span>
+        <span class="iv-row__main">
+          <a href="/leads/{{ card.lead.id }}">{{ (card.lead.translated_title_ru or card.lead.vacancy_title) | unescape }}</a>
+          <span class="iv-row__sub">{{ card.lead.company_name or "Компания не указана" }}</span>
+        </span>
+        {% if card.status_label_ru %}
+        <span class="status-pill">{{ card.status_label_ru }}</span>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <p class="muted iv-note">
+    Дату, формат, интервьюера и заметки по каждой встрече можно менять в карточке
+    соответствующего отклика — здесь показана только сводная лента по реальным данным.
+  </p>
+</div>
+{% else %}
 <article class="panel empty-panel">
   <div class="empty-panel__body">
-    <h3>Собеседования ведутся внутри откликов</h3>
+    <h3>Пока нет назначенных собеседований</h3>
     <p class="muted">
-      Дату, формат, интервьюера и заметки можно назначить в карточке конкретного отклика —
-      там же виден список запланированных встреч по этой вакансии.
+      Как только в карточке отклика вы назначите дату собеседования, встреча появится здесь
+      — с обратным отсчётом и ссылкой на отклик. Никаких выдуманных чисел: лента строится
+      только из реально сохранённых интервью.
     </p>
     <div class="empty-panel__actions">
       <a class="btn-primary" href="/leads">Перейти к откликам</a>
     </div>
-    <p class="muted empty-panel__note">
-      Единая лента ближайших собеседований с обратным отсчётом появится, когда будет
-      отдельный агрегированный backend read-model по интервью. Сейчас данные хранятся
-      по каждому отклику отдельно, поэтому здесь показано нейтральное состояние без выдуманных чисел.
-    </p>
   </div>
 </article>
+{% endif %}
 {% endblock %}
