@@ -211,21 +211,25 @@ def _driver_license_mismatch_hit(
     profile_categories = set(extract_profile_driver_license_categories(profile.driver_license))
     if profile_categories != {"B"}:
         return None
-    if "B" in signals.allowed_driver_license_categories:
-        return None
 
     incompatible_categories = tuple(
         category
-        for category in ("C", "C1", "CE", "C1E", "D", "DE")
-        if category in signals.required_driver_license_categories
+        for category in signals.mentioned_driver_license_categories
+        if category != "B"
     )
     if not incompatible_categories:
         return None
 
-    required = "/".join(incompatible_categories)
+    mentioned = "/".join(incompatible_categories)
+    if incompatible_categories == ("LKW",):
+        label = "в вакансии упоминается LKW-Führerschein, а профиль ограничен категорией B"
+    elif len(incompatible_categories) == 1:
+        label = f"в вакансии упоминается категория {mentioned}, а в профиле указана только категория B"
+    else:
+        label = f"в вакансии упоминаются категории {mentioned}, а профиль ограничен категорией B"
     return RuleHit(
         code="driver_license_mismatch",
-        label_ru=f"требуется категория {required}, у профиля указана категория B",
+        label_ru=label,
     )
 
 

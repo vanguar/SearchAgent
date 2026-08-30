@@ -151,6 +151,7 @@ class VacancySignalSnapshot:
     required_driver_license_categories: tuple[str, ...] = ()
     allowed_driver_license_categories: tuple[str, ...] = ()
     optional_driver_license_categories: tuple[str, ...] = ()
+    mentioned_driver_license_categories: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

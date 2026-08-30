@@ -307,6 +307,7 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         required_driver_license_categories=driver_license_requirement.required,
         allowed_driver_license_categories=driver_license_requirement.allowed,
         optional_driver_license_categories=driver_license_requirement.optional,
+        mentioned_driver_license_categories=driver_license_requirement.mentioned,
         location_match=location_match,
         location_hits=location_hits,
         strong_german_required=canonical.language_signals.strong_german_required
