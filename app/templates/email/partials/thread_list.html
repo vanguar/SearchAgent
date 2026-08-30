@@ -9,21 +9,26 @@
     {% for thread in workspace.threads %}
     <li class="thread-item{% if thread.selected %} is-selected{% endif %}">
       <a class="thread-link" href="/email?thread_id={{ thread.thread_id }}">
-        <strong>{{ thread.subject }}</strong>
-        <span class="muted">{{ thread.participant_line }}</span>
-        <span class="muted">
-          Сообщений: {{ thread.message_count }}
-          {% if thread.last_message_at %}
-          · {{ thread.last_message_at.strftime("%d.%m.%Y %H:%M") }}
-          {% endif %}
+        <span class="thread-item__top">
+          <span class="thread-dot{% if thread.linked_lead_id %} thread-dot--linked{% endif %}" aria-hidden="true"></span>
+          <strong>{{ thread.subject }}</strong>
         </span>
-        {% if thread.linked_lead_label %}
-        <span>Привязано: {{ thread.linked_lead_label }}</span>
-        {% else %}
-        <span class="muted">Пока без лида</span>
-        {% endif %}
+        <span class="muted thread-item__from">{{ thread.participant_line }}</span>
+        <span class="thread-item__foot">
+          {% if thread.linked_lead_label %}
+          <span class="mail-chip">{{ thread.linked_lead_label }}</span>
+          {% else %}
+          <span class="muted">Пока без лида</span>
+          {% endif %}
+          <span class="muted thread-item__meta">
+            {{ thread.message_count }} сообщ.
+            {% if thread.last_message_at %}
+            · {{ thread.last_message_at.strftime("%d.%m %H:%M") }}
+            {% endif %}
+          </span>
+        </span>
         {% if thread.cue_labels_ru %}
-        <span class="muted">{{ thread.cue_labels_ru|join(" · ") }}</span>
+        <span class="muted thread-item__cues">{{ thread.cue_labels_ru|join(" · ") }}</span>
         {% endif %}
       </a>
     </li>

@@ -2842,3 +2842,141 @@ body {
     display: none;
   }
 }
+
+/* ── Mail screen (redesign v2) ───────────────────────────── */
+.mail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  max-width: 1320px;
+  margin-bottom: 4px;
+}
+
+.email-layout {
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+}
+
+.mail-gmail-note {
+  margin: -2px 4px 0;
+  font-size: 0.82rem;
+}
+
+/* Thread list items */
+.thread-item__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.thread-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dim, #9a8d86);
+}
+
+.thread-dot--linked {
+  background: #2f6b52;
+}
+
+.thread-item__from {
+  font-size: 0.82rem;
+}
+
+.thread-item__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.thread-item__meta {
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.thread-item__cues {
+  font-size: 0.78rem;
+}
+
+.mail-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #f4efe7;
+  color: var(--text-soft);
+  font-size: 0.76rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Message bubbles */
+.email-message-card {
+  border-left-width: 3px;
+}
+
+.email-message-card--in {
+  border-left-color: var(--line);
+}
+
+.email-message-card--out {
+  border-left-color: var(--accent);
+  background: #fdf7f2;
+}
+
+.email-message-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.mail-dir {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #eef1ee;
+  color: var(--text-soft);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.mail-dir--out {
+  background: rgba(194, 98, 58, 0.12);
+  color: var(--accent-hover);
+}
+
+.email-message-card__time {
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.email-message-card__subject {
+  display: block;
+  font-size: 0.96rem;
+  line-height: 1.35;
+}
+
+.email-message-card__from {
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 1000px) {
+  .email-layout {
+    grid-template-columns: 1fr;
+  }
+}
