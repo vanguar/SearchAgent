@@ -366,6 +366,7 @@ def _build_driver_b_profile() -> SearchProfileContext:
         excluded_roles=("Paketzustellung", "Paketbote", "Postzustellung", "Briefzustellung"),
         preferred_locations=("Deutschland",),
         german_level="basic",
+        driver_license="B",
     )
 
 
@@ -483,6 +484,17 @@ def test_driver_b_nahverkehr_is_lower_than_fernverkehr_without_hard_reject() -> 
     assert fern_score > local_score
     assert local_rejected is False
     assert "driver_local_delivery" in local_negatives
+
+
+def test_driver_b_heavy_vehicle_is_hard_rejected_before_scoring_bucket() -> None:
+    score, bucket, _, _, hard_reject = _score_driver_b(
+        "Berufskraftfahrer im Fernverkehr",
+        "Deutschlandweite Touren mit einem Sattelzug.",
+    )
+
+    assert hard_reject is True
+    assert bucket == "rejected"
+    assert score < 70
 
 
 def test_driver_b_route_signals_do_not_affect_other_profiles() -> None:

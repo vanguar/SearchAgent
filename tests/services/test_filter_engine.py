@@ -1,3 +1,4 @@
+from dataclasses import replace
 
 from app.services.filter_engine import FilterEngine, _classify_body_family
 from app.services.normalization_models import CanonicalVacancyGroup
@@ -829,13 +830,232 @@ def test_driver_b_only_profile_allows_b_only_and_unspecified_license_categories(
         ("Transporter bis 3,5 t", "Klasse B."),
         ("Sprinterfahrer", "Fahrerlaubnis B."),
         ("Fahrer im Fernverkehr", "Fahrten innerhalb Deutschlands."),
-        ("LKW-Fahrer", "Fahrten innerhalb Deutschlands."),
     )
 
     for title, body in vacancies:
         result = FilterEngine().evaluate(_build_canonical(title=title, body=body), profile)
 
         assert not any(hit.code == "driver_license_mismatch" for hit in result.rejection_hits), title
+
+
+def test_driver_b_profile_rejects_heavy_and_specialized_vehicles_without_license_mentions() -> None:
+    profile = _build_profile(
+        desired_roles=(DRIVER_B_FERNVERKEHR_ROLE,),
+        search_query_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+        driver_license="B",
+        german_level=None,
+    )
+    vacancies = (
+        "LKW Fahrer im Fernverkehr",
+        "Berufskraftfahrer im Fernverkehr",
+        "Fahrmischerfahrer",
+        "Fahrer Betonmischer",
+        "Kipperfahrer",
+        "Fahrer für Kippsattel",
+        "Kraftfahrer Silofahrzeug",
+        "Tankwagenfahrer",
+        "Sattelzugfahrer",
+        "Fahrer 40-Tonner",
+        "Fahrer 7,5 t",
+        "Busfahrer",
+    )
+
+    for title in vacancies:
+        result = FilterEngine().evaluate(
+            _build_canonical(title=title, body="Fernverkehr innerhalb Deutschlands."),
+            profile,
+        )
+        mismatch_hits = [hit for hit in result.rejection_hits if hit.code == "heavy_vehicle_mismatch"]
+
+        assert result.hard_reject is True, title
+        assert mismatch_hits, title
+        assert "категории B до 3,5 т" in mismatch_hits[0].label_ru, title
+
+
+def test_driver_b_profile_rejects_professional_heavy_driver_qualifications() -> None:
+    profile = _build_profile(
+        desired_roles=(DRIVER_B_FERNVERKEHR_ROLE,),
+        search_query_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+        driver_license="B",
+        german_level=None,
+    )
+    vacancies = (
+        ("Fahrer im Fernverkehr", "Digitale Fahrerkarte erforderlich."),
+        ("Fahrer", "Berufskraftfahrerqualifikation Code 95 erforderlich."),
+        ("ADR Fahrer Fernverkehr", "ADR-Schein erforderlich."),
+    )
+
+    for title, body in vacancies:
+        result = FilterEngine().evaluate(_build_canonical(title=title, body=body), profile)
+
+        assert result.hard_reject is True, title
+        assert any(hit.code == "heavy_vehicle_mismatch" for hit in result.rejection_hits), title
+
+
+def test_driver_b_profile_allows_light_commercial_and_generic_driver_roles() -> None:
+    profile = _build_profile(
+        desired_roles=(DRIVER_B_FERNVERKEHR_ROLE,),
+        search_query_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+        driver_license="B",
+        german_level=None,
+    )
+    vacancies = (
+        "Sprinterfahrer Fernverkehr Klasse B",
+        "Transporterfahrer deutschlandweit",
+        "Fahrer bis 3,5 t",
+        "Kleintransporter Direktfahrten",
+        "Planensprinter Fahrer",
+        "Koffersprinter Fahrer",
+        "Servicefahrer mit Transporter",
+        "Kraftfahrer mit Sprinter bis 3,5 t",
+        "Auslieferungsfahrer",
+        "Kurierfahrer",
+    )
+
+    for title in vacancies:
+        result = FilterEngine().evaluate(
+            _build_canonical(title=title, body="Fahrten innerhalb Deutschlands."),
+            profile,
+        )
+
+        assert not any(hit.code == "heavy_vehicle_mismatch" for hit in result.rejection_hits), title
+
+
+def test_driver_b_profile_allows_explicitly_negated_heavy_vehicle_context() -> None:
+    profile = _build_profile(
+        desired_roles=(DRIVER_B_FERNVERKEHR_ROLE,),
+        search_query_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+        driver_license="B",
+        german_level=None,
+    )
+    vacancies = (
+        ("Auslieferungsfahrer", "Kein LKW, nur Sprinter bis 3,5 t."),
+        ("Kleintransporter Fahrer", "Sie fahren keinen LKW, sondern unseren Kleintransporter."),
+    )
+
+    for title, body in vacancies:
+        result = FilterEngine().evaluate(_build_canonical(title=title, body=body), profile)
+
+        assert not any(hit.code == "heavy_vehicle_mismatch" for hit in result.rejection_hits), title
+
+
+def test_negated_lkw_license_mention_keeps_existing_strict_license_rejection() -> None:
+    profile = _build_profile(
+        desired_roles=(DRIVER_B_FERNVERKEHR_ROLE,),
+        search_query_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+        driver_license="B",
+        german_level=None,
+    )
+    canonical = _build_canonical(
+        title="Kurierfahrer mit Transporter",
+        body="Auch ohne LKW-Führerschein möglich.",
+    )
+
+    result = FilterEngine().evaluate(canonical, profile)
+    rejection_codes = {hit.code for hit in result.rejection_hits}
+
+    assert "heavy_vehicle_mismatch" not in rejection_codes
+    assert "driver_license_mismatch" in rejection_codes
+
+
+def test_driver_b_profile_rejects_conflicting_light_and_heavy_vehicle_signals() -> None:
+    profile = _build_profile(
+        desired_roles=(DRIVER_B_FERNVERKEHR_ROLE,),
+        search_query_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+        driver_license="B",
+        german_level=None,
+    )
+    canonical = _build_canonical(
+        title="Sprinterfahrer im Fernverkehr",
+        body="Einsatz je nach Tour mit Sprinter oder Sattelzug.",
+    )
+
+    result = FilterEngine().evaluate(canonical, profile)
+
+    assert result.hard_reject is True
+    assert any(hit.code == "heavy_vehicle_mismatch" for hit in result.rejection_hits)
+
+
+def test_driver_b_profile_uses_ba_main_occupation_when_preview_title_is_generic() -> None:
+    profile = _build_profile(
+        desired_roles=(DRIVER_B_FERNVERKEHR_ROLE,),
+        search_query_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+        driver_license="B",
+        german_level=None,
+    )
+    canonical = _build_canonical(
+        title="Fernverkehr national (Mo-Fr)",
+        body="",
+    )
+    source_record = replace(
+        canonical.source_records[0],
+        raw_payload={"hauptberuf": "Berufskraftfahrer/in"},
+    )
+    canonical = replace(canonical, source_records=(source_record,))
+
+    result = FilterEngine().evaluate(canonical, profile)
+
+    assert result.hard_reject is True
+    assert any(hit.code == "heavy_vehicle_mismatch" for hit in result.rejection_hits)
+
+
+def test_driver_b_profile_does_not_let_generic_ba_occupation_override_explicit_light_vehicle() -> None:
+    profile = _build_profile(
+        desired_roles=(DRIVER_B_FERNVERKEHR_ROLE,),
+        search_query_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+        driver_license="B",
+        german_level=None,
+    )
+    canonical = _build_canonical(
+        title="Fahrer für Planensprinter im Fernverkehr Klasse B",
+        body="",
+    )
+    source_record = replace(
+        canonical.source_records[0],
+        raw_payload={"hauptberuf": "Berufskraftfahrer/in"},
+    )
+    canonical = replace(canonical, source_records=(source_record,))
+
+    result = FilterEngine().evaluate(canonical, profile)
+
+    assert not any(hit.code == "heavy_vehicle_mismatch" for hit in result.rejection_hits)
+
+
+def test_driver_b_profile_rejects_specific_ba_heavy_occupation_despite_light_title() -> None:
+    profile = _build_profile(
+        desired_roles=(DRIVER_B_FERNVERKEHR_ROLE,),
+        search_query_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+        driver_license="B",
+        german_level=None,
+    )
+    canonical = _build_canonical(
+        title="Sprinterfahrer Klasse B",
+        body="",
+    )
+    source_record = replace(
+        canonical.source_records[0],
+        raw_payload={"hauptberuf": "LKW-Fahrer/in"},
+    )
+    canonical = replace(canonical, source_records=(source_record,))
+
+    result = FilterEngine().evaluate(canonical, profile)
+
+    assert result.hard_reject is True
+    assert any(hit.code == "heavy_vehicle_mismatch" for hit in result.rejection_hits)
+
+
+def test_heavy_vehicle_filter_is_scoped_to_b_only_driving_profiles() -> None:
+    canonical = _build_canonical(title="LKW Fahrer", body="Fahrten mit einem Sattelzug.")
+    profiles = (
+        _build_profile(desired_roles=("Lagerarbeiter",), driver_license="B"),
+        _build_profile(desired_roles=("Auslieferungsfahrer",), driver_license=None),
+        _build_profile(desired_roles=("Auslieferungsfahrer",), driver_license="C"),
+    )
+
+    for profile in profiles:
+        result = FilterEngine().evaluate(canonical, profile)
+
+        assert not any(hit.code == "heavy_vehicle_mismatch" for hit in result.rejection_hits)
 
 
 def test_driver_b_profile_handles_conjunction_alternative_and_negated_requirement() -> None:

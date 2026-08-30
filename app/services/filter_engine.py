@@ -23,6 +23,7 @@ from app.services.role_family import (
     families_are_compatible,
     is_specific_family,
 )
+from app.services.role_intent import normalize_role_intent
 from app.services.rule_catalog import inspect_vacancy
 from app.services.search_models import (
     FilterResult,
@@ -113,6 +114,10 @@ class FilterEngine:
         driver_license_mismatch = _driver_license_mismatch_hit(resolved_signals, profile)
         if driver_license_mismatch is not None:
             rejection_hits.append(driver_license_mismatch)
+
+        heavy_vehicle_mismatch = _heavy_vehicle_mismatch_hit(resolved_signals, profile)
+        if heavy_vehicle_mismatch is not None:
+            rejection_hits.append(heavy_vehicle_mismatch)
 
         family_mismatch = _check_profession_family_mismatch(canonical, profile)
         if family_mismatch:
@@ -258,6 +263,42 @@ def _driver_license_mismatch_hit(
         code="driver_license_mismatch",
         label_ru=label,
     )
+
+
+def _heavy_vehicle_mismatch_hit(
+    signals: VacancySignalSnapshot,
+    profile: SearchProfileContext,
+) -> RuleHit | None:
+    if not _is_b_only_driving_profile(profile):
+        return None
+
+    detected = signals.heavy_vehicle_signals or signals.heavy_driver_qualification_signals
+    if not detected:
+        return None
+
+    # An explicit heavy signal dominates a simultaneous light-commercial signal.
+    # Genuine negations (for example "kein LKW, nur Sprinter") are removed by the extractor.
+    return RuleHit(
+        code="heavy_vehicle_mismatch",
+        label_ru=(
+            "Вакансия относится к тяжёлому/специализированному транспорту, "
+            "а профиль ограничен автомобилями категории B до 3,5 т. "
+            f"Обнаружен сигнал: {detected[0]}."
+        ),
+    )
+
+
+def _is_b_only_driving_profile(profile: SearchProfileContext) -> bool:
+    if set(extract_profile_driver_license_categories(profile.driver_license)) != {"B"}:
+        return False
+    if _is_driver_b_fernverkehr_profile(profile):
+        return True
+
+    for role_text in (*profile.desired_roles, *profile.search_query_terms):
+        intent = normalize_role_intent(role_text)
+        if intent is not None and intent.family is RoleFamily.DRIVING:
+            return True
+    return RoleFamily.DRIVING in classify_desired_roles(profile.desired_roles)
 
 
 def _is_clear_role_mismatch(signals: VacancySignalSnapshot, profile: SearchProfileContext) -> bool:

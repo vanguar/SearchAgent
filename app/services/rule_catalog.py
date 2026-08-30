@@ -8,6 +8,7 @@ from app.services.driver_license_signal_extractor import extract_driver_license_
 from app.services.hashers import normalize_text_for_fingerprint
 from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.search_models import RuleHit, SearchProfileContext, VacancySignalSnapshot, normalize_profile_text
+from app.services.vehicle_class_signal_extractor import extract_vehicle_class_signals
 from app.services.search_normalizer import is_remote_worldwide_location
 
 HOT_BUCKET_MIN_SCORE = 70
@@ -361,6 +362,7 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         raw_roles=profile.excluded_roles,
     )
     driver_license_requirement = extract_driver_license_requirements(build_driver_license_text(canonical))
+    vehicle_class_signals = extract_vehicle_class_signals(build_vehicle_class_text(canonical))
     location_match, location_hits = _match_profile_locations(canonical, profile)
 
     strong_german_required = canonical.language_signals.strong_german_required or _matches_rule(
@@ -397,6 +399,9 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         allowed_driver_license_categories=driver_license_requirement.allowed,
         optional_driver_license_categories=driver_license_requirement.optional,
         mentioned_driver_license_categories=driver_license_requirement.mentioned,
+        light_commercial_vehicle_signals=vehicle_class_signals.light_commercial,
+        heavy_vehicle_signals=vehicle_class_signals.heavy_vehicle,
+        heavy_driver_qualification_signals=vehicle_class_signals.heavy_qualification,
         location_match=location_match,
         location_hits=location_hits,
         strong_german_required=strong_german_required,
@@ -451,6 +456,29 @@ def build_driver_license_text(canonical: CanonicalVacancyGroup) -> str:
     for record in canonical.source_records:
         parts.extend((record.original_title, record.body_text or ""))
     return "\n".join(part for part in parts if part)
+
+
+def build_vehicle_class_text(canonical: CanonicalVacancyGroup) -> str:
+    parts: list[str] = [canonical.normalized_title]
+    for record in canonical.source_records:
+        parts.extend((record.original_title, record.body_text or ""))
+        if isinstance(record.raw_payload, dict):
+            main_occupation = record.raw_payload.get("hauptberuf")
+            if isinstance(main_occupation, str) and _should_include_main_occupation(
+                main_occupation=main_occupation,
+                vacancy_text="\n".join(part for part in parts if part),
+            ):
+                parts.append(main_occupation)
+    return "\n".join(part for part in parts if part)
+
+
+def _should_include_main_occupation(*, main_occupation: str, vacancy_text: str) -> bool:
+    vacancy_signals = extract_vehicle_class_signals(vacancy_text)
+    if not vacancy_signals.light_commercial:
+        return True
+
+    occupation_signals = extract_vehicle_class_signals(main_occupation)
+    return occupation_signals.heavy_vehicle != ("Berufskraftfahrer",)
 
 
 def _match_rules(text: str, rules: tuple[TextRule, ...]) -> tuple[RuleHit, ...]:
