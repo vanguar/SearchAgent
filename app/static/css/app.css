@@ -847,28 +847,9 @@ body {
 
 /* ── /jobs page polish ───────────────────────────────────── */
 #jobs-search-form {
-  grid-template-columns: minmax(130px, 180px) minmax(0, 1fr);
-  gap: 11px 16px;
-  align-items: center;
-}
-
-#jobs-search-form label {
-  margin: 0;
-  color: var(--text-soft);
-  font-size: 0.84rem;
-  font-weight: 650;
-}
-
-#jobs-search-form .notice {
-  grid-column: 2;
-}
-
-#jobs-search-form .search-btn-wrap {
-  grid-column: 1 / -1;
-  justify-content: flex-start;
-  margin-top: 4px;
-  padding-top: 12px;
-  border-top: 1px solid #ece4d8;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  align-items: stretch;
 }
 
 #jobs-results-panel {
