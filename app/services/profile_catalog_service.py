@@ -19,6 +19,27 @@ class ProfileCatalogEntry:
     is_default: bool
 
 
+@dataclass(frozen=True, slots=True)
+class SearchProfileCreateSpec:
+    user_profile_id: int
+    name: str
+    desired_roles: tuple[str, ...]
+    search_query_terms: tuple[str, ...]
+    preferred_locations: tuple[str, ...] = ()
+    excluded_roles: tuple[str, ...] = ()
+    relocation_ready: bool | None = None
+    shift_ok: bool | None = None
+    physical_work_ok: bool | None = None
+    housing_needed: bool | None = None
+    start_availability_text: str | None = None
+    driver_license: str | None = None
+    car_available: bool | None = None
+    no_german_required: bool = False
+    notes: str | None = None
+    search_query_de: str | None = None
+    search_location_de: str | None = None
+
+
 class ProfileCatalogService:
     """Manage the SearchProfile catalog: list, create, duplicate, set-default, edit."""
 
@@ -44,6 +65,42 @@ class ProfileCatalogService:
 
     def get_profile(self, db: Session, *, profile_id: int) -> SearchProfile | None:
         return db.get(SearchProfile, profile_id)
+
+    def create_profile(self, db: Session, *, spec: SearchProfileCreateSpec) -> SearchProfile | None:
+        """Create a non-default saved search profile through the catalog service."""
+        if db.get(UserProfile, spec.user_profile_id) is None:
+            return None
+        try:
+            profile = SearchProfile(
+                user_profile_id=spec.user_profile_id,
+                name=spec.name.strip(),
+                is_active=True,
+                is_default=False,
+                desired_roles=list(spec.desired_roles) or None,
+                excluded_roles=list(spec.excluded_roles) or None,
+                preferred_locations=list(spec.preferred_locations) or None,
+                relocation_ready=spec.relocation_ready,
+                shift_ok=spec.shift_ok,
+                physical_work_ok=spec.physical_work_ok,
+                housing_needed=spec.housing_needed,
+                start_availability_text=spec.start_availability_text,
+                driver_license=spec.driver_license,
+                car_available=spec.car_available,
+                no_german_required=spec.no_german_required,
+                notes=spec.notes,
+                search_query_de=(spec.search_query_de or spec.search_query_terms[0]).strip(),
+                search_location_de=spec.search_location_de,
+                search_query_terms=list(spec.search_query_terms),
+            )
+            db.add(profile)
+            db.commit()
+            db.refresh(profile)
+            logger.info("profile_created search_profile_id=%s name=%r", profile.id, profile.name)
+            return profile
+        except (IndexError, SQLAlchemyError):
+            db.rollback()
+            logger.exception("profile_create_failed name=%r", spec.name)
+            return None
 
     def set_default(self, db: Session, *, profile_id: int) -> bool:
         """Set profile as default; atomically clears all other defaults for the same user."""

@@ -2,6 +2,13 @@ from __future__ import annotations
 
 import re
 
+from app.services.ai_tools_profile import (
+    build_ai_tools_match_text,
+    build_ai_tools_title_text,
+    has_classic_engineering_title,
+    has_deep_classic_engineering_requirements,
+    is_ai_tools_profile,
+)
 from app.services.driver_license_signal_extractor import extract_profile_driver_license_categories
 from app.services.hashers import normalize_text_for_fingerprint
 from app.services.normalization_models import CanonicalVacancyGroup
@@ -135,6 +142,26 @@ class FilterEngine:
             and profile.no_german_required
         ):
             rejection_hits.append(RuleHit(code="german_required_mismatch", label_ru="требуется знание немецкого"))
+
+        if is_ai_tools_profile(profile) and resolved_signals.english_required_signal:
+            rejection_hits.append(
+                RuleHit(
+                    code="english_required_mismatch",
+                    label_ru="английский явно указан как обязательный",
+                )
+            )
+
+        if (
+            is_ai_tools_profile(profile)
+            and has_classic_engineering_title(build_ai_tools_title_text(canonical))
+            and has_deep_classic_engineering_requirements(build_ai_tools_match_text(canonical))
+        ):
+            rejection_hits.append(
+                RuleHit(
+                    code="classic_engineering_mismatch",
+                    label_ru="роль требует глубокой классической software-engineering подготовки",
+                )
+            )
 
         if resolved_signals.degree_required:
             target = rejection_hits if profile.low_barrier_focus else review_hits
@@ -378,6 +405,8 @@ def explain_filter_decision(canonical: CanonicalVacancyGroup, profile: SearchPro
             "strong_german_required": signals.strong_german_required,
             "german_any_required": signals.german_any_required,
             "low_language_signal": signals.low_language_signal,
+            "english_required_signal": signals.english_required_signal,
+            "english_preferred_signal": signals.english_preferred_signal,
         },
         "role_family_reason": {
             "detected_role_family": role_family.value,

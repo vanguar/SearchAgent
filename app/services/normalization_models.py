@@ -26,6 +26,8 @@ class LanguageSignals:
     strong_german_required: bool = False
     german_mentioned: bool = False
     english_mentioned: bool = False
+    english_required: bool = False
+    english_preferred: bool = False
     low_language_signal: bool = False
     shift_signal: bool = False
     helper_role_signal: bool = False

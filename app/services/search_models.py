@@ -143,6 +143,9 @@ class VacancySignalSnapshot:
     german_not_required_signal: bool = False
     basic_german_signal: bool = False
     no_mandatory_german_mentioned: bool = False
+    english_required_signal: bool = False
+    english_preferred_signal: bool = False
+    ai_tools_language_fit_signal: bool = False
     ukrainian_welcome_signal: bool = False
     shift_signal: bool = False
     relocation_signal: bool = False
@@ -219,6 +222,7 @@ class SearchResultItem:
     def priority_highlights(self) -> tuple[RuleHit, ...]:
         priority_codes = (
             "ukrainian_welcome_signal",
+            "ai_tools_language_fit_signal",
             "german_not_required_signal",
             "basic_german_signal",
             "no_mandatory_german_mentioned",

@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from app.services.ai_tools_profile import is_ai_tools_profile
 from app.services.driver_license_signal_extractor import extract_driver_license_requirements
 from app.services.hashers import normalize_text_for_fingerprint
 from app.services.normalization_models import CanonicalVacancyGroup
@@ -136,6 +137,25 @@ GERMAN_ANY_REQUIRED_RULE = TextRule(
         # "German nice to have") must NOT match — they signal German is optional, not required.
         r"\bgerman\s+(?:required|must|mandatory|needed|proficiency|language skills)\b",
         r"\bgerman\s+(?:is|as)\s+(?:required|mandatory|a must)\b",
+    ),
+)
+ENGLISH_REQUIRED_RULE = TextRule(
+    code="english_required_signal",
+    label_ru="английский явно обязателен",
+    patterns=(
+        r"\benglish\b.{0,50}\b(?:required|mandatory|essential|must have)\b",
+        r"\b(?:fluent|business|professional|advanced|excellent) english\b.{0,40}"
+        r"\b(?:required|mandatory|essential|must)\b",
+        r"\b(?:english\s+(?:b2|c1|c2)|(?:b2|c1|c2)\s+english)\b",
+        r"\bmust\b.{0,40}\b(?:speak|write|communicate in) english\b",
+    ),
+)
+ENGLISH_PREFERRED_RULE = TextRule(
+    code="english_preferred_signal",
+    label_ru="английский указан как пожелание",
+    patterns=(
+        r"\benglish\b.{0,30}\b(?:preferred|a plus|an asset|nice to have|desirable|advantage)\b",
+        r"\b(?:preferred|desirable)\b.{0,20}\benglish\b",
     ),
 )
 LOW_LANGUAGE_RULE = TextRule(
@@ -352,6 +372,20 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         not strong_german_required and _matches_rule(combined_text, GERMAN_NOT_REQUIRED_RULE)
     )
     basic_german_signal = not strong_german_required and _matches_rule(combined_text, BASIC_GERMAN_RULE)
+    english_required_signal = canonical.language_signals.english_required or _matches_rule(
+        combined_text,
+        ENGLISH_REQUIRED_RULE,
+    )
+    english_preferred_signal = (
+        not english_required_signal
+        and (canonical.language_signals.english_preferred or _matches_rule(combined_text, ENGLISH_PREFERRED_RULE))
+    )
+    ai_tools_language_fit_signal = (
+        is_ai_tools_profile(profile)
+        and not english_required_signal
+        and (not german_any_required or basic_german_signal)
+        and not strong_german_required
+    )
 
     return VacancySignalSnapshot(
         combined_text=combined_text,
@@ -371,6 +405,9 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         german_not_required_signal=german_not_required_signal,
         basic_german_signal=basic_german_signal,
         no_mandatory_german_mentioned=not strong_german_required and not german_any_required,
+        english_required_signal=english_required_signal,
+        english_preferred_signal=english_preferred_signal,
+        ai_tools_language_fit_signal=ai_tools_language_fit_signal,
         ukrainian_welcome_signal=_matches_rule(combined_text, UKRAINIAN_WELCOME_RULE),
         shift_signal=canonical.language_signals.shift_signal or _matches_rule(combined_text, SHIFT_RULE),
         relocation_signal=_matches_rule(combined_text, RELOCATION_RULE),

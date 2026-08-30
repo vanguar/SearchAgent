@@ -61,6 +61,8 @@ _QUERY_RU_TOKENS: list[tuple[RoleFamily, tuple[str, ...]]] = [
     (RoleFamily.IT, (
         "программ", "разработ", "software", "python", "java",
         "developer", "devops", "helpdesk", "техподдержк", "автомат", "сисадм",
+        "ai automation", "ai tools", "llm", "agentic", "prompt engineer",
+        "claude code", "codex", "ki automatisierung",
     )),
     (RoleFamily.HEALTHCARE, ("медсестра", "медицин", "санитар", "сиделк")),
     (RoleFamily.KITCHEN, ("повар", "кухн", "кухон", "официант", "гастроном", "ресторан")),
@@ -90,6 +92,8 @@ _TITLE_DE_TOKENS: list[tuple[RoleFamily, tuple[str, ...]]] = [
         "administrator", "systemadministrator", "servicedesk",
         "support engineer", "support specialist", "technical support",
         "it-techniker", "servicetechniker it",
+        "ai automation", "ai tools", "llm", "agentic", "prompt engineer",
+        "claude code", "codex", "ki automatisierung",
     )),
     (RoleFamily.HEALTHCARE, (
         "pflegekraft", "pflegehelferin", "altenpflege", "krankenschwester", "krankenhaus",

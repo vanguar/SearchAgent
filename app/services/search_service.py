@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING
 
 from app.core.logging import logger
+from app.services.ai_tools_profile import AI_TOOLS_WESTERN_QUERY_TRANSLATIONS
 from app.services.filter_engine import FilterEngine
 from app.services.hashers import normalize_text_for_fingerprint
 from app.services.match_explainer import MatchExplainer
@@ -1009,6 +1010,11 @@ def _normalize_profile_terms_for_sources(
 def _normalize_profile_search_term(term: str, *, preserve_raw_terms: bool) -> str:
     if preserve_raw_terms or _CYRILLIC_RE.search(term) is None:
         return term
+    translated_ai_tools_term = AI_TOOLS_WESTERN_QUERY_TRANSLATIONS.get(
+        " ".join(term.split()).casefold()
+    )
+    if translated_ai_tools_term is not None:
+        return translated_ai_tools_term
     intent = normalize_role_intent(term)
     if intent is None:
         return term
@@ -1336,18 +1342,23 @@ def _user_priority_rank(result: SearchResultItem) -> int:
     german_not_required = bool(getattr(signals, "german_not_required_signal", False))
     basic_german = bool(getattr(signals, "basic_german_signal", False))
     no_mandatory_german = bool(getattr(signals, "no_mandatory_german_mentioned", False))
+    ai_tools_language_fit = bool(getattr(signals, "ai_tools_language_fit_signal", False))
 
-    if ukrainian_welcome and (german_not_required or basic_german or no_mandatory_german):
+    if ukrainian_welcome and (
+        ai_tools_language_fit or german_not_required or basic_german or no_mandatory_german
+    ):
         return 0
-    if german_not_required:
+    if ai_tools_language_fit:
         return 1
-    if basic_german:
+    if german_not_required:
         return 2
-    if ukrainian_welcome:
+    if basic_german:
         return 3
-    if no_mandatory_german:
+    if ukrainian_welcome:
         return 4
-    return 5
+    if no_mandatory_german:
+        return 5
+    return 6
 
 
 def _result_sort_key(result: SearchResultItem) -> tuple[int, int, int, int, str]:

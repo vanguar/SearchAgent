@@ -41,3 +41,30 @@ def test_language_signal_extractor_treats_no_or_a1_german_as_low_barrier() -> No
         signals = extractor.extract(title="Hilfskraft", body_text=body)
 
         assert signals.low_language_signal is True, body
+
+
+def test_english_source_text_does_not_imply_english_requirement() -> None:
+    signals = LanguageSignalExtractor().extract(
+        title="AI Automation Specialist",
+        body_text="Build workflows with Claude and GPT for internal teams.",
+    )
+
+    assert signals.english_required is False
+    assert signals.english_preferred is False
+
+
+def test_explicit_english_required_and_preferred_are_distinct() -> None:
+    extractor = LanguageSignalExtractor()
+
+    required = extractor.extract(
+        title="AI Specialist",
+        body_text="Business English mandatory. English C1.",
+    )
+    preferred = extractor.extract(
+        title="AI Specialist",
+        body_text="English is a plus and preferred.",
+    )
+
+    assert required.english_required is True
+    assert preferred.english_required is False
+    assert preferred.english_preferred is True

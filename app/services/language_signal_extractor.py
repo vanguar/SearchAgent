@@ -24,6 +24,16 @@ _LOW_LANGUAGE_PATTERNS = (
     r"\bbasic german\b",
     r"\benglish only\b",
 )
+_ENGLISH_REQUIRED_PATTERNS = (
+    r"\benglish\b.{0,50}\b(?:required|mandatory|essential|must have)\b",
+    r"\b(?:fluent|business|professional|advanced|excellent) english\b.{0,40}\b(?:required|mandatory|essential|must)\b",
+    r"\b(?:english\s+(?:b2|c1|c2)|(?:b2|c1|c2)\s+english)\b",
+    r"\bmust\b.{0,40}\b(?:speak|write|communicate in) english\b",
+)
+_ENGLISH_PREFERRED_PATTERNS = (
+    r"\benglish\b.{0,30}\b(?:preferred|a plus|an asset|nice to have|desirable|advantage)\b",
+    r"\b(?:preferred|desirable)\b.{0,20}\benglish\b",
+)
 _SHIFT_PATTERNS = (
     r"\bschicht",
     r"\bschichtarbeit",
@@ -54,6 +64,8 @@ class LanguageSignalExtractor:
             strong_german_required=_matches_any(combined, _STRONG_GERMAN_PATTERNS),
             german_mentioned=bool(re.search(r"\b(?:deutsch\w*|german)\b", combined)),
             english_mentioned=bool(re.search(r"\b(?:englisch\w*|english)\b", combined)),
+            english_required=_matches_any(combined, _ENGLISH_REQUIRED_PATTERNS),
+            english_preferred=_matches_any(combined, _ENGLISH_PREFERRED_PATTERNS),
             low_language_signal=_matches_any(combined, _LOW_LANGUAGE_PATTERNS),
             shift_signal=_matches_any(combined, _SHIFT_PATTERNS),
             helper_role_signal=_matches_any(combined, _HELPER_ROLE_PATTERNS),

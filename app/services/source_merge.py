@@ -201,6 +201,8 @@ def _merge_language_signals(left: LanguageSignals, right: LanguageSignals) -> La
         strong_german_required=left.strong_german_required or right.strong_german_required,
         german_mentioned=left.german_mentioned or right.german_mentioned,
         english_mentioned=left.english_mentioned or right.english_mentioned,
+        english_required=left.english_required or right.english_required,
+        english_preferred=left.english_preferred or right.english_preferred,
         low_language_signal=left.low_language_signal or right.low_language_signal,
         shift_signal=left.shift_signal or right.shift_signal,
         helper_role_signal=left.helper_role_signal or right.helper_role_signal,

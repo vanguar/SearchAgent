@@ -2,6 +2,13 @@ from __future__ import annotations
 
 import re
 
+from app.services.ai_tools_profile import (
+    build_ai_tools_match_text,
+    build_ai_tools_title_text,
+    has_classic_engineering_title,
+    is_ai_tools_profile,
+    match_ai_tools_signals,
+)
 from app.services.filter_engine import FilterEngine
 from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.profile_parser import (
@@ -180,6 +187,10 @@ def _search_terms_match_vacancy(combined_text: str, search_query_terms: tuple[st
 _FEEDBACK_ADJ_MAX = 8
 _FEEDBACK_ADJ_MIN = -8
 _UKRAINIAN_WELCOME_BONUS = 8
+_AI_TOOLS_SIGNAL_BONUS_CAP = 40
+_AI_TOOLS_LANGUAGE_FIT_BONUS = 12
+_AI_TOOLS_ENGLISH_PREFERRED_PENALTY = -6
+_AI_TOOLS_CLASSIC_TITLE_PENALTY = -24
 
 
 class VacancyScorer:
@@ -207,6 +218,8 @@ class VacancyScorer:
         positive_hits: list[RuleHit] = []
         negative_hits: list[RuleHit] = []
 
+        ai_tools_profile = is_ai_tools_profile(profile)
+
         if resolved_signals.ukrainian_welcome_signal:
             score += _UKRAINIAN_WELCOME_BONUS
             positive_hits.append(
@@ -216,6 +229,46 @@ class VacancyScorer:
                     weight=_UKRAINIAN_WELCOME_BONUS,
                 )
             )
+
+        if ai_tools_profile and resolved_signals.ai_tools_language_fit_signal:
+            score += _AI_TOOLS_LANGUAGE_FIT_BONUS
+            positive_hits.append(
+                RuleHit(
+                    code="ai_tools_language_fit_signal",
+                    label_ru="английский и немецкий не указаны как обязательные",
+                    weight=_AI_TOOLS_LANGUAGE_FIT_BONUS,
+                )
+            )
+
+        if ai_tools_profile and resolved_signals.english_preferred_signal:
+            score += _AI_TOOLS_ENGLISH_PREFERRED_PENALTY
+            negative_hits.append(
+                RuleHit(
+                    code="english_preferred_signal",
+                    label_ru="английский указан как пожелание",
+                    weight=_AI_TOOLS_ENGLISH_PREFERRED_PENALTY,
+                )
+            )
+
+        if ai_tools_profile:
+            ai_tools_hits = match_ai_tools_signals(build_ai_tools_match_text(canonical))
+            ai_tools_bonus = min(
+                _AI_TOOLS_SIGNAL_BONUS_CAP,
+                sum(hit.weight for hit in ai_tools_hits),
+            )
+            if ai_tools_bonus:
+                score += ai_tools_bonus
+                positive_hits.extend(ai_tools_hits)
+
+            if has_classic_engineering_title(build_ai_tools_title_text(canonical)):
+                score += _AI_TOOLS_CLASSIC_TITLE_PENALTY
+                negative_hits.append(
+                    RuleHit(
+                        code="classic_engineering_title",
+                        label_ru="заголовок ориентирован на классическую разработку",
+                        weight=_AI_TOOLS_CLASSIC_TITLE_PENALTY,
+                    )
+                )
 
         if resolved_signals.german_not_required_signal:
             positive_hits.append(
@@ -275,7 +328,14 @@ class VacancyScorer:
             )
             negative_hits.extend(driver_negative_hits)
 
-        core_stack_hits = _score_core_stack(resolved_signals.combined_text, profile)
+        # The dedicated AI-tools profile has its own signal model above. Reusing
+        # Python/backend stack bonuses here would double-count AI terms and would
+        # incorrectly reward classic engineering depth.
+        core_stack_hits = (
+            []
+            if ai_tools_profile
+            else _score_core_stack(resolved_signals.combined_text, profile)
+        )
         core_stack_bonus = min(_CORE_STACK_BONUS_CAP, sum(hit.weight for hit in core_stack_hits))
         if core_stack_bonus:
             score += core_stack_bonus
