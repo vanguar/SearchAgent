@@ -213,7 +213,8 @@ def _profile_location_prefill(profile: object) -> str:
 
 def _profile_search_mode_prefill(profile: object) -> str:
     preferred_locations = getattr(profile, "preferred_locations", None)
-    if is_remote_worldwide_location(preferred_locations):
+    search_location_de = (getattr(profile, "search_location_de", None) or "").strip().casefold()
+    if is_remote_worldwide_location(preferred_locations) or search_location_de == "remote":
         return SEARCH_MODE_REMOTE
     return SEARCH_MODE_GERMANY
 

@@ -55,11 +55,16 @@ driving_license="B". НЕ добавляй "Водитель"/"Driver" в desire
 12. current_city — ТОЛЬКО если явно написано "живу в X", "нахожусь в X", \
 "мой город X", "проживаю в X". \
 Список предпочтительных регионов поиска ("Берлин, Гамбург, вся Германия") ≠ current_city!
-13. preferred_regions — где хочет ИСКАТЬ работу. Строго официальное немецкое написание: \
-Berlin, Hamburg, München, Rostock, Deutschland.
+13. preferred_regions — ТОЛЬКО географические места, где хочет ИСКАТЬ работу. \
+Строго официальное написание: Berlin, Hamburg, München, Rostock, Deutschland. \
+НЕ помещай сюда remote, worldwide remote, international remote companies, homeoffice \
+или другие описания формата работы; для них используй remote_allowed / international_remote_allowed.
 14. Если пользователь указал конкретный город проживания ("живу в Трибзесе") + \
 хочет искать в других местах → current_city="Tribsees", preferred_regions=["Berlin", "Hamburg"].
 15. В evidence_by_field["current_city"] напиши цитату или null если нет явного указания.
+15a. Явное отрицание remote имеет приоритет: "удалённая работа не нужна", \
+"не ищу remote", "только локальная работа" → remote_allowed=false и \
+international_remote_allowed=false.
 
 ФИЗИЧЕСКИЙ ТРУД:
 16. "физическая работа: нет" / "физическую работу не рассматриваю" / "без физического труда" → \

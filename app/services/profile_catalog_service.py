@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.logging import logger
 from app.db.models.profiles import SearchProfile, UserProfile
+from app.services.profile_location_sanitizer import resolve_remote_intent
 from app.services.search_normalizer import normalize_query_from_roles, normalize_search_location_for_profile
 
 
@@ -203,19 +204,17 @@ class ProfileCatalogService:
             changed = False
             user_profile = db.get(UserProfile, profile.user_profile_id)
             raw_text = (user_profile.raw_profile_text or "").lower() if user_profile is not None else ""
-            if _raw_text_indicates_remote_worldwide(raw_text):
-                preferred = list(profile.preferred_locations or [])
-                for location in ("worldwide remote", "international remote companies"):
-                    if location not in preferred:
-                        preferred.insert(0, location)
-                        changed = True
-                profile.preferred_locations = preferred
+            remote_intent = _raw_text_indicates_remote_worldwide(raw_text)
             if not profile.search_query_de and profile.desired_roles:
                 profile.search_query_de = normalize_query_from_roles(profile.desired_roles)
                 changed = True
-            resolved_location = normalize_search_location_for_profile(
-                profile.preferred_locations,
-                relocation_ready=profile.relocation_ready,
+            resolved_location = (
+                "remote"
+                if remote_intent
+                else normalize_search_location_for_profile(
+                    profile.preferred_locations,
+                    relocation_ready=profile.relocation_ready,
+                )
             )
             if profile.preferred_locations and profile.search_location_de != resolved_location:
                 profile.search_location_de = resolved_location
@@ -253,14 +252,9 @@ class ProfileCatalogService:
 
 
 def _raw_text_indicates_remote_worldwide(raw_text: str) -> bool:
-    return any(
-        token in raw_text
-        for token in (
-            "worldwide remote",
-            "remote worldwide",
-            "по всему миру",
-            "international remote",
-            "remote-компани",
-            "только удал",
-        )
+    remote_allowed, _ = resolve_remote_intent(
+        raw_text,
+        extracted_remote_allowed=None,
+        extracted_international_remote_allowed=None,
     )
+    return remote_allowed is True

@@ -72,3 +72,34 @@ def test_validator_adds_consistency_warning_for_car_without_license() -> None:
     )
 
     assert any("машина" in warning for warning in result.consistency_warnings)
+
+
+def test_validator_sanitizes_preferred_regions_as_defense_in_depth() -> None:
+    result = ProfileValidator().validate(
+        IntakeProfileDraft(
+            desired_roles=["Курьер"],
+            preferred_regions=["remote", " Rostock ", "rostock", "international companies"],
+            german_level="basic",
+            willing_to_relocate=False,
+            shift_ok=True,
+            work_authorized=True,
+        )
+    )
+
+    assert result.normalized_draft.preferred_regions == ["Rostock"]
+
+
+def test_validator_does_not_require_fake_location_for_remote_only_intent() -> None:
+    result = ProfileValidator().validate(
+        IntakeProfileDraft(
+            desired_roles=["AI Automation Specialist"],
+            preferred_regions=[],
+            remote_allowed=True,
+            international_remote_allowed=True,
+            german_level="basic",
+            willing_to_relocate=False,
+            work_authorized=True,
+        )
+    )
+
+    assert "preferred_regions" not in result.missing_critical_fields

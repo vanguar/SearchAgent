@@ -228,7 +228,7 @@ def test_llm_extraction_accepts_common_loose_json_shapes():
     assert analysis.missing_fields == ()
 
 
-def test_remote_worldwide_markers_are_kept_even_if_llm_returns_only_countries():
+def test_remote_worldwide_intent_is_kept_outside_geographic_regions():
     payload = dict(_LLM_RESPONSE)
     payload["preferred_regions"] = ["Germany", "EU", "UK", "USA", "Canada"]
     payload["international_remote_allowed"] = True
@@ -239,8 +239,11 @@ def test_remote_worldwide_markers_are_kept_even_if_llm_returns_only_countries():
         IT_PROFILE_TEXT + "\nИщу worldwide remote и international remote companies."
     )
 
-    assert "worldwide remote" in analysis.draft.preferred_regions
-    assert "international remote companies" in analysis.draft.preferred_regions
+    assert analysis.draft.remote_allowed is True
+    assert analysis.draft.international_remote_allowed is True
+    assert "worldwide remote" not in analysis.draft.preferred_regions
+    assert "international remote companies" not in analysis.draft.preferred_regions
+    assert analysis.draft.preferred_regions == ["Deutschland", "EU", "UK", "USA", "Canada"]
 
 
 @pytest.fixture()

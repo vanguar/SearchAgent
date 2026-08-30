@@ -167,7 +167,11 @@ class IntakeAgentService:
 
         if not search_profile.search_query_de:
             search_profile.search_query_de = normalize_query_from_roles(analysis.draft.desired_roles)
-        if not search_profile.search_location_de:
+        if analysis.draft.remote_allowed is True:
+            # Persist remote intent in the existing search prefill field; never
+            # encode it as a fake entry in preferred_locations.
+            search_profile.search_location_de = "remote"
+        elif not search_profile.search_location_de:
             search_profile.search_location_de = normalize_search_location_for_profile(
                 analysis.draft.preferred_regions,
                 relocation_ready=analysis.draft.willing_to_relocate,
@@ -182,7 +186,11 @@ class IntakeAgentService:
                 translated_q = self._llm_client.translate_roles_to_de(analysis.draft.desired_roles[:1])
                 if translated_q:
                     search_profile.search_query_de = translated_q.strip()
-            if analysis.draft.preferred_regions and search_profile.search_location_de:
+            if (
+                analysis.draft.remote_allowed is not True
+                and analysis.draft.preferred_regions
+                and search_profile.search_location_de
+            ):
                 translated_l = self._llm_client.translate_location_to_de(analysis.draft.preferred_regions[0])
                 if translated_l:
                     search_profile.search_location_de = translated_l.strip()

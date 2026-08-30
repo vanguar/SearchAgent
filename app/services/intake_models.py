@@ -14,6 +14,9 @@ class IntakeProfileDraft:
     desired_roles: list[str] = field(default_factory=list)
     excluded_roles: list[str] = field(default_factory=list)
     preferred_regions: list[str] = field(default_factory=list)
+    remote_allowed: bool | None = None
+    international_remote_allowed: bool | None = None
+    work_modes: list[str] = field(default_factory=list)
     willing_to_relocate: bool | None = None
     shift_ok: bool | None = None
     physical_work_ok: bool | None = None

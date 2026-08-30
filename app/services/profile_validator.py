@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.services.intake_models import IntakeProfileDraft, IntakeValidationResult
+from app.services.profile_location_sanitizer import sanitize_preferred_locations
 from app.services.profile_role_taxonomy import classify_roles, is_it_profile, requires_shift_question
 
 CRITICAL_FIELDS: tuple[str, ...] = (
@@ -36,7 +37,10 @@ class ProfileValidator:
             english_level=self._normalize_language_level(draft.english_level),
             desired_roles=self._normalize_list(draft.desired_roles),
             excluded_roles=self._normalize_list(draft.excluded_roles),
-            preferred_regions=self._normalize_list(draft.preferred_regions),
+            preferred_regions=sanitize_preferred_locations(draft.preferred_regions),
+            remote_allowed=draft.remote_allowed,
+            international_remote_allowed=draft.international_remote_allowed,
+            work_modes=self._normalize_list(draft.work_modes),
             willing_to_relocate=draft.willing_to_relocate,
             shift_ok=draft.shift_ok,
             physical_work_ok=draft.physical_work_ok,
@@ -125,7 +129,7 @@ class ProfileValidator:
         if not draft.desired_roles:
             missing.append("desired_roles")
 
-        if not draft.preferred_regions:
+        if not draft.preferred_regions and draft.remote_allowed is not True:
             missing.append("preferred_regions")
 
         if draft.willing_to_relocate is None:

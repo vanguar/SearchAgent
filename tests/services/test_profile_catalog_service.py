@@ -193,7 +193,7 @@ def test_backfill_keeps_deutschland_for_regular_profile(
     assert sp.search_location_de == "Deutschland"
 
 
-def test_backfill_adds_remote_worldwide_markers_from_raw_profile_text(
+def test_backfill_persists_remote_intent_without_polluting_locations(
     db_session: Session,
 ) -> None:
     up = UserProfile(
@@ -218,9 +218,36 @@ def test_backfill_adds_remote_worldwide_markers_from_raw_profile_text(
     ProfileCatalogService().backfill_search_fields(db_session)
 
     db_session.refresh(sp)
-    assert "worldwide remote" in sp.preferred_locations
-    assert "international remote companies" in sp.preferred_locations
+    assert sp.preferred_locations == ["Deutschland", "EU", "USA"]
     assert sp.search_location_de == "remote"
+
+
+def test_backfill_remote_negation_keeps_local_location(
+    db_session: Session,
+) -> None:
+    up = UserProfile(
+        display_name="Local",
+        work_authorized=True,
+        raw_profile_text="Удалённая работа не нужна. Ищу работу в Rostock.",
+    )
+    db_session.add(up)
+    db_session.flush()
+    sp = SearchProfile(
+        user_profile_id=up.id,
+        name="Local courier",
+        is_active=True,
+        desired_roles=["Курьер"],
+        preferred_locations=["Rostock"],
+        relocation_ready=False,
+    )
+    db_session.add(sp)
+    db_session.commit()
+
+    ProfileCatalogService().backfill_search_fields(db_session)
+
+    db_session.refresh(sp)
+    assert sp.preferred_locations == ["Rostock"]
+    assert sp.search_location_de == "Rostock"
 
 
 def test_resolve_default_profile_id_returns_default(db_session: Session, user_profile: UserProfile) -> None:

@@ -12,6 +12,7 @@ Applied after LLM extraction (or conservative fallback). Responsibilities:
 from __future__ import annotations
 
 from app.services.profile_extraction_model import ProfileExtractionResult
+from app.services.profile_location_sanitizer import resolve_remote_intent, sanitize_preferred_locations
 from app.services.profile_parser import (
     DRIVER_B_FERNVERKEHR_ROLE,
     DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
@@ -70,10 +71,6 @@ _REGION_ALIASES: dict[str, str] = {
     "whole germany": "Deutschland",
     "вся германия": "Deutschland",
     "по всей германии": "Deutschland",
-    "worldwide remote": "worldwide remote",
-    "remote worldwide": "worldwide remote",
-    "international remote": "international remote",
-    "international remote companies": "international remote companies",
     "eu": "EU",
     "european union": "EU",
     "ес": "EU",
@@ -125,8 +122,9 @@ def process(result: ProfileExtractionResult, raw_text_lower: str = "") -> Profil
     _normalize_country(data)
     _normalize_language_levels(data)
     _normalize_legal_status(data)
+    _normalize_remote_intent(data, raw_text_lower)
     _normalize_regions(data)
-    _ensure_remote_worldwide_regions(data, raw_text_lower)
+    _add_explicit_geographic_regions(data, raw_text_lower)
     _normalize_lists(data)
     _canonicalize_driver_b_fernverkehr(data, raw_text_lower)
 
@@ -164,34 +162,39 @@ def _normalize_legal_status(data: dict) -> None:
 
 
 def _normalize_regions(data: dict) -> None:
-    regions = data.get("preferred_regions") or []
-    normalised: list[str] = []
-    seen: set[str] = set()
-    for r in regions:
-        canonical = _REGION_ALIASES.get(r.strip().lower(), r.strip())
-        if canonical not in seen:
-            normalised.append(canonical)
-            seen.add(canonical)
-    data["preferred_regions"] = normalised
-
-
-def _ensure_remote_worldwide_regions(data: dict, raw_text_lower: str) -> None:
-    regions = list(data.get("preferred_regions") or [])
-    seen = {region.lower() for region in regions}
-
-    remote_worldwide = (
-        data.get("international_remote_allowed") is True
-        or "worldwide remote" in raw_text_lower
-        or "remote worldwide" in raw_text_lower
-        or "по всему миру" in raw_text_lower
-        or "международные remote" in raw_text_lower
-        or "international remote" in raw_text_lower
-        or "remote-компани" in raw_text_lower
+    data["preferred_regions"] = sanitize_preferred_locations(
+        data.get("preferred_regions"),
+        aliases=_REGION_ALIASES,
     )
-    if not remote_worldwide:
+
+
+def _normalize_remote_intent(data: dict, raw_text: str) -> None:
+    remote_allowed, international_remote_allowed = resolve_remote_intent(
+        raw_text,
+        extracted_remote_allowed=data.get("remote_allowed"),
+        extracted_international_remote_allowed=data.get("international_remote_allowed"),
+        extracted_work_modes=data.get("work_modes"),
+    )
+    data["remote_allowed"] = remote_allowed
+    data["international_remote_allowed"] = international_remote_allowed
+
+    if remote_allowed is False:
+        data["work_modes"] = [
+            mode
+            for mode in (data.get("work_modes") or [])
+            if mode.strip().casefold() != "remote"
+        ]
+
+
+def _add_explicit_geographic_regions(data: dict, raw_text: str) -> None:
+    # Broad country/market hints are useful only for an explicitly international
+    # remote search.  A phrase such as "I live in Germany" describes the current
+    # country, not a preferred search location.
+    if data.get("international_remote_allowed") is not True:
         return
 
-    additions: list[str] = ["worldwide remote", "international remote companies"]
+    regions = list(data.get("preferred_regions") or [])
+    seen = {region.casefold() for region in regions}
     raw_region_map: tuple[tuple[str, str], ...] = (
         ("germany", "Deutschland"),
         ("германи", "Deutschland"),
@@ -205,13 +208,9 @@ def _ensure_remote_worldwide_regions(data: dict, raw_text_lower: str) -> None:
         ("канада", "Canada"),
     )
     for token, canonical in raw_region_map:
-        if token in raw_text_lower:
-            additions.append(canonical)
-
-    for addition in additions:
-        if addition.lower() not in seen:
-            regions.append(addition)
-            seen.add(addition.lower())
+        if token in raw_text and canonical.casefold() not in seen:
+            regions.append(canonical)
+            seen.add(canonical.casefold())
     data["preferred_regions"] = regions
 
 

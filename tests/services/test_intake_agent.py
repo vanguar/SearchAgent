@@ -199,7 +199,7 @@ def test_intake_agent_llm_timeout_uses_it_deterministic_fallback() -> None:
     assert analysis.missing_fields == ()
 
 
-def test_remote_worldwide_profile_saves_without_deutschland_location_prefill() -> None:
+def test_remote_worldwide_intent_does_not_turn_into_fake_saved_location() -> None:
     service = IntakeAgentService()
     db = _make_sqlite_session()
 
@@ -215,13 +215,16 @@ def test_remote_worldwide_profile_saves_without_deutschland_location_prefill() -
     assert result.saved is True
     search_profile = db.query(SearchProfile).one()
     assert search_profile.search_location_de == "remote"
-    assert "worldwide remote" in search_profile.preferred_locations
+    assert search_profile.preferred_locations == ["Deutschland", "EU", "UK", "USA", "Canada"]
 
 
 def test_remote_worldwide_profile_text_extracts_global_regions_without_llm() -> None:
     analysis = IntakeAgentService().analyze(REMOTE_WORLDWIDE_PROFILE_TEXT)
 
-    assert "worldwide remote" in analysis.draft.preferred_regions
+    assert analysis.draft.remote_allowed is True
+    assert analysis.draft.international_remote_allowed is True
+    assert "worldwide remote" not in analysis.draft.preferred_regions
+    assert "international remote companies" not in analysis.draft.preferred_regions
     assert "Deutschland" in analysis.draft.preferred_regions
     assert "EU" in analysis.draft.preferred_regions
     assert "UK" in analysis.draft.preferred_regions
@@ -230,6 +233,79 @@ def test_remote_worldwide_profile_text_extracts_global_regions_without_llm() -> 
     assert analysis.draft.willing_to_relocate is False
     assert "preferred_regions" not in analysis.missing_fields
     assert "willing_to_relocate" not in analysis.missing_fields
+
+
+def test_courier_intake_keeps_geography_and_respects_remote_negation() -> None:
+    text = (
+        "Ищу работу курьером в Германии. Предпочтительно Rostock, Stralsund или Greifswald. "
+        "Удалённая работа мне не нужна. Немецкий A1, смены подходят, переезд возможен."
+    )
+
+    analysis = IntakeAgentService().analyze(text)
+
+    assert analysis.draft.preferred_regions == ["Rostock", "Stralsund", "Greifswald"]
+    assert analysis.draft.remote_allowed is False
+    assert analysis.draft.international_remote_allowed is False
+
+
+def test_remote_it_intake_preserves_intent_without_fake_locations() -> None:
+    analysis = IntakeAgentService().analyze(
+        "Ищу работу с AI-инструментами удалённо в международных компаниях по всему миру."
+    )
+
+    assert analysis.draft.remote_allowed is True
+    assert analysis.draft.international_remote_allowed is True
+    assert analysis.draft.preferred_regions == []
+    assert "preferred_regions" not in analysis.missing_fields
+
+
+def test_intake_save_reload_keeps_preferred_locations_clean() -> None:
+    class LocationPollutingLLM:
+        def extract_profile_fields_v2(self, text: str, prompt_template: str) -> dict:
+            _ = text
+            assert "ТОЛЬКО географические места" in prompt_template
+            return {
+                "current_country": "Germany",
+                "legal_status": "section_24",
+                "work_authorization": True,
+                "german_level": "basic",
+                "desired_roles": ["Курьер"],
+                "preferred_regions": [
+                    "international remote companies",
+                    "worldwide remote",
+                    "Rostock",
+                    "Stralsund",
+                    "Greifswald",
+                ],
+                "remote_allowed": False,
+                "international_remote_allowed": False,
+                "relocation_ready": True,
+                "shift_work_allowed": True,
+                "physical_work_allowed": True,
+                "search_query_terms": ["Kurierfahrer"],
+                "evidence_by_field": {"desired_roles": "Ищу работу курьером"},
+            }
+
+        def translate_location_to_de(self, location: str) -> str:
+            return location
+
+    db = _make_sqlite_session()
+    service = IntakeAgentService(llm_client=LocationPollutingLLM())
+    saved = service.save_confirmed_profile(
+        free_text=(
+            "Ищу работу курьером в Rostock, Stralsund или Greifswald. "
+            "Удалённая работа мне не нужна."
+        ),
+        followup_answers=None,
+        db=db,
+    )
+
+    assert saved.saved is True
+    assert saved.search_profile_id is not None
+    db.expire_all()
+    reloaded = db.get(SearchProfile, saved.search_profile_id)
+    assert reloaded is not None
+    assert reloaded.preferred_locations == ["Rostock", "Stralsund", "Greifswald"]
 
 
 def test_driver_b_intake_llm_path_persists_specialized_search_profile() -> None:

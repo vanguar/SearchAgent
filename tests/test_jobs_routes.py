@@ -399,7 +399,7 @@ class RemoteProfileCatalogService:
                 "id": 77,
                 "name": "Remote Python",
                 "desired_roles": ["Python Developer"],
-                "preferred_locations": ["worldwide remote", "Germany", "EU", "USA"],
+                "preferred_locations": ["Germany", "EU", "USA"],
                 "search_query_de": "Python",
                 "search_location_de": "Deutschland",
             },
