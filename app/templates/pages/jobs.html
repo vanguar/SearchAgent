@@ -1,120 +1,156 @@
 {% extends "base.html" %}
 
 {% block content %}
-<article class="panel">
-  <h3>Поиск вакансий</h3>
-  <p>
-    Поиск через адаптеры источников, нормализацию, дедупликацию, жёсткие фильтры и
-    rule-based скоринг. На выходе — горячее, спорное и отсеянное.
-  </p>
-
-  <form
-    class="intake-form"
-    method="post"
-    action="/jobs/search/start"
-    hx-post="/jobs/search/start"
-    hx-target="#jobs-results-panel"
-    hx-swap="innerHTML"
-    data-async-form
-    data-target="#jobs-results-panel"
-    id="jobs-search-form"
-  >
-    <label for="jobs-profile">Профиль поиска</label>
-    {% if profile_options %}
-    <select
-      id="jobs-profile"
-      name="profile_id"
-      hx-get="/jobs/profile-autofill"
-      hx-target="#jobs-profile-panel"
-      hx-swap="innerHTML"
-      hx-trigger="change"
-      hx-include="this"
-    >
-      {% for option in profile_options %}
-      <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>
-        {{ option.label }}
-      </option>
-      {% endfor %}
-    </select>
-    {% else %}
-    <div class="notice info">
-      Профилей пока нет. <a href="/profile/intake">Создайте профиль</a>, чтобы запустить поиск.
-    </div>
-    {% endif %}
-
-    <label for="jobs-search-mode">Режим поиска</label>
-    <select id="jobs-search-mode" name="search_mode">
-      <option value="remote_worldwide" {% if form_values["search_mode"] == "remote_worldwide" %}selected{% endif %}>Remote worldwide</option>
-      <option value="germany_local" {% if form_values["search_mode"] == "germany_local" %}selected{% endif %}>Germany / local</option>
-    </select>
-
-    <label for="jobs-source">Источник</label>
-    <select id="jobs-source" name="source">
-      {% for option in source_options %}
-      <option
-        value="{{ option.value }}"
-        {% if option.value == form_values["source"] %}selected{% endif %}
-        {% if option.disabled %}disabled{% endif %}
+<form
+  class="search-shell"
+  method="post"
+  action="/jobs/search/start"
+  hx-post="/jobs/search/start"
+  hx-target="#jobs-results-panel"
+  hx-swap="innerHTML"
+  data-async-form
+  data-target="#jobs-results-panel"
+  id="jobs-search-form"
+>
+  <div class="search-bar">
+    <div class="search-bar__profile">
+      {% if profile_options %}
+      <span class="search-bar__profile-label">Профиль</span>
+      <select
+        id="jobs-profile"
+        name="profile_id"
+        class="profile-select"
+        hx-get="/jobs/profile-autofill"
+        hx-target="#jobs-profile-panel"
+        hx-swap="innerHTML"
+        hx-trigger="change"
+        hx-include="this"
       >
-        {{ option.label }}{% if option.disabled %} (недоступен){% endif %}
-      </option>
-      {% endfor %}
-    </select>
+        {% for option in profile_options %}
+        <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>
+          {{ option.label }}
+        </option>
+        {% endfor %}
+      </select>
+      {% else %}
+      <span class="profile-pill profile-pill--muted">
+        Профилей нет — <a href="/profile/intake">создайте профиль</a>
+      </span>
+      {% endif %}
+    </div>
+    <button type="submit" id="jobs-search-btn" class="search-btn" name="source_scope" value="western">
+      <span class="search-btn__gear" aria-hidden="true">⚙</span>
+      <span class="search-btn__text">Запустить поиск</span>
+    </button>
+  </div>
 
-    <label for="jobs-query">Что ищем</label>
-    <input
-      id="jobs-query"
-      name="query"
-      type="text"
-      value="{{ form_values['query'] }}"
-      placeholder="Например: lager, produktion, verpacker"
-      required
-    />
+  <section class="card search-panel">
+    <div class="search-field search-field--mode">
+      <span class="search-field__label">Режим</span>
+      <div class="seg-mode" id="jobs-search-mode" role="radiogroup" aria-label="Режим поиска">
+        <label class="seg-mode__opt">
+          <input type="radio" name="search_mode" value="germany_local" {% if form_values["search_mode"] != "remote_worldwide" %}checked{% endif %} />
+          <span>Германия</span>
+        </label>
+        <label class="seg-mode__opt">
+          <input type="radio" name="search_mode" value="remote_worldwide" {% if form_values["search_mode"] == "remote_worldwide" %}checked{% endif %} />
+          <span>Remote worldwide</span>
+        </label>
+      </div>
+    </div>
 
-    <label for="jobs-location">Где искать</label>
-    <input
-      id="jobs-location"
-      name="location"
-      type="text"
-      value="{{ form_values['location'] }}"
-      placeholder="Например: Berlin, Hamburg, Deutschland"
-    />
+    <div class="search-grid">
+      <div class="search-field search-field--wide">
+        <label class="search-field__label" for="jobs-query">Роли</label>
+        <input
+          id="jobs-query"
+          name="query"
+          type="text"
+          value="{{ form_values['query'] }}"
+          placeholder="Например: lager, produktion, verpacker"
+          required
+        />
+      </div>
 
-    <label for="jobs-radius">Радиус, км</label>
-    <input
-      id="jobs-radius"
-      name="radius_km"
-      type="number"
-      min="0"
-      value="{{ form_values['radius_km'] }}"
-      placeholder="25"
-    />
+      <div class="search-field search-field--wide">
+        <label class="search-field__label" for="jobs-location">Города и регионы</label>
+        <input
+          id="jobs-location"
+          name="location"
+          type="text"
+          value="{{ form_values['location'] }}"
+          placeholder="Например: Berlin, Hamburg, Deutschland"
+        />
+      </div>
 
-    <div class="search-btn-wrap">
-      <button type="submit" id="jobs-search-btn" class="search-btn" name="source_scope" value="western">
-        <span class="search-btn__gear" aria-hidden="true">⚙</span>
-        <span class="search-btn__text">Запустить поиск</span>
-      </button>
+      <div class="search-field search-field--radius">
+        <label class="search-field__label" for="jobs-radius">Радиус, км</label>
+        <input
+          id="jobs-radius"
+          name="radius_km"
+          type="number"
+          min="0"
+          value="{{ form_values['radius_km'] }}"
+          placeholder="25"
+        />
+      </div>
+
+      <div class="search-field search-field--source">
+        <label class="search-field__label" for="jobs-source">Источник</label>
+        <select id="jobs-source" name="source">
+          {% for option in source_options %}
+          <option
+            value="{{ option.value }}"
+            {% if option.value == form_values["source"] %}selected{% endif %}
+            {% if option.disabled %}disabled{% endif %}
+          >
+            {{ option.label }}{% if option.disabled %} (недоступен){% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="search-actions">
       <button type="submit" id="jobs-russian-search-btn" class="search-btn search-btn--secondary" name="source_scope" value="russian">
         <span class="search-btn__gear" aria-hidden="true">⚙</span>
         <span class="search-btn__text">Искать по русскоязычным ресурсам</span>
       </button>
+      {% set src_active = namespace(count=0) %}
+      {% for row in source_status_rows %}
+        {% if row.descriptor.enabled and row.descriptor.status_kind != "error" %}{% set src_active.count = src_active.count + 1 %}{% endif %}
+      {% endfor %}
+      {% if source_status_rows %}
+      <span class="src-summary">
+        <span class="src-summary__dot" aria-hidden="true">●</span>
+        Источники: {{ src_active.count }} из {{ source_status_rows|length }} активны
+      </span>
+      {% endif %}
     </div>
+
     <p class="source-scope-note">
       <span class="source-scope-note__label">Русскоязычные ресурсы:</span>
       <span class="source-chip">HeadHunter API</span>
       <span class="source-chip">DOU Jobs RSS</span>
       <span class="source-chip">Djinni Jobs RSS</span>
     </p>
-  </form>
+  </section>
+</form>
 
   <script>
   (function () {
     var form = document.getElementById('jobs-search-form');
     var buttons = Array.prototype.slice.call(form ? form.querySelectorAll('.search-btn') : []);
     if (!form || !buttons.length) return;
-    var mode = document.getElementById('jobs-search-mode');
+    var modeRadios = Array.prototype.slice.call(form.querySelectorAll('input[name="search_mode"]'));
     var loc = document.getElementById('jobs-location');
+
+    function currentMode() {
+      for (var i = 0; i < modeRadios.length; i++) {
+        if (modeRadios[i].checked) return modeRadios[i].value;
+      }
+      return 'germany_local';
+    }
 
     var activeBtn = buttons[0];
     var observer = null;
@@ -177,24 +213,28 @@
 
     window.addEventListener('beforeunload', disconnectObserver);
 
-    if (mode && loc) {
+    if (modeRadios.length && loc) {
       updateSourceApplicability();
-      mode.addEventListener('change', function () {
-        if (mode.value === 'remote_worldwide' && !loc.value.trim()) {
-          loc.value = 'remote';
-        } else if (mode.value === 'germany_local') {
-          var currentLocation = loc.value.trim().toLowerCase();
-          if (['remote', 'worldwide remote', 'remote worldwide', 'global remote'].indexOf(currentLocation) !== -1) {
-            loc.value = 'Deutschland';
+      modeRadios.forEach(function (radio) {
+        radio.addEventListener('change', function () {
+          var mode = currentMode();
+          if (mode === 'remote_worldwide' && !loc.value.trim()) {
+            loc.value = 'remote';
+          } else if (mode === 'germany_local') {
+            var currentLocation = loc.value.trim().toLowerCase();
+            if (['remote', 'worldwide remote', 'remote worldwide', 'global remote'].indexOf(currentLocation) !== -1) {
+              loc.value = 'Deutschland';
+            }
           }
-        }
-        updateSourceApplicability();
+          updateSourceApplicability();
+        });
       });
     }
 
     function updateSourceApplicability() {
       var sourceStatusRows = Array.prototype.slice.call(document.querySelectorAll('[data-source-status-row]'));
-      if (!mode || !sourceStatusRows.length) return;
+      if (!modeRadios.length || !sourceStatusRows.length) return;
+      var mode = currentMode();
       sourceStatusRows.forEach(function (row) {
         var target = row.querySelector('[data-source-applicability]');
         if (!target) return;
@@ -206,7 +246,7 @@
           target.textContent = 'Не входит в обычный запуск; используется кнопкой «Искать по русскоязычным ресурсам».';
           return;
         }
-        if (row.dataset.modeScope === mode.value) {
+        if (row.dataset.modeScope === mode) {
           target.textContent = 'Участвует в обычном запуске для текущего режима.';
         } else if (row.dataset.modeScope === 'remote_worldwide') {
           target.textContent = 'Не участвует в Germany / local; источник только для Remote worldwide.';
@@ -217,7 +257,6 @@
     }
   })();
 </script>
-</article>
 
 <article class="panel">
   <h3>Активный профиль</h3>
@@ -231,9 +270,9 @@
   </section>
 </article>
 
-<article class="panel">
-  <h3>Статус источников</h3>
-  <ul class="hint-list">
+<details class="panel jobs-src-status">
+  <summary class="jobs-src-status__summary">Статус источников — подробно по каждому</summary>
+  <ul class="hint-list top-gap">
     {% for row in source_status_rows %}
     {% set source = row.descriptor %}
     <li class="source-state source-state--{{ source.status_kind }}"
@@ -272,7 +311,7 @@
     </li>
     {% endfor %}
   </ul>
-</article>
+</details>
 
 <section id="jobs-results-panel">
   {% include "jobs/partials/search_results.html" %}

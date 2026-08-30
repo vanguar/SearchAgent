@@ -525,7 +525,7 @@ def test_jobs_page_prefills_remote_for_remote_worldwide_profile() -> None:
     assert 'id="jobs-location"' in response.text
     assert 'value="remote"' in response.text
     assert 'id="jobs-search-mode"' in response.text
-    assert 'value="remote_worldwide" selected' in response.text
+    assert 'value="remote_worldwide" checked' in response.text
 
 
 def test_jobs_profile_context_route_renders_profile_block() -> None:
