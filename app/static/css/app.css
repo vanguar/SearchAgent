@@ -2858,27 +2858,46 @@ body {
   grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
 }
 
-/* Keep both columns inside their tracks: grid children default to
+/* Keep both columns inside their tracks: grid/flex children default to
    min-width:auto, which lets long unbreakable strings (emails, German
-   titles) overflow under the neighbouring column. */
-.email-layout > .content-stack {
-  min-width: 0;
-}
-
+   titles) overflow under the neighbouring column. The full ancestor
+   chain down to the text must allow shrinking below content width. */
+.email-layout > .content-stack,
 .email-layout .panel,
-.email-layout .thread-link {
+.thread-list,
+.thread-item,
+.thread-link,
+.thread-item__top,
+.thread-item__foot {
   min-width: 0;
   max-width: 100%;
 }
 
-.thread-link strong,
+/* Single-column thread link: minmax(0,1fr) lets its text wrap instead
+   of forcing the card wider. */
+.thread-link {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.thread-item__top strong,
 .thread-item__from,
 .thread-item__cues,
 .email-message-card__from,
 .email-message-card__subject,
 .email-detail-head p {
+  min-width: 0;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+/* Linked-lead chip: shrink and ellipsize instead of overflowing. */
+.thread-item__foot .mail-chip {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.thread-item__meta {
+  flex: 0 0 auto;
 }
 
 .mail-gmail-note {
