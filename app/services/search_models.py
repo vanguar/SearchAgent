@@ -140,6 +140,10 @@ class VacancySignalSnapshot:
     strong_german_required: bool = False
     german_any_required: bool = False
     low_language_signal: bool = False
+    german_not_required_signal: bool = False
+    basic_german_signal: bool = False
+    no_mandatory_german_mentioned: bool = False
+    ukrainian_welcome_signal: bool = False
     shift_signal: bool = False
     relocation_signal: bool = False
     immediate_start_signal: bool = False
@@ -210,6 +214,22 @@ class SearchResultItem:
     # Deterministic role family derived from canonical normalized title — used for feedback matching.
     role_family: str | None = None
     search_query: str | None = None
+
+    @property
+    def priority_highlights(self) -> tuple[RuleHit, ...]:
+        priority_codes = (
+            "ukrainian_welcome_signal",
+            "german_not_required_signal",
+            "basic_german_signal",
+            "no_mandatory_german_mentioned",
+        )
+        hits_by_code = {hit.code: hit for hit in self.score_result.positive_hits}
+        highlights = tuple(hits_by_code[code] for code in priority_codes if code in hits_by_code)
+        if highlights:
+            return highlights
+        low_language_hit = hits_by_code.get("low_language_signal")
+        return (low_language_hit,) if low_language_hit is not None else ()
+
 
 @dataclass(frozen=True, slots=True)
 class DedupPreviewItem:

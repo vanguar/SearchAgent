@@ -97,7 +97,10 @@ def _build_item(
         ),
         score_result=ScoreResult(
             score=92,
-            positive_hits=(RuleHit(code="priority_role", label_ru="целевая складская или производственная роль", weight=26),),
+            positive_hits=(
+                RuleHit(code="priority_role", label_ru="целевая складская или производственная роль", weight=26),
+                RuleHit(code="low_language_signal", label_ru="низкий языковой барьер", weight=12),
+            ),
         ),
         bucket="hot",
         explanation_ru=explanation_ru,
@@ -590,6 +593,8 @@ def test_jobs_search_results_route_renders_phase7_partial() -> None:
     assert "Производственный помощник" in response.text
     assert "Упаковщик" in response.text
     assert "Подходит: складская роль, смены допустимы, низкий языковой барьер." in response.text
+    assert "Главный приоритет:" in response.text
+    assert "низкий языковой барьер" in response.text
     assert response.text.count("Сохранить в отклики") == 3
     assert response.text.count("Отметить просмотр") == 3
     assert response.text.count('hx-post="/leads/from-search"') == 6

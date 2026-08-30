@@ -144,10 +144,55 @@ LOW_LANGUAGE_RULE = TextRule(
     patterns=(
         r"\bohne deutsch",
         r"\bkeine deutschkenntnisse",
+        r"\b(?:deutsch|deutschkenntnisse)\s+nicht\s+(?:erforderlich|notwendig)\b",
+        r"\bgerman\s+(?:is\s+)?not\s+(?:required|necessary|mandatory)\b",
+        r"\b(?:kein|keine|no)\s+(?:deutsch|deutschkenntnisse|german)\s+(?:erforderlich|required|necessary)\b",
         r"\bgrundkenntnisse(?: in deutsch)?\b",
         r"\beinfache deutschkenntnisse\b",
+        r"\b(?:deutsch|deutschkenntnisse)\s+(?:auf\s+)?a1(?:\s+niveau)?\b",
+        r"\ba1(?:\s+niveau)?\s+(?:deutsch|deutschkenntnisse)\b",
         r"\bbasic german\b",
         r"\benglish only\b",
+    ),
+)
+GERMAN_NOT_REQUIRED_RULE = TextRule(
+    code="german_not_required_signal",
+    label_ru="немецкий не требуется",
+    patterns=(
+        r"\bohne (?:deutsch|deutschkenntnisse)\b",
+        r"\bkeine deutschkenntnisse\b",
+        r"\b(?:deutsch|deutschkenntnisse)\s+nicht\s+(?:erforderlich|notwendig)\b",
+        r"\bkein deutsch\s+(?:erforderlich|notwendig)\b",
+        r"\bgerman\s+(?:is\s+)?not\s+(?:required|necessary|mandatory)\b",
+        r"\bno german\s+(?:required|necessary|mandatory)\b",
+        r"\bwithout german\b",
+        r"\benglish only\b",
+    ),
+)
+BASIC_GERMAN_RULE = TextRule(
+    code="basic_german_signal",
+    label_ru="достаточно базового немецкого",
+    patterns=(
+        r"\b(?:nur\s+)?grundkenntnisse(?: in deutsch)?\b",
+        r"\b(?:einfache|geringe) deutschkenntnisse\b",
+        r"\bbasiskenntnisse(?: in deutsch)?\b",
+        r"\b(?:deutsch|deutschkenntnisse)\s+(?:auf\s+)?a1(?:\s+niveau)?\b",
+        r"\ba1(?:\s+niveau)?\s+(?:deutsch|deutschkenntnisse)\b",
+        r"\bbasic german\b",
+    ),
+)
+UKRAINIAN_WELCOME_RULE = TextRule(
+    code="ukrainian_welcome_signal",
+    label_ru="украинцев явно приглашают откликаться",
+    patterns=(
+        r"\bukrainer(?:innen)?\b.{0,60}\b(?:willkommen|bevorzugt|gesucht)\b",
+        r"\bukrainische\s+(?:bewerber|bewerberinnen|kandidaten|mitarbeiter|gefluchtete)\b.{0,60}"
+        r"\b(?:willkommen|bevorzugt|gesucht)\b",
+        r"\b(?:bewerber|bewerbungen|menschen|gefluchtete)\b.{0,60}\baus der ukraine\b.{0,60}"
+        r"\b(?:willkommen|bevorzugt|begrussen)\b",
+        r"\b(?:ukrainians?|ukrainian (?:applicants|candidates|refugees))\b.{0,60}"
+        r"\b(?:welcome|preferred|encouraged to apply)\b",
+        r"\b(?:applicants|candidates|refugees) from ukraine\b.{0,60}\b(?:welcome|preferred)\b",
     ),
 )
 SHIFT_RULE = TextRule(
@@ -298,6 +343,16 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
     driver_license_requirement = extract_driver_license_requirements(build_driver_license_text(canonical))
     location_match, location_hits = _match_profile_locations(canonical, profile)
 
+    strong_german_required = canonical.language_signals.strong_german_required or _matches_rule(
+        combined_text,
+        STRONG_GERMAN_REQUIREMENT_RULE,
+    )
+    german_any_required = _matches_rule(combined_text, GERMAN_ANY_REQUIRED_RULE)
+    german_not_required_signal = (
+        not strong_german_required and _matches_rule(combined_text, GERMAN_NOT_REQUIRED_RULE)
+    )
+    basic_german_signal = not strong_german_required and _matches_rule(combined_text, BASIC_GERMAN_RULE)
+
     return VacancySignalSnapshot(
         combined_text=combined_text,
         positive_role_hits=positive_role_hits,
@@ -310,10 +365,13 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         mentioned_driver_license_categories=driver_license_requirement.mentioned,
         location_match=location_match,
         location_hits=location_hits,
-        strong_german_required=canonical.language_signals.strong_german_required
-        or _matches_rule(combined_text, STRONG_GERMAN_REQUIREMENT_RULE),
-        german_any_required=_matches_rule(combined_text, GERMAN_ANY_REQUIRED_RULE),
+        strong_german_required=strong_german_required,
+        german_any_required=german_any_required,
         low_language_signal=canonical.language_signals.low_language_signal or _matches_rule(combined_text, LOW_LANGUAGE_RULE),
+        german_not_required_signal=german_not_required_signal,
+        basic_german_signal=basic_german_signal,
+        no_mandatory_german_mentioned=not strong_german_required and not german_any_required,
+        ukrainian_welcome_signal=_matches_rule(combined_text, UKRAINIAN_WELCOME_RULE),
         shift_signal=canonical.language_signals.shift_signal or _matches_rule(combined_text, SHIFT_RULE),
         relocation_signal=_matches_rule(combined_text, RELOCATION_RULE),
         immediate_start_signal=_matches_rule(combined_text, IMMEDIATE_START_RULE),

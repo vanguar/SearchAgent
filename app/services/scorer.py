@@ -179,6 +179,7 @@ def _search_terms_match_vacancy(combined_text: str, search_query_terms: tuple[st
 # Hard bounds for feedback adjustment — deterministic rules always dominate
 _FEEDBACK_ADJ_MAX = 8
 _FEEDBACK_ADJ_MIN = -8
+_UKRAINIAN_WELCOME_BONUS = 8
 
 
 class VacancyScorer:
@@ -205,6 +206,41 @@ class VacancyScorer:
         score = BASE_SCORE
         positive_hits: list[RuleHit] = []
         negative_hits: list[RuleHit] = []
+
+        if resolved_signals.ukrainian_welcome_signal:
+            score += _UKRAINIAN_WELCOME_BONUS
+            positive_hits.append(
+                RuleHit(
+                    code="ukrainian_welcome_signal",
+                    label_ru="украинцев явно приглашают откликаться",
+                    weight=_UKRAINIAN_WELCOME_BONUS,
+                )
+            )
+
+        if resolved_signals.german_not_required_signal:
+            positive_hits.append(
+                RuleHit(
+                    code="german_not_required_signal",
+                    label_ru="немецкий не требуется",
+                    weight=0,
+                )
+            )
+        elif resolved_signals.basic_german_signal:
+            positive_hits.append(
+                RuleHit(
+                    code="basic_german_signal",
+                    label_ru="достаточно базового немецкого",
+                    weight=0,
+                )
+            )
+        elif resolved_signals.no_mandatory_german_mentioned:
+            positive_hits.append(
+                RuleHit(
+                    code="no_mandatory_german_mentioned",
+                    label_ru="обязательный немецкий не указан",
+                    weight=0,
+                )
+            )
 
         if resolved_signals.positive_role_hits:
             role_bonus = 26 + min(6, (len(resolved_signals.positive_role_hits) - 1) * 3)

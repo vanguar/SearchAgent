@@ -1155,7 +1155,7 @@ def _result_item_key(item: SearchResultItem) -> str:
     return f"result-object:{id(item)}"
 
 
-def _merge_result_sort_key(item: SearchResultItem) -> tuple[int, int, int, str]:
+def _merge_result_sort_key(item: SearchResultItem) -> tuple[int, int, int, int, str]:
     bucket = getattr(item, "bucket", "rejected")
     bucket_rank = _BUCKET_PRIORITY.get(bucket, _BUCKET_PRIORITY["rejected"])
     score = getattr(getattr(item, "score_result", None), "score", 0)
@@ -1168,7 +1168,7 @@ def _merge_result_sort_key(item: SearchResultItem) -> tuple[int, int, int, str]:
         posted_rank = 0
     if not isinstance(posted_rank, int):
         posted_rank = 0
-    return (bucket_rank, -score, -posted_rank, _result_item_key(item))
+    return (bucket_rank, _user_priority_rank(item), -score, -posted_rank, _result_item_key(item))
 
 
 def _pick_primary_record(canonical: CanonicalVacancyGroup) -> NormalizedVacancyRecord:
@@ -1330,11 +1330,32 @@ def _build_attempt_user_message(
     return msg
 
 
-def _result_sort_key(result: SearchResultItem) -> tuple[int, int, int, str]:
+def _user_priority_rank(result: SearchResultItem) -> int:
+    signals = getattr(result, "signals", None)
+    ukrainian_welcome = bool(getattr(signals, "ukrainian_welcome_signal", False))
+    german_not_required = bool(getattr(signals, "german_not_required_signal", False))
+    basic_german = bool(getattr(signals, "basic_german_signal", False))
+    no_mandatory_german = bool(getattr(signals, "no_mandatory_german_mentioned", False))
+
+    if ukrainian_welcome and (german_not_required or basic_german or no_mandatory_german):
+        return 0
+    if german_not_required:
+        return 1
+    if basic_german:
+        return 2
+    if ukrainian_welcome:
+        return 3
+    if no_mandatory_german:
+        return 4
+    return 5
+
+
+def _result_sort_key(result: SearchResultItem) -> tuple[int, int, int, int, str]:
     posted_date = result.canonical_group.posted_date
     posted_rank = posted_date.toordinal() if posted_date is not None else 0
     return (
         _BUCKET_PRIORITY[result.bucket],
+        _user_priority_rank(result),
         -result.score_result.score,
         -posted_rank,
         result.canonical_group.canonical_key,

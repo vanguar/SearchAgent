@@ -139,6 +139,54 @@ def test_scorer_rewards_low_barrier_shift_and_relocation_signals() -> None:
     assert {"priority_role", "low_language_signal", "shift_signal", "relocation_signal", "immediate_start_signal"} <= positive_codes
 
 
+def test_scorer_makes_no_german_basic_german_and_ukrainian_welcome_top_priorities() -> None:
+    from app.services.rule_catalog import inspect_vacancy
+
+    profile = _build_profile(
+        desired_roles=(),
+        search_query_terms=(),
+        physical_work_ok=None,
+        shift_ok=None,
+    )
+    filter_engine = FilterEngine()
+    scorer = VacancyScorer(filter_engine=filter_engine)
+
+    def score(body: str) -> tuple[int, set[str]]:
+        canonical = _build_canonical(title="Aushilfe", body=body)
+        signals = inspect_vacancy(canonical, profile)
+        filter_result = filter_engine.evaluate(canonical, profile, signals=signals)
+        result = scorer.score(canonical, profile, signals=signals, filter_result=filter_result)
+        return result.score, {hit.code for hit in result.positive_hits}
+
+    unspecified_score, unspecified_codes = score("Allgemeine Hilfstätigkeiten.")
+    basic_score, basic_codes = score("Deutschkenntnisse A1 ausreichend.")
+    no_german_score, no_german_codes = score("Deutschkenntnisse nicht erforderlich.")
+    ukrainian_score, ukrainian_codes = score(
+        "Deutschkenntnisse nicht erforderlich. Ukrainische Bewerber sind ausdrücklich willkommen."
+    )
+
+    assert "no_mandatory_german_mentioned" in unspecified_codes
+    assert "basic_german_signal" in basic_codes
+    assert "german_not_required_signal" in no_german_codes
+    assert {"german_not_required_signal", "ukrainian_welcome_signal"} <= ukrainian_codes
+    assert unspecified_score < basic_score
+    assert unspecified_score < no_german_score < ukrainian_score
+
+
+def test_ukraine_text_without_recruiting_invitation_is_not_a_priority_signal() -> None:
+    from app.services.rule_catalog import inspect_vacancy
+
+    profile = _build_profile(desired_roles=(), search_query_terms=())
+    canonical = _build_canonical(
+        title="Sachbearbeiter",
+        body="Kenntnisse des ukrainischen Marktes und Reisen in die Ukraine sind erforderlich.",
+    )
+
+    signals = inspect_vacancy(canonical, profile)
+
+    assert signals.ukrainian_welcome_signal is False
+
+
 def test_scorer_penalizes_strong_german_and_requirement_mismatch() -> None:
     filter_engine = FilterEngine()
     scorer = VacancyScorer(filter_engine=filter_engine)

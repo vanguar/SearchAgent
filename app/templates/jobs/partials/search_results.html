@@ -49,6 +49,15 @@
           {% endif %}
         </div>
 
+        {% if item.priority_highlights %}
+        <p class="jobs-vacancy-priority">
+          <strong>Главный приоритет:</strong>
+          {% for hit in item.priority_highlights %}
+          <span class="badge-success">{{ hit.label_ru }}</span>
+          {% endfor %}
+        </p>
+        {% endif %}
+
         {% if item.summary_ru %}
         <p class="jobs-vacancy-summary">{{ item.summary_ru }}</p>
         {% endif %}

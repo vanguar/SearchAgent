@@ -1,4 +1,5 @@
 import logging
+from types import SimpleNamespace
 
 from app.services.relevance_feedback_service import RelevanceFeedbackService
 from app.services.relevance_memory_service import (
@@ -7,14 +8,62 @@ from app.services.relevance_memory_service import (
     RelevanceMemoryService,
     SourceQualitySignal,
 )
-from app.services.search_models import SearchProfileContext
-from app.services.search_service import SearchService
+from app.services.search_models import SearchProfileContext, VacancySignalSnapshot
+from app.services.search_service import SearchService, _result_sort_key
 from app.services.source_adapters.base import BaseSourceAdapter
 from app.services.source_adapters.errors import AdapterRequestError
 from app.services.source_adapters.models import AdapterSearchResponse, SourceRecordPreview, SourceSearchInput
 from app.services.source_adapters.registry import SourceAdapterRegistry
 from app.services.summary_service import SummaryService
 from app.services.translation_service import TranslationService
+
+
+def test_result_order_uses_language_and_ukrainian_priority_before_score() -> None:
+    def item(*, key: str, score: int, signals: VacancySignalSnapshot) -> SimpleNamespace:
+        return SimpleNamespace(
+            bucket="hot",
+            signals=signals,
+            score_result=SimpleNamespace(score=score),
+            canonical_group=SimpleNamespace(posted_date=None, canonical_key=key),
+        )
+
+    results = (
+        item(key="required-german", score=99, signals=VacancySignalSnapshot(combined_text="")),
+        item(
+            key="german-unspecified",
+            score=90,
+            signals=VacancySignalSnapshot(combined_text="", no_mandatory_german_mentioned=True),
+        ),
+        item(
+            key="basic-german",
+            score=80,
+            signals=VacancySignalSnapshot(combined_text="", basic_german_signal=True),
+        ),
+        item(
+            key="no-german",
+            score=70,
+            signals=VacancySignalSnapshot(combined_text="", german_not_required_signal=True),
+        ),
+        item(
+            key="ukrainian-no-german",
+            score=60,
+            signals=VacancySignalSnapshot(
+                combined_text="",
+                german_not_required_signal=True,
+                ukrainian_welcome_signal=True,
+            ),
+        ),
+    )
+
+    ordered = sorted(results, key=_result_sort_key)
+
+    assert [result.canonical_group.canonical_key for result in ordered] == [
+        "ukrainian-no-german",
+        "no-german",
+        "basic-german",
+        "german-unspecified",
+        "required-german",
+    ]
 
 
 class StubProfileResolver:

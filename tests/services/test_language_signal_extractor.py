@@ -26,3 +26,18 @@ def test_language_signal_extractor_detects_low_language_signal() -> None:
 
     assert signals.low_language_signal is True
     assert signals.helper_role_signal is True
+
+
+def test_language_signal_extractor_treats_no_or_a1_german_as_low_barrier() -> None:
+    extractor = LanguageSignalExtractor()
+
+    for body in (
+        "Deutschkenntnisse nicht erforderlich.",
+        "Kein Deutsch erforderlich.",
+        "German is not required.",
+        "Deutschkenntnisse A1 ausreichend.",
+        "A1 Deutsch genügt.",
+    ):
+        signals = extractor.extract(title="Hilfskraft", body_text=body)
+
+        assert signals.low_language_signal is True, body

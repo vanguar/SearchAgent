@@ -14,8 +14,13 @@ _STRONG_GERMAN_PATTERNS = (
 _LOW_LANGUAGE_PATTERNS = (
     r"\bohne deutsch",
     r"\bkeine deutschkenntnisse",
+    r"\b(?:deutsch|deutschkenntnisse)\s+nicht\s+(?:erforderlich|notwendig)\b",
+    r"\bgerman\s+(?:is\s+)?not\s+(?:required|necessary|mandatory)\b",
+    r"\b(?:kein|keine|no)\s+(?:deutsch|deutschkenntnisse|german)\s+(?:erforderlich|required|necessary)\b",
     r"\bgrundkenntnisse(?: in deutsch)?\b",
     r"\beinfache deutschkenntnisse\b",
+    r"\b(?:deutsch|deutschkenntnisse)\s+(?:auf\s+)?a1(?:\s+niveau)?\b",
+    r"\ba1(?:\s+niveau)?\s+(?:deutsch|deutschkenntnisse)\b",
     r"\bbasic german\b",
     r"\benglish only\b",
 )
