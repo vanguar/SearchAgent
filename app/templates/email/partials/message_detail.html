@@ -37,17 +37,18 @@
   {% if workspace.selected_thread.messages %}
   <div class="email-message-list">
     {% for message in workspace.selected_thread.messages %}
-    <article class="email-message-card">
-      <div class="panel-actions">
-        <strong>{{ message.subject }}</strong>
+    {% set is_outgoing = "сход" in (message.direction_label_ru or "")|lower %}
+    <article class="email-message-card email-message-card--{{ 'out' if is_outgoing else 'in' }}">
+      <div class="email-message-card__head">
+        <span class="mail-dir{% if is_outgoing %} mail-dir--out{% endif %}">{{ message.direction_label_ru }}</span>
         {% if message.sent_at %}
-        <span class="muted">{{ message.sent_at.strftime("%d.%m.%Y %H:%M") }}</span>
+        <span class="muted email-message-card__time">{{ message.sent_at.strftime("%d.%m.%Y %H:%M") }}</span>
         {% endif %}
       </div>
-      <p class="muted">
-        {{ message.direction_label_ru }}
-        {% if message.from_email %} · От: {{ message.from_email }}{% endif %}
-      </p>
+      <strong class="email-message-card__subject">{{ message.subject }}</strong>
+      {% if message.from_email %}
+      <p class="muted email-message-card__from">От: {{ message.from_email }}</p>
+      {% endif %}
       <p class="muted">Кому: {{ message.recipients_line }}</p>
       {% if message.cue_labels_ru %}
       <p class="muted">{{ message.cue_labels_ru|join(" · ") }}</p>
