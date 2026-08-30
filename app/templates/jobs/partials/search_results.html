@@ -21,6 +21,12 @@
       {% for item in items %}
       {% set feedback_id = "lead-feedback-" ~ loop.index0 ~ "-" ~ item.canonical_group.canonical_key|replace(":", "-")|replace("/", "-")|replace(" ", "-") %}
       <li class="jobs-vacancy-card relevance-{{ item.relevance_band }}">
+        <div class="jvc-badge" aria-label="Совпадение {{ item.score_result.score }} из 100">
+          <strong class="jvc-badge__score">{{ item.score_result.score }}</strong>
+          <span class="jvc-badge__label">матч</span>
+        </div>
+
+        <div class="jvc-body">
         <div class="jobs-vacancy-card__header">
           <div class="jobs-vacancy-card__title-block">
             <strong class="jobs-vacancy-title">{{ item.primary_record.original_title | unescape }}</strong>
@@ -42,7 +48,6 @@
             Категория:
             {% if item.bucket == "hot" %}горячая{% elif item.bucket == "maybe" %}на проверку{% else %}отклонена{% endif %}
           </span>
-          <span>Оценка: {{ item.score_result.score }}/100</span>
           <span>Источник: {{ item.primary_record.source_name }}</span>
           {% if item.canonical_group.source_records|length > 1 %}
           <span><em>{{ item.canonical_group.source_records|length }} источника</em></span>
@@ -95,7 +100,7 @@
             >
               {{ render_candidate_fields(item, link_state.url, profile_id) }}
               <input type="hidden" name="action" value="save" />
-              <button type="submit" class="ghost-btn jobs-action-btn">Сохранить в отклики</button>
+              <button type="submit" class="ghost-btn jobs-action-btn jobs-action-btn--primary">Сохранить в отклики</button>
             </form>
 
             <form
@@ -127,6 +132,7 @@
         {% include "jobs/partials/feedback_controls.html" %}
 
         <div id="{{ feedback_id }}" class="top-gap jobs-action-feedback"></div>
+        </div>
       </li>
       {% endfor %}
     </ol>
