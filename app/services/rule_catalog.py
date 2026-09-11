@@ -123,9 +123,24 @@ GERMAN_ANY_REQUIRED_RULE = TextRule(
         # Match "Deutschkenntnisse" only when a mandatory marker appears within 80 chars.
         # Note: normalize_text_for_fingerprint removes all punctuation, so sentence boundaries
         # are not preserved — cross-sentence matching is a known limitation.
-        r"\bdeutschkenntnisse\b.{0,80}\b(?:erforderlich|vorausgesetzt|zwingend|pflicht|muss|required|mandatory)\b",
+        # Защита от отрицания: «Deutschkenntnisse sind nicht erforderlich» — это НЕ требование.
+        # Такая же защита уже стоит у строгого правила; здесь её не было.
+        r"\bdeutschkenntnisse\b(?!\s*.{0,30}\b(?:nicht|keine)\s+(?:erforderlich|notwendig)\b)"
+        r".{0,80}\b(?:erforderlich|vorausgesetzt|zwingend|pflicht|muss|required|mandatory)\b",
         # Qualified German knowledge — adjective signals it is required, not optional
         r"\b(?:gute|sehr\s+gute|fliessende|fliessend|verhandlungssichere|verhandlungssicher|sichere)\s+deutschkenntnisse\b",
+        # Глагольные формулировки на «ты» и «вы». Низкопороговые объявления (DHL,
+        # Zeitarbeit, розница) почти не пишут «Deutschkenntnisse erforderlich» — они
+        # пишут «Du kannst dich auf Deutsch unterhalten». Это такое же требование,
+        # и раньше оно полностью пропускалось: плашка «немецкий не указан» врала.
+        # Отрицания рядом («kein Deutsch sprechen») гасят срабатывание.
+        r"(?<!kein )(?<!keine )(?<!nicht )(?<!ohne )\b(?:du\s+sprichst|sie\s+sprechen|sprichst\s+du)\s+(?:flie(?:ss|s)end\s+|gut\s+|gutes\s+|etwas\s+)?deutsch\b",
+        r"(?<!kein )(?<!keine )(?<!nicht )(?<!ohne )\bauf\s+deutsch\s+(?:unterhalten|verstandigen|kommunizieren|sprechen)\b",
+        r"(?<!kein )(?<!keine )(?<!nicht )(?<!ohne )\bdich\s+auf\s+deutsch\b",
+        r"(?<!kein )(?<!keine )(?<!nicht )(?<!ohne )\b(?:verstandigst|verstandigen)\s+dich\s+auf\s+deutsch\b",
+        r"(?<!kein )(?<!keine )(?<!nicht )(?<!ohne )\bdeutsch\s+in\s+wort\s+und\s+schrift\b",
+        r"(?<!kein )(?<!keine )(?<!nicht )(?<!ohne )\bbeherrschst\s+(?:die\s+)?deutsche?\s+sprache\b",
+        r"(?<!kein )(?<!keine )(?<!nicht )(?<!ohne )\bdeutsche\s+sprache\s+in\s+wort\s+und\s+schrift\b",
         # Working language is German
         r"\barbeitssprache\s+deutsch\b",
         # German explicitly required / expected

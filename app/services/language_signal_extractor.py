@@ -9,6 +9,11 @@ _STRONG_GERMAN_PATTERNS = (
     r"\b(?:sehr gute|gute|fliessend(?:e|er|es|en)?|verhandlungssicher(?:e|er|es|en)?|sichere|b1|b2|c1|c2)\s+deutsch",
     r"\bdeutsch(?:kenntnisse)?\s+(?:mindestens\s+)?(?:b1|b2|c1|c2)\b",
     r"\bdeutschkenntnisse\b(?!\s*.{0,30}\b(?:nicht|keine)\s+(?:erforderlich|notwendig)\b).{0,80}\b(?:erforderlich|vorausgesetzt|zwingend|required|mandatory)\b",
+    # «Deutsch in Wort und Schrift» и «fliessend Deutsch» — уверенный уровень,
+    # а не просто наличие требования.
+    r"(?<!kein )(?<!keine )(?<!nicht )(?<!ohne )\bdeutsch\s+in\s+wort\s+und\s+schrift\b",
+    r"(?<!kein )(?<!keine )(?<!nicht )(?<!ohne )\bdeutsche\s+sprache\s+in\s+wort\s+und\s+schrift\b",
+    r"(?<!kein )(?<!keine )(?<!nicht )(?<!ohne )\b(?:du\s+sprichst|sie\s+sprechen)\s+flie(?:ss|s)end\s+deutsch\b",
     r"\bgerman\b.*\b(?:required|must|mandatory)\b",
 )
 _LOW_LANGUAGE_PATTERNS = (
