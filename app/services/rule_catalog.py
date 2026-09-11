@@ -334,6 +334,22 @@ _NEGATIVE_ROLE_PROFILE_ALIASES: dict[str, tuple[TextRule, ...]] = {
 }
 
 
+# Ниже этого объёма текста описания утверждать «обязательный немецкий не указан» нельзя:
+# это не вывод из текста, а отсутствие текста. Часть источников отдаёт вакансию вообще без
+# описания, и тогда сигнал срабатывал на одном заголовке — а в карточке показывался как
+# «Главный приоритет».
+_MIN_BODY_CHARS_FOR_ABSENCE_CLAIM = 120
+
+
+def _has_analyzable_body(canonical: CanonicalVacancyGroup) -> bool:
+    """Есть ли у вакансии описание, по которому вообще можно судить об отсутствии требования."""
+    for record in canonical.source_records:
+        body = (record.body_text or "").strip()
+        if len(body) >= _MIN_BODY_CHARS_FOR_ABSENCE_CLAIM:
+            return True
+    return False
+
+
 def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileContext) -> VacancySignalSnapshot:
     combined_text = build_combined_text(canonical)
     title_text = build_title_text(canonical)
@@ -409,7 +425,11 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         low_language_signal=canonical.language_signals.low_language_signal or _matches_rule(combined_text, LOW_LANGUAGE_RULE),
         german_not_required_signal=german_not_required_signal,
         basic_german_signal=basic_german_signal,
-        no_mandatory_german_mentioned=not strong_german_required and not german_any_required,
+        no_mandatory_german_mentioned=(
+            not strong_german_required
+            and not german_any_required
+            and _has_analyzable_body(canonical)
+        ),
         english_required_signal=english_required_signal,
         english_preferred_signal=english_preferred_signal,
         ai_tools_language_fit_signal=ai_tools_language_fit_signal,

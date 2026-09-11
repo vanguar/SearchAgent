@@ -239,7 +239,11 @@ def test_summarize_returns_short_russian_text() -> None:
         "Работа на складе в Берлине, без знания немецкого, сменный график."
     )
 
-    result = client.summarize("Lagermitarbeiter gesucht. Keine Deutschkenntnisse erforderlich.")
+    result = client.summarize(
+        "Lagermitarbeiter (m/w/d) in Berlin gesucht. Keine Deutschkenntnisse erforderlich. "
+        "Wir bieten Schichtarbeit im Zwei-Schicht-System, puenktliche Bezahlung nach Tarif "
+        "und eine bezahlte Einarbeitung. Du kannst sofort in Vollzeit starten."
+    )
 
     assert result is not None
     assert len(result) > 5
@@ -304,3 +308,15 @@ def test_explain_match_returns_none_on_provider_error() -> None:
     )
 
     assert result is None
+
+
+def test_summarize_skips_text_too_short_to_summarize() -> None:
+    """На огрызке текста модель начинает достраивать вакансию по общим знаниям.
+
+    Реальный случай: Adzuna обрезает описание, в тексте не было ни слова про немецкий,
+    а в резюме пользователю появилось «Требуется знание немецкого языка».
+    """
+    client = _make_client()
+
+    assert client.summarize("Zusteller gesucht.") is None
+    client._client.chat.completions.create.assert_not_called()
