@@ -120,3 +120,82 @@ def test_vacancy_without_language_talk_keeps_the_badge() -> None:
 def test_conversational_german_is_not_reported_as_a_high_bar(phrase: str, expected_strong: bool) -> None:
     """Разговорный уровень — это требование, но не «нужен хороший немецкий»."""
     assert _signals(phrase).strong_german_required is expected_strong
+
+
+# --- Утверждать ОТСУТСТВИЕ требования можно только по цельному тексту ---
+
+def _signals_for_body(body: str):
+    record = VacancyNormalizer().normalize_source_record(
+        SourceRecordPreview(
+            source_id="careerjet",
+            source_name="Careerjet",
+            external_id="cj-2",
+            source_reference="cj-2",
+            title="Postbote für Pakete und Briefe (m/w/d) in 18059 Rostock",
+            company="DHL",
+            location="Rostock",
+            posted_at="2026-09-10",
+            detail_url=None,
+            raw_payload={"description": body},
+        )
+    )
+    canonical = CanonicalVacancyGroup(
+        canonical_key="k2",
+        normalized_title=record.normalized_title,
+        company_name=record.normalized_company,
+        location_text=record.normalized_location.normalized_text,
+        country_code=record.normalized_location.country_code,
+        city=record.normalized_location.city,
+        posted_date=record.posted_date,
+        language_signals=record.language_signals,
+        source_records=(record,),
+        provenance=("cj-2",),
+    )
+    return inspect_vacancy(canonical, _PROFILE)
+
+
+def test_excerpt_starting_mid_sentence_cannot_claim_the_requirement_is_absent() -> None:
+    """Careerjet отдаёт фрагмент вокруг ключевого слова, а не начало объявления.
+
+    У реальной вакансии почтальона строка «Du kannst dich auf Deutsch unterhalten»
+    стояла ВЫШЕ начала вырезки: движок получил 651 символ с середины фразы и уверенно
+    показывал «обязательный немецкий не указан».
+    """
+    signals = _signals_for_body(
+        "und hängst dich rein Werde Postbote bei Deutsche Post DHL. Als Postbote bringst du "
+        "den Menschen in deinem Bezirk Post- und Paketsendungen. Dabei lässt du dir von keinem "
+        "Wetter die Laune verderben und bist fünf Werktage pro Woche unterwegs."
+    )
+
+    assert signals.no_mandatory_german_mentioned is False
+
+
+def test_truncated_excerpt_cannot_claim_the_requirement_is_absent() -> None:
+    signals = _signals_for_body(
+        "Wir suchen DICH als Saisonkraft! Werde Paketzusteller in 18198 Kritzmow. Was wir bieten "
+        "17,20 EUR Tarif-Stundenlohn, sofort in Vollzeit starten, flexible Einsatzmöglichkeiten. "
+        "Deine Aufgaben als…"
+    )
+
+    assert signals.no_mandatory_german_mentioned is False
+
+
+def test_complete_description_still_claims_the_requirement_is_absent() -> None:
+    """Иначе мы просто убрали бы полезный сигнал везде."""
+    signals = _signals_for_body(
+        "Wir suchen Lagerhelfer für unser Lager in Rostock. Wir bieten geregelte Arbeitszeiten "
+        "im Zwei-Schicht-System, pünktliche Bezahlung nach Tarif und eine bezahlte Einarbeitung. "
+        "Der Einstieg ist kurzfristig möglich."
+    )
+
+    assert signals.no_mandatory_german_mentioned is True
+
+
+def test_requirement_found_inside_an_excerpt_is_still_reported() -> None:
+    """Найденное в куске текста остаётся найденным — ограничение только на вывод об отсутствии."""
+    signals = _signals_for_body(
+        "und hängst dich rein. Was du als Zusteller bietest: Du darfst einen Pkw fahren. "
+        "Du kannst dich auf Deutsch unterhalten. Du bist wetterfest und kannst gut anpacken."
+    )
+
+    assert signals.german_any_required is True

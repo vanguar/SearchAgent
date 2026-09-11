@@ -355,13 +355,49 @@ _NEGATIVE_ROLE_PROFILE_ALIASES: dict[str, tuple[TextRule, ...]] = {
 # «Главный приоритет».
 _MIN_BODY_CHARS_FOR_ABSENCE_CLAIM = 120
 
+# Признаки того, что перед нами не всё объявление, а вырезка из него.
+# Careerjet отдаёт фрагмент, ЦЕНТРИРОВАННЫЙ вокруг поискового слова, поэтому окно
+# сдвигается от запроса к запросу и требования часто остаются за его краем. Adzuna
+# режет описание на 500 символах и ставит многоточие.
+#
+# Реальный случай: у вакансии почтальона DHL строка «Du kannst dich auf Deutsch
+# unterhalten» стояла ВЫШЕ начала вырезки, движок получил 651 символ с середины фразы
+# — и карточка уверенно показывала «обязательный немецкий не указан».
+_EXCERPT_TAIL_MARKERS = ("…", "...")
+
+
+def _looks_like_partial_excerpt(body: str) -> bool:
+    """Вырезка из объявления, а не всё объявление целиком.
+
+    Эвристика намеренно простая: обрыв в конце и начало с середины фразы. Она не ловит
+    вырезку, которая случайно начинается и заканчивается по границам предложений —
+    в этом случае утверждение об отсутствии требования всё ещё может быть неверным.
+    """
+    stripped = body.strip()
+    if not stripped:
+        return True
+    if stripped.endswith(_EXCERPT_TAIL_MARKERS):
+        return True
+    first = stripped[0]
+    # Немецкое объявление начинается с заглавной буквы: существительные и первое слово
+    # предложения пишутся с большой. Строчная в начале — верный признак обрыва.
+    return first.isalpha() and first.islower()
+
 
 def _has_analyzable_body(canonical: CanonicalVacancyGroup) -> bool:
-    """Есть ли у вакансии описание, по которому вообще можно судить об отсутствии требования."""
+    """Есть ли текст, по которому вообще можно судить об ОТСУТСТВИИ требования.
+
+    Утверждать «в вакансии не сказано про немецкий» можно только по цельному описанию.
+    По вырезке можно утверждать обратное — что требование НАЙДЕНО, — и это работает как
+    прежде: найденное в куске текста остаётся найденным.
+    """
     for record in canonical.source_records:
         body = (record.body_text or "").strip()
-        if len(body) >= _MIN_BODY_CHARS_FOR_ABSENCE_CLAIM:
-            return True
+        if len(body) < _MIN_BODY_CHARS_FOR_ABSENCE_CLAIM:
+            continue
+        if _looks_like_partial_excerpt(body):
+            continue
+        return True
     return False
 
 
