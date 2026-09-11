@@ -60,18 +60,24 @@ class Settings:
     source_ba_api_key: str = field(default_factory=lambda: os.getenv("SOURCE_BA_API_KEY", "jobboerse-jobsuche"))
 
     # --- Careerjet ---
+    # Используется публичный partner-эндпоинт (affid + Referer), а НЕ v4 Publisher API:
+    # v4 авторизует по исходящему IP publisher-аккаунта и отвечает 403 с локальной машины.
     source_careerjet_enabled: bool = field(
         default_factory=lambda: _env_bool("SOURCE_CAREERJET_ENABLED", False)
     )
     source_careerjet_base_url: str = field(
         default_factory=lambda: os.getenv(
             "SOURCE_CAREERJET_BASE_URL",
-            "https://search.api.careerjet.net/v4/query",
+            "http://public.api.careerjet.net/search",
         )
     )
-    # API-ключ Careerjet — регистрация издателя: https://www.careerjet.de/publisher/
+    # Affiliate ID Careerjet (параметр affid) — регистрация: https://www.careerjet.de/partners/
     source_careerjet_api_key: str | None = field(
         default_factory=lambda: os.getenv("SOURCE_CAREERJET_API_KEY")
+    )
+    # Careerjet отклоняет запросы без Referer ("Undeclared referrer").
+    source_careerjet_referer: str = field(
+        default_factory=lambda: os.getenv("SOURCE_CAREERJET_REFERER", "http://localhost:8000/")
     )
     # Размер фрагмента описания вакансии (символов).
     # Больше символов → нормализатор получает больше контекста для сигналов.

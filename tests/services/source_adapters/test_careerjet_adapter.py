@@ -1,4 +1,3 @@
-import base64
 import hashlib
 import json
 from pathlib import Path
@@ -9,6 +8,7 @@ from app.services.source_adapters.careerjet_adapter import CareerjetAdapter
 from app.services.source_adapters.errors import (
     AdapterConfigurationError,
     AdapterDisabledError,
+    AdapterRequestError,
     AdapterResponseError,
 )
 from app.services.source_adapters.http import HttpJsonResponse
@@ -18,8 +18,11 @@ FIXTURE_PATH = Path(__file__).resolve().parents[2] / "fixtures" / "careerjet_sea
 
 _ENABLED_SETTINGS = Settings(
     source_careerjet_enabled=True,
-    source_careerjet_base_url="https://search.api.careerjet.net/v4/query",
-    source_careerjet_api_key="test-api-key-abc",
+    source_careerjet_base_url="http://public.api.careerjet.net/search",
+    source_careerjet_api_key="test-affid-abc",
+    source_careerjet_referer="http://localhost:8000/",
+    # Задаём явно: default_factory читает окружение, а локальный .env его переопределяет.
+    source_careerjet_fragment_size=500,
 )
 
 
@@ -40,10 +43,6 @@ def _load_fixture() -> object:
     return json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
 
 
-def _expected_basic_auth(api_key: str) -> str:
-    return "Basic " + base64.b64encode(f"{api_key}:".encode()).decode()
-
-
 def test_careerjet_adapter_maps_response_into_common_preview_contract() -> None:
     payload = _load_fixture()
     transport = GetFixtureTransport(payload)
@@ -54,23 +53,28 @@ def test_careerjet_adapter_maps_response_into_common_preview_contract() -> None:
     )
 
     call = transport.calls[0]
-    assert call["url"] == "https://search.api.careerjet.net/v4/query"
-    # Германия задаётся жёстко в адаптере
-    assert call["params"]["location"] == "Deutschland"
+    assert call["url"] == "http://public.api.careerjet.net/search"
+    # Локация из формы доходит до источника; locale_code держит поиск в немецком индексе.
+    assert call["params"]["location"] == "Berlin"
     assert call["params"]["locale_code"] == "de_DE"
     assert call["params"]["keywords"] == "lager"
-    # user_ip обязателен по документации Careerjet API v4 (geo-targeting).
-    # Это IP конечного пользователя, НЕ инструмент авторизации (авторизация — по outbound IP).
+    # Авторизация публичного эндпоинта — affid в параметрах (не Basic Auth).
+    assert call["params"]["affid"] == "test-affid-abc"
+    # Публичный эндпоинт ждёт pagesize, а не page_size.
+    assert call["params"]["pagesize"] == 10
+    assert "page_size" not in call["params"]
+    # user_ip нужен Careerjet для geo-targeting, это НЕ инструмент авторизации.
     # Без реального user_ip в запросе используется fallback "127.0.0.1".
     assert "user_ip" in call["params"]
     assert call["params"]["user_ip"] == "127.0.0.1"  # fallback: search_input.user_ip=None
     assert "user_agent" in call["params"]
-    # fragment_size берётся из настроек (по умолчанию 500)
+    # fragment_size берётся из настроек
     assert call["params"]["fragment_size"] == 500
     # radius передаётся когда задан (25 в запросе)
     assert call["params"]["radius"] == 25
-    # Basic Auth
-    assert call["headers"]["Authorization"] == _expected_basic_auth("test-api-key-abc")
+    # Без Referer Careerjet отвечает 403 "Undeclared referrer".
+    assert call["headers"]["Referer"] == "http://localhost:8000/"
+    assert "Authorization" not in call["headers"]
 
     assert response.source_id == "careerjet"
     assert response.total_count == 87
@@ -88,21 +92,80 @@ def test_careerjet_adapter_maps_response_into_common_preview_contract() -> None:
     assert first.title == "Lagermitarbeiter (m/w/d)"
     assert first.company == "Logistik Nord GmbH"
     assert first.location == "München, Bayern"
-    assert first.posted_at == "Sun, 19 Apr 2026 09:00:00 GMT"
+    # RFC 2822 из ответа приводится к ISO — нормализатор умеет только ISO.
+    assert first.posted_at == "2026-04-19"
     assert first.detail_url == "https://jobviewtrack.com/v2/job-cj-de-1001"
     assert first.raw_payload["salary"] == "€2600"
 
 
-def test_careerjet_adapter_germany_locale_is_default() -> None:
-    """Germany/local mode searches Deutschland regardless of form location noise."""
+def test_careerjet_adapter_defaults_to_countrywide_when_no_location_given() -> None:
+    """Пустое поле локации означает "вся Германия", а не "искать где попало"."""
+    transport = GetFixtureTransport({"type": "JOBS", "hits": 0, "jobs": []})
+    adapter = CareerjetAdapter(settings=_ENABLED_SETTINGS, http_transport=transport)
+
+    adapter.search(SourceSearchInput(query="helfer", location=None))
+
+    params = transport.calls[0]["params"]
+    assert params["location"] == "Deutschland"
+    assert params["locale_code"] == "de_DE"
+
+
+def test_careerjet_adapter_keeps_german_index_for_a_foreign_location() -> None:
+    """locale_code остаётся de_DE, поэтому чужая локация даёт пусто, а не иностранные вакансии."""
     transport = GetFixtureTransport({"type": "JOBS", "hits": 0, "jobs": []})
     adapter = CareerjetAdapter(settings=_ENABLED_SETTINGS, http_transport=transport)
 
     adapter.search(SourceSearchInput(query="helfer", location="France"))
 
     params = transport.calls[0]["params"]
-    assert params["location"] == "Deutschland"
+    assert params["location"] == "France"
     assert params["locale_code"] == "de_DE"
+
+
+def test_careerjet_adapter_sends_radius_only_around_a_concrete_location() -> None:
+    """Радиус вокруг страны бессмыслен — его не отправляем."""
+    transport = GetFixtureTransport({"type": "JOBS", "hits": 0, "jobs": []})
+    adapter = CareerjetAdapter(settings=_ENABLED_SETTINGS, http_transport=transport)
+
+    adapter.search(SourceSearchInput(query="helfer", location=None, radius_km=25))
+
+    assert "radius" not in transport.calls[0]["params"]
+
+
+def test_careerjet_adapter_retries_countrywide_when_location_is_not_recognized() -> None:
+    """Нераспознанный город не должен превращаться в тихий ноль."""
+
+    class LocationsThenJobsTransport(GetFixtureTransport):
+        def get_json(self, url, *, params=None, headers=None, timeout_seconds=10.0) -> HttpJsonResponse:
+            self.calls.append({"url": url, "params": params or {}, "headers": headers or {}})
+            if (params or {}).get("location") != "Deutschland":
+                return HttpJsonResponse(url=url, status_code=200, payload={"type": "LOCATIONS", "message": "not found"})
+            return HttpJsonResponse(
+                url=url,
+                status_code=200,
+                payload={"type": "JOBS", "hits": 5, "jobs": [{"title": "T", "url": "https://example.org/x"}]},
+            )
+
+    transport = LocationsThenJobsTransport({})
+    adapter = CareerjetAdapter(settings=_ENABLED_SETTINGS, http_transport=transport)
+
+    response = adapter.search(SourceSearchInput(query="helfer", location="Неизвестноград", radius_km=25))
+
+    assert [call["params"]["location"] for call in transport.calls] == ["Неизвестноград", "Deutschland"]
+    assert len(response.records) == 1
+    assert any("не распознал локацию" in warning for warning in response.warnings)
+    # На повторе по стране радиус уже не нужен.
+    assert "radius" not in transport.calls[1]["params"]
+
+
+def test_careerjet_adapter_does_not_retry_when_countrywide_itself_returns_locations() -> None:
+    transport = GetFixtureTransport({"type": "LOCATIONS", "message": "ambiguous"})
+    adapter = CareerjetAdapter(settings=_ENABLED_SETTINGS, http_transport=transport)
+
+    response = adapter.search(SourceSearchInput(query="helfer", location="Deutschland"))
+
+    assert len(transport.calls) == 1
+    assert response.records == ()
 
 
 def test_careerjet_adapter_remote_worldwide_uses_remote_location() -> None:
@@ -113,6 +176,7 @@ def test_careerjet_adapter_remote_worldwide_uses_remote_location() -> None:
 
     params = transport.calls[0]["params"]
     assert params["location"] == "Remote"
+    assert params["locale_code"] == "en_GB"
 
 
 def test_careerjet_adapter_does_not_send_radius_when_not_provided() -> None:
@@ -219,3 +283,24 @@ def test_careerjet_adapter_external_id_is_deterministic_hash_of_url() -> None:
     response = adapter.search(SourceSearchInput(query="test"))
 
     assert response.records[0].external_id == expected
+
+
+def test_careerjet_adapter_raises_on_error_type_payload() -> None:
+    """Careerjet умеет отвечать 200 с телом {"type":"ERROR"} — это не пустая выдача."""
+    transport = GetFixtureTransport({"type": "ERROR", "error": "Undeclared referrer."})
+    adapter = CareerjetAdapter(settings=_ENABLED_SETTINGS, http_transport=transport)
+
+    with pytest.raises(AdapterRequestError) as exc_info:
+        adapter.search(SourceSearchInput(query="lager"))
+
+    assert "Undeclared referrer" in exc_info.value.message
+
+
+def test_careerjet_adapter_describe_is_ready_when_configured() -> None:
+    adapter = CareerjetAdapter(settings=_ENABLED_SETTINGS, http_transport=GetFixtureTransport({}))
+
+    descriptor = adapter.describe()
+
+    # Источник должен попадать в поиск: _resolve_source_ids отбрасывает status_kind="error".
+    assert descriptor.enabled is True
+    assert descriptor.status_kind == "success"

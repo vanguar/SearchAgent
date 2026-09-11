@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import base64
 import hashlib
 from collections.abc import Mapping
+from email.utils import parsedate_to_datetime
 from typing import Any
 
 from app.core.config import Settings
@@ -22,31 +22,32 @@ from app.services.source_adapters.models import (
     SourceSearchInput,
 )
 
-# User-Agent для обязательного параметра user_agent
-# (Careerjet требует UA конечного пользователя; у нас — локальное приложение)
+# User-Agent конечного пользователя для обязательного параметра user_agent.
 _DEFAULT_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/124.0.0.0 Safari/537.36"
 )
 
-# ВАЖНО: две разных концепции IP в Careerjet Publisher API:
+# У Careerjet два разных API, и различие принципиальное:
 #
-# 1. Авторизация (транспортный уровень): Careerjet сравнивает ИСХОДЯЩИЙ IP
-#    HTTP-запроса сервера с IP, зарегистрированным в publisher-аккаунте.
-#    Это не параметр запроса — это уровень TCP-соединения.
+# 1. v4 Publisher API (search.api.careerjet.net/v4/query) — Basic Auth по API-ключу,
+#    но фактическая авторизация идёт по ИСХОДЯЩЕМУ IP publisher-аккаунта. С локальной
+#    машины он стабильно отвечает 403 "Unauthorized access from IP <...>".
+# 2. Публичный partner-эндпоинт (public.api.careerjet.net/search) — авторизация по
+#    параметру affid плюс обязательный заголовок Referer. Работает с любого IP.
 #
-# 2. Параметр `user_ip` в запросе: IP конечного пользователя (браузера),
-#    НЕ IP сервера. Используется Careerjet для geo-targeting и GDPR.
-#    Careerjet требует этот параметр по документации API v4.
+# Адаптер использует (2): это единственный вариант, работающий в local-first режиме.
+# Эндпоинт доступен только по HTTP (443 закрыт), поэтому affid уходит открытым текстом —
+# это partner-идентификатор выдачи, а не ключ доступа к данным пользователя.
 #
-# Для локального приложения реальный IP браузера передаётся через
-# SourceSearchInput.user_ip (собирается в routes из Request.client).
-# Когда IP недоступен (например, при прямом server-side вызове без браузера),
-# используется "127.0.0.1" как явный, задокументированный безопасный fallback.
-# Это НЕ зарегистрированный outbound IP сервера — это честное обозначение
-# локального источника запроса.
+# Параметр `user_ip` — IP конечного пользователя (браузера); нужен Careerjet для
+# geo-targeting и GDPR, а НЕ для авторизации. Когда реального IP браузера нет,
+# используется явный локальный fallback.
 _LOCAL_FALLBACK_USER_IP = "127.0.0.1"
+
+# Значение location для поиска по всей стране (и запасной вариант, когда город не распознан).
+_COUNTRY_WIDE_LOCATION = "Deutschland"
 
 
 class CareerjetAdapter(BaseSourceAdapter):
@@ -66,8 +67,7 @@ class CareerjetAdapter(BaseSourceAdapter):
         return self.settings.source_careerjet_enabled
 
     def describe(self) -> SourceAdapterDescriptor:
-        enabled = self.is_enabled()
-        if not enabled:
+        if not self.is_enabled():
             return SourceAdapterDescriptor(
                 source_id=self.source_id,
                 display_name=self.display_name,
@@ -83,18 +83,14 @@ class CareerjetAdapter(BaseSourceAdapter):
                 enabled=True,
                 status_label="Не работает",
                 status_kind="error",
-                status_detail="Нет SOURCE_CAREERJET_API_KEY.",
+                status_detail="Нет SOURCE_CAREERJET_API_KEY (affiliate id).",
             )
         return SourceAdapterDescriptor(
             source_id=self.source_id,
             display_name=self.display_name,
             enabled=True,
-            status_label="Не работает",
-            status_kind="error",
-            status_detail=(
-                "Careerjet требует авторизованный outbound IP publisher-аккаунта; "
-                "в текущих запусках источник отвечает HTTP 403 Unauthorized access from IP."
-            ),
+            status_label="Готов",
+            status_kind="success",
         )
 
     def search(self, search_input: SourceSearchInput) -> AdapterSearchResponse:
@@ -105,66 +101,40 @@ class CareerjetAdapter(BaseSourceAdapter):
                 source_id=self.source_id,
                 source_name=self.display_name,
                 message=(
-                    "Careerjet требует API-ключ. "
-                    "Зарегистрируйтесь на https://www.careerjet.de/publisher/ "
+                    "Careerjet требует affiliate id. "
+                    "Зарегистрируйтесь на https://www.careerjet.de/partners/ "
                     "и задайте SOURCE_CAREERJET_API_KEY в .env."
                 ),
             )
 
-        params: dict[str, Any] = {
-            "keywords": search_input.query or None,
-            "location": "Remote" if search_input.search_mode == "remote_worldwide" else "Deutschland",
-            "locale_code": "de_DE",
-            "page": search_input.page,
-            "page_size": min(search_input.page_size, 100),
-            "sort": "date",
-            "fragment_size": self.settings.source_careerjet_fragment_size,
-            "user_agent": _DEFAULT_USER_AGENT,
-            # Required by Careerjet API v4 for geo-targeting (not for auth).
-            # Use the real end-user IP when available; fall back to local sentinel.
-            "user_ip": search_input.user_ip or _LOCAL_FALLBACK_USER_IP,
-        }
-        if search_input.radius_km is not None:
-            params["radius"] = search_input.radius_km
+        remote_mode = search_input.search_mode == "remote_worldwide"
+        requested_location = _resolve_location(search_input, remote_mode=remote_mode)
+        warnings_out: list[str] = []
 
-        # Basic Auth: base64(api_key + ":")
-        credentials = base64.b64encode(
-            f"{self.settings.source_careerjet_api_key}:".encode()
-        ).decode()
-        headers = {"Authorization": f"Basic {credentials}"}
+        payload = self._query(requested_location, search_input, remote_mode=remote_mode)
+        response_type = _to_text(payload.get("type"))
 
-        try:
-            http_response = self.http_transport.get_json(
-                self.settings.source_careerjet_base_url,
-                params=params,
-                headers=headers,
-                timeout_seconds=self.settings.source_adapter_timeout_seconds,
+        if response_type == "LOCATIONS" and not remote_mode and requested_location != _COUNTRY_WIDE_LOCATION:
+            # Careerjet не распознал локацию. Пустой ответ здесь неотличим от "ничего не
+            # нашлось", поэтому вместо тихого нуля повторяем поиск по всей Германии
+            # и говорим об этом явно.
+            warnings_out.append(
+                f"Careerjet не распознал локацию {requested_location!r} — "
+                "поиск выполнен по всей Германии."
             )
-        except HttpTransportError as exc:
-            status_hint = f" HTTP {exc.status_code}." if exc.status_code is not None else ""
+            payload = self._query(
+                _COUNTRY_WIDE_LOCATION, search_input, remote_mode=remote_mode, with_radius=False
+            )
+            response_type = _to_text(payload.get("type"))
+
+        if response_type == "ERROR":
+            # Careerjet умеет отвечать 200 с телом {"type":"ERROR","error":"..."}.
             raise AdapterRequestError(
                 source_id=self.source_id,
                 source_name=self.display_name,
-                message=f"Не удалось получить ответ от Careerjet.{status_hint} {exc.message}".strip(),
-            ) from exc
-        except HttpDecodeError as exc:
-            raise AdapterResponseError(
-                source_id=self.source_id,
-                source_name=self.display_name,
-                message=f"Careerjet вернул некорректный JSON: {exc.message}",
-            ) from exc
-
-        payload = http_response.payload
-        if not isinstance(payload, Mapping):
-            raise AdapterResponseError(
-                source_id=self.source_id,
-                source_name=self.display_name,
-                message="Careerjet ответ имеет неожиданный формат верхнего уровня.",
+                message=f"Careerjet отклонил запрос: {_to_text(payload.get('error')) or 'без деталей'}.",
             )
-
-        response_type = _to_text(payload.get("type"))
         if response_type == "LOCATIONS":
-            # API не нашёл локацию или нашёл несколько — возвращаем пустой ответ
             message = _to_text(payload.get("message")) or "location mode"
             return AdapterSearchResponse(
                 source_id=self.source_id,
@@ -174,7 +144,7 @@ class CareerjetAdapter(BaseSourceAdapter):
                 page=search_input.page,
                 page_size=search_input.page_size,
                 raw_payload=dict(payload),
-                warnings=(f"Careerjet: режим локации — {message}.",),
+                warnings=(*warnings_out, f"Careerjet: режим локации — {message}."),
             )
 
         raw_jobs = payload.get("jobs", [])
@@ -198,9 +168,9 @@ class CareerjetAdapter(BaseSourceAdapter):
                 continue
             records.append(record)
 
-        warnings: tuple[str, ...] = ()
         if skipped:
-            warnings = (f"Careerjet: пропущено {skipped} записей без стабильного ID.",)
+            warnings_out.append(f"Careerjet: пропущено {skipped} записей без стабильного ID.")
+        warnings = tuple(warnings_out)
 
         return AdapterSearchResponse(
             source_id=self.source_id,
@@ -213,13 +183,77 @@ class CareerjetAdapter(BaseSourceAdapter):
             warnings=warnings,
         )
 
+    def _query(
+        self,
+        location: str,
+        search_input: SourceSearchInput,
+        *,
+        remote_mode: bool,
+        with_radius: bool = True,
+    ) -> Mapping[str, Any]:
+        params: dict[str, Any] = {
+            "affid": self.settings.source_careerjet_api_key,
+            "keywords": search_input.query or None,
+            "location": location,
+            "locale_code": "en_GB" if remote_mode else "de_DE",
+            "page": search_input.page,
+            # Публичный эндпоинт ждёт `pagesize` (v4 использовал `page_size`).
+            "pagesize": min(search_input.page_size, 100),
+            "sort": "date",
+            "fragment_size": self.settings.source_careerjet_fragment_size,
+            "user_agent": _DEFAULT_USER_AGENT,
+            # Geo-targeting, не авторизация: реальный IP браузера, иначе локальный fallback.
+            "user_ip": search_input.user_ip or _LOCAL_FALLBACK_USER_IP,
+        }
+        # Радиус имеет смысл только вокруг конкретного города, не вокруг страны.
+        if with_radius and search_input.radius_km is not None and location != _COUNTRY_WIDE_LOCATION:
+            params["radius"] = search_input.radius_km
+
+        try:
+            http_response = self.http_transport.get_json(
+                self.settings.source_careerjet_base_url,
+                params=params,
+                # Без Referer Careerjet отвечает 403 "Undeclared referrer".
+                headers={"Referer": self.settings.source_careerjet_referer},
+                timeout_seconds=self.settings.source_adapter_timeout_seconds,
+            )
+        except HttpTransportError as exc:
+            status_hint = f" HTTP {exc.status_code}." if exc.status_code is not None else ""
+            raise AdapterRequestError(
+                source_id=self.source_id,
+                source_name=self.display_name,
+                message=f"Не удалось получить ответ от Careerjet.{status_hint} {exc.message}".strip(),
+            ) from exc
+        except HttpDecodeError as exc:
+            raise AdapterResponseError(
+                source_id=self.source_id,
+                source_name=self.display_name,
+                message=f"Careerjet вернул некорректный JSON: {exc.message}",
+            ) from exc
+
+        payload = http_response.payload
+        if not isinstance(payload, Mapping):
+            raise AdapterResponseError(
+                source_id=self.source_id,
+                source_name=self.display_name,
+                message="Careerjet ответ имеет неожиданный формат верхнего уровня.",
+            )
+        return payload
+
+
+def _resolve_location(search_input: SourceSearchInput, *, remote_mode: bool) -> str:
+    """Локация запроса. Пустое поле означает "вся Германия", а не "игнорировать поле"."""
+    if remote_mode:
+        return "Remote"
+    return (search_input.location or "").strip() or _COUNTRY_WIDE_LOCATION
+
 
 def _parse_record(
     source_id: str,
     source_name: str,
     raw_job: Mapping[str, Any],
 ) -> SourceRecordPreview | None:
-    # API v4 не возвращает поле id — используем хэш URL как стабильный внешний ID
+    # API не возвращает поле id — используем хэш URL как стабильный внешний ID
     url = _to_text(raw_job.get("url"))
     if not url:
         return None
@@ -234,10 +268,23 @@ def _parse_record(
         title=_to_text(raw_job.get("title")) or "Без названия",
         company=_to_text(raw_job.get("company")),
         location=_to_text(raw_job.get("locations")),
-        posted_at=_to_text(raw_job.get("date")),
+        posted_at=_format_posted_at(_to_text(raw_job.get("date"))),
         detail_url=url,
         raw_payload=dict(raw_job),
     )
+
+
+def _format_posted_at(raw: str | None) -> str | None:
+    """Careerjet отдаёт дату в RFC 2822 ("Fri, 11 Sep 2026 07:50:20 GMT").
+
+    Нормализатор понимает только ISO, поэтому приводим здесь — как это уже делает RSS-лейн.
+    """
+    if not raw:
+        return None
+    try:
+        return parsedate_to_datetime(raw).date().isoformat()
+    except (TypeError, ValueError):
+        return raw
 
 
 def _to_text(value: Any) -> str | None:
