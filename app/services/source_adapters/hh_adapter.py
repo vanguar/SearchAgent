@@ -47,7 +47,10 @@ class HHAdapter(BaseSourceAdapter):
             status_detail=(
                 "Официальный JSON API HH; страны резолвятся через /areas, Россия/Беларусь не включены."
                 if enabled
-                else "SOURCE_HH_ENABLED=false."
+                else (
+                    "SOURCE_HH_ENABLED=false. HH отвечает 403 forbidden на /vacancies со всех "
+                    "региональных хостов — нужен зарегистрированный HH-токен или разрешённый регион."
+                )
             ),
             global_remote=True,
         )
@@ -88,6 +91,7 @@ class HHAdapter(BaseSourceAdapter):
         raw_payloads: list[dict[str, Any]] = []
         total_count = 0
         page = max(0, search_input.page - 1)
+        forbidden_countries: list[str] = []
         for target in area_targets_by_name.values():
             try:
                 payload = self._get_json(
@@ -102,6 +106,7 @@ class HHAdapter(BaseSourceAdapter):
                 )
             except AdapterRequestError as exc:
                 if exc.status_code == 403 and exc.is_forbidden:
+                    forbidden_countries.append(target.country_name)
                     warnings.append(
                         f"HH: доступ к поиску вакансий для {target.country_name} на {target.base_url} "
                         "заблокирован API (HTTP 403 forbidden)."
@@ -129,6 +134,20 @@ class HHAdapter(BaseSourceAdapter):
                 record = _parse_record(self.source_id, self.display_name, raw_job, country_name=target.country_name)
                 if record is not None:
                     records_by_key[record.external_id] = record
+
+        # Когда заблокированы ВСЕ страны, пустой ответ неотличим от «ничего не нашлось».
+        # Это ошибка источника, и она должна быть видна как ошибка, а не как тихий ноль.
+        if forbidden_countries and not raw_payloads:
+            raise AdapterRequestError(
+                source_id=self.source_id,
+                source_name=self.display_name,
+                message=(
+                    "HH заблокировал поиск вакансий (HTTP 403) для всех настроенных стран: "
+                    f"{', '.join(forbidden_countries)}. Нужен зарегистрированный HH-приложение/токен "
+                    "либо доступ из разрешённого региона."
+                ),
+                status_code=403,
+            )
 
         return AdapterSearchResponse(
             source_id=self.source_id,
