@@ -1098,3 +1098,201 @@ def test_jobs_search_progress_done_shows_pdf_export_button() -> None:
     assert response.status_code == 200
     assert "Скачать всё в ПДФ" in response.text
     assert "/jobs/export/exportbtn" in response.text
+
+
+def test_jobs_export_json_returns_full_run_diagnostics() -> None:
+    app = create_app()
+    client = TestClient(app)
+    from app.web.routes.jobs import _register_task
+
+    task = _SearchTask(
+        task_id="exportjson",
+        profile_id=None,
+        search_input=SourceSearchInput(query="lager", location="Berlin", radius_km=25),
+        source_ids=("ba", "careerjet"),
+    )
+    task.mark_done(_build_result())
+    _register_task(task)
+
+    response = client.get("/jobs/export/exportjson.json")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/json")
+    # Имя файла содержит и задачу, и режим — чтобы не перепутать две выгрузки одного прогона.
+    assert "exportjson-diagnostics.json" in response.headers["content-disposition"]
+
+    payload = response.json()
+    assert payload["task_id"] == "exportjson"
+    # По умолчанию — компактный режим: полная выгрузка не помещается в окно модели.
+    assert payload["mode"] == "diagnostics"
+    # Параметры запроса и состав источников должны быть в выгрузке — иначе разбор вслепую.
+    assert payload["run"]["query_submitted"] == "lager"
+    assert payload["run"]["location"] == "Berlin"
+    assert payload["run"]["source_ids_requested"] == ["ba", "careerjet"]
+    assert payload["vacancies"]
+    assert {"bucket", "score", "score_hits", "signals"} <= set(payload["vacancies"][0])
+    assert "description_excerpt" not in payload["vacancies"][0]
+
+
+def test_jobs_export_json_is_not_swallowed_by_the_html_export_route() -> None:
+    """'.json' не должен попасть в сам task_id — иначе вернётся HTML-страница."""
+    app = create_app()
+    client = TestClient(app)
+    from app.web.routes.jobs import _register_task
+
+    task = _SearchTask(task_id="routeorder", profile_id=None)
+    task.mark_done(_build_result())
+    _register_task(task)
+
+    html_response = client.get("/jobs/export/routeorder")
+    json_response = client.get("/jobs/export/routeorder.json")
+
+    assert html_response.headers["content-type"].startswith("text/html")
+    assert json_response.headers["content-type"].startswith("application/json")
+
+
+def test_jobs_export_json_unknown_task_returns_404() -> None:
+    app = create_app()
+    client = TestClient(app)
+
+    response = client.get("/jobs/export/does-not-exist.json")
+
+    assert response.status_code == 404
+    assert "не найден" in response.json()["error"]
+
+
+def test_jobs_export_json_refuses_unfinished_task() -> None:
+    app = create_app()
+    client = TestClient(app)
+    from app.web.routes.jobs import _register_task
+
+    task = _SearchTask(task_id="stillrunning", profile_id=None)  # status="running"
+    _register_task(task)
+
+    response = client.get("/jobs/export/stillrunning.json")
+
+    assert response.status_code == 404
+
+
+def test_jobs_search_progress_done_shows_json_export_button() -> None:
+    app = create_app()
+    client = TestClient(app)
+    from app.web.routes.jobs import _register_task
+
+    task = _SearchTask(task_id="jsonbtn", profile_id=None)
+    task.mark_done(_build_result())
+    _register_task(task)
+
+    response = client.get("/jobs/search/progress/jsonbtn")
+
+    assert response.status_code == 200
+    assert "JSON для анализа" in response.text
+    assert "/jobs/export/jsonbtn.json" in response.text
+
+
+def test_jobs_export_json_full_mode_includes_vacancy_texts() -> None:
+    app = create_app()
+    client = TestClient(app)
+    from app.web.routes.jobs import _register_task
+
+    task = _SearchTask(task_id="exportfull", profile_id=None)
+    task.mark_done(_build_result())
+    _register_task(task)
+
+    response = client.get("/jobs/export/exportfull.json?mode=full")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["mode"] == "full"
+    assert "description_excerpt" in payload["vacancies"][0]
+    assert "full.json" in response.headers["content-disposition"]
+
+
+def test_jobs_export_json_rejects_an_unknown_mode() -> None:
+    app = create_app()
+    client = TestClient(app)
+    from app.web.routes.jobs import _register_task
+
+    task = _SearchTask(task_id="exportbadmode", profile_id=None)
+    task.mark_done(_build_result())
+    _register_task(task)
+
+    response = client.get("/jobs/export/exportbadmode.json?mode=whatever")
+
+    assert response.status_code == 400
+    assert "Неизвестный режим" in response.json()["error"]
+
+
+def test_jobs_export_json_diagnostics_is_much_smaller_than_full() -> None:
+    app = create_app()
+    client = TestClient(app)
+    from app.web.routes.jobs import _register_task
+
+    task = _SearchTask(task_id="exportsize", profile_id=None)
+    task.mark_done(_build_result())
+    _register_task(task)
+
+    small = client.get("/jobs/export/exportsize.json")
+    large = client.get("/jobs/export/exportsize.json?mode=full")
+
+    assert len(small.content) < len(large.content)
+
+
+def test_jobs_search_progress_done_shows_both_json_export_buttons() -> None:
+    app = create_app()
+    client = TestClient(app)
+    from app.web.routes.jobs import _register_task
+
+    task = _SearchTask(task_id="jsonbtns", profile_id=None)
+    task.mark_done(_build_result())
+    _register_task(task)
+
+    response = client.get("/jobs/search/progress/jsonbtns")
+
+    assert "/jobs/export/jsonbtns.json" in response.text
+    assert "/jobs/export/jsonbtns.json?mode=full" in response.text
+
+
+def test_jobs_pdf_export_omits_hard_filtered_vacancies() -> None:
+    """Отклонённые вакансии соискателю не нужны: ПДФ — это то, на что откликаться.
+
+    На реальном прогоне отсев давал 133 записи и раздувал отчёт до 11 страниц, причём
+    заголовок секции оставался на первой странице, а дальше шли чужие вакансии без
+    контекста. Разбор отсева целиком есть в JSON-выгрузке.
+    """
+    import dataclasses
+
+    from app.services.search_models import HiddenFilteredItem
+
+    result = dataclasses.replace(
+        _build_result(),
+        hidden_filtered_items=tuple(
+            HiddenFilteredItem(
+                canonical_key=f"hidden-{index}",
+                title="Senior Python Engineer",
+                company_name="Unitelabs",
+                location_text="München",
+                source_name="Arbeitnow",
+                original_url="https://example.org/hidden",
+                rejection_reasons=(
+                    RuleHit(code="profession_family_mismatch", label_ru="область не совпадает"),
+                ),
+            )
+            for index in range(133)
+        ),
+    )
+
+    app = create_app()
+    client = TestClient(app)
+    from app.web.routes.jobs import _register_task
+
+    task = _SearchTask(task_id="pdfhidden", profile_id=None)
+    task.mark_done(result)
+    _register_task(task)
+
+    response = client.get("/jobs/export/pdfhidden")
+
+    assert response.status_code == 200
+    assert "Senior Python Engineer" not in response.text
+    # Но сам факт отсева остаётся видимым — одной строкой.
+    assert "Отсеяно жёсткими фильтрами: 133" in response.text

@@ -6,7 +6,7 @@ import uuid
 from collections.abc import Mapping
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData
@@ -17,6 +17,12 @@ from app.core.time import utc_now
 from app.db.session import get_db
 from app.services.profile_catalog_service import ProfileCatalogService
 from app.services.relevance_memory_service import ProfileFeedbackMemory, RelevanceMemoryService
+from app.services.search_export_service import (
+    EXPORT_MODE_DIAGNOSTICS,
+    EXPORT_MODES,
+    build_export_filename,
+    build_search_export,
+)
 from app.services.search_history_service import SearchHistoryService
 from app.services.search_models import SearchRunResult
 from app.services.search_normalizer import (
@@ -44,9 +50,19 @@ RUSSIAN_LANGUAGE_SOURCE_IDS = frozenset({"hh", "dou_rss", "djinni_rss"})
 class _SearchTask:
     """Состояние фоновой задачи поиска. Thread-safe через Lock."""
 
-    def __init__(self, task_id: str, profile_id: int | None) -> None:
+    def __init__(
+        self,
+        task_id: str,
+        profile_id: int | None,
+        *,
+        search_input: SourceSearchInput | None = None,
+        source_ids: tuple[str, ...] = (),
+    ) -> None:
         self.task_id = task_id
         self.profile_id = profile_id
+        # Хранятся только ради диагностической JSON-выгрузки — сам поиск их не перечитывает.
+        self.search_input = search_input
+        self.source_ids = source_ids
         self.status = "running"    # "running" | "stopping" | "done" | "error"
         self.phase_code = "attempt"   # "attempt" | "fetch" | "postprocess"
         self.phase_label = "Подготовка поиска"
@@ -121,6 +137,8 @@ class _SearchTask:
             return {
                 "task_id": self.task_id,
                 "profile_id": self.profile_id,
+                "search_input": self.search_input,
+                "source_ids": self.source_ids,
                 "status": self.status,
                 "phase_code": self.phase_code,
                 "phase_label": self.phase_label,
@@ -539,7 +557,12 @@ async def jobs_search_start(
     # Pre-build feedback memory synchronously (pure data object — safe for background thread)
     feedback_memory = _build_feedback_memory(db, profile_id)
 
-    task = _SearchTask(task_id=uuid.uuid4().hex[:8], profile_id=profile_id)
+    task = _SearchTask(
+        task_id=uuid.uuid4().hex[:8],
+        profile_id=profile_id,
+        search_input=search_input,
+        source_ids=tuple(source_ids),
+    )
     _register_task(task)
 
     def _run_in_background() -> None:
@@ -588,6 +611,45 @@ def jobs_search_progress(
         return _render_results(request, None, snap["profile_id"], form_error=snap["error_message"])
 
     return _render_progress(request, task)
+
+
+@router.get("/jobs/export/{task_id}.json")
+def jobs_export_json(task_id: str, mode: str = EXPORT_MODE_DIAGNOSTICS) -> Response:
+    """JSON-выгрузка завершённого поиска — для анализа выдачи.
+
+    По умолчанию компактный диагностический режим: полная выгрузка на реальном прогоне
+    весит ~112k токенов и в окно модели уже не помещается. `?mode=full` — со всеми текстами.
+
+    Объявлен ДО "/jobs/export/{task_id}": иначе ".json" попал бы в сам task_id.
+    """
+    if mode not in EXPORT_MODES:
+        return JSONResponse(
+            status_code=400,
+            content={"error": f"Неизвестный режим {mode!r}. Допустимы: {', '.join(EXPORT_MODES)}."},
+        )
+
+    task = _get_task(task_id)
+    snap = task.snapshot() if task is not None else None
+    if snap is None or snap["status"] != "done" or snap["result"] is None:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Завершённый поиск с таким task_id не найден."},
+        )
+
+    generated_at = utc_now()
+    payload = build_search_export(
+        snap["result"],
+        task_id=task_id,
+        generated_at=generated_at,
+        search_input=snap["search_input"],
+        source_ids_requested=snap["source_ids"],
+        mode=mode,
+    )
+    filename = build_export_filename(task_id, generated_at, mode=mode)
+    return JSONResponse(
+        content=payload,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/jobs/export/{task_id}", response_class=HTMLResponse)

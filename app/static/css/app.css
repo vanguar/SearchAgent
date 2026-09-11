@@ -873,6 +873,13 @@ body {
   flex-wrap: wrap;
 }
 
+.jobs-export-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .jobs-export-btn {
   white-space: nowrap;
   text-decoration: none;

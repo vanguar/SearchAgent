@@ -199,12 +199,26 @@
   <div class="jobs-summary-header">
     <h3>Сводка поиска</h3>
     {% if export_task_id %}
-    <a
-      class="ghost-btn jobs-export-btn"
-      href="/jobs/export/{{ export_task_id }}"
-      target="_blank"
-      rel="noopener noreferrer"
-    >⬇ Скачать всё в ПДФ</a>
+    {# Одна flex-группа: иначе space-between у .jobs-summary-header развёл бы кнопки
+       по разным краям и первая повисла бы посреди строки. #}
+    <div class="jobs-export-actions">
+      <a
+        class="ghost-btn jobs-export-btn"
+        href="/jobs/export/{{ export_task_id }}"
+        target="_blank"
+        rel="noopener noreferrer"
+      >⬇ Скачать всё в ПДФ</a>
+      <a
+        class="ghost-btn jobs-export-btn"
+        href="/jobs/export/{{ export_task_id }}.json"
+        title="Компактный разбор прогона: запросы, попытки, правила и причины отсева — для анализа нейросетью"
+      >⬇ JSON для анализа</a>
+      <a
+        class="ghost-btn jobs-export-btn"
+        href="/jobs/export/{{ export_task_id }}.json?mode=full"
+        title="То же плюс тексты вакансий и русские резюме — файл в разы больше"
+      >⬇ JSON полный</a>
+    </div>
     {% endif %}
   </div>
   <p>
@@ -380,6 +394,34 @@
   {{ render_bucket("Можно проверить", search_result.maybe_results, profile_id) }}
 {% endif %}
 
+
+{% if export_task_id %}
+{# Повтор выгрузки внизу: панель «Сводка поиска» остаётся над списком вакансий, и на
+   длинной выдаче кнопки уезжают за экран прежде, чем человек дочитает карточки. #}
+<article class="panel jobs-export-panel">
+  <div class="jobs-summary-header">
+    <h3>Скачать эту выдачу</h3>
+    <div class="jobs-export-actions">
+      <a
+        class="ghost-btn jobs-export-btn"
+        href="/jobs/export/{{ export_task_id }}"
+        target="_blank"
+        rel="noopener noreferrer"
+      >⬇ Скачать всё в ПДФ</a>
+      <a
+        class="ghost-btn jobs-export-btn"
+        href="/jobs/export/{{ export_task_id }}.json"
+        title="Компактный разбор прогона: запросы, попытки, правила и причины отсева — для анализа нейросетью"
+      >⬇ JSON для анализа</a>
+      <a
+        class="ghost-btn jobs-export-btn"
+        href="/jobs/export/{{ export_task_id }}.json?mode=full"
+        title="То же плюс тексты вакансий и русские резюме — файл в разы больше"
+      >⬇ JSON полный</a>
+    </div>
+  </div>
+</article>
+{% endif %}
 
 {% if not search_result.has_results %}
 <article class="panel">

@@ -153,20 +153,16 @@
       {% for item in search_result.maybe_results %}{{ render_vacancy(item) }}{% endfor %}
     {% endif %}
 
+    {# Отклонённые вакансии в ПДФ намеренно не выводятся. Это отчёт о том, на что
+       откликаться, а отсев — материал для разбора, и он целиком есть в JSON-выгрузке
+       (/jobs/export/<task_id>.json, блок hidden_filtered). На реальном прогоне отсев
+       давал 133 записи из 11 страниц: заголовок секции уезжал на первую страницу, и
+       дальше шли страницы чужих вакансий без всякого контекста. #}
     {% if search_result.hidden_filtered_items %}
-    <h2 class="section-title">Скрыто жёсткими фильтрами ({{ search_result.hidden_filtered_items|length }})</h2>
-    {% for hidden in search_result.hidden_filtered_items %}
-    <div class="hidden-row">
-      <b>{{ hidden.title }}</b>
-      {% if hidden.company_name %} · {{ hidden.company_name }}{% endif %}
-      {% if hidden.location_text %} · {{ hidden.location_text }}{% endif %}
-      {% if hidden.source_name %} · Источник: {{ hidden.source_name }}{% endif %}
-      {% if hidden.rejection_reasons %}
-        <br /><span class="muted">Причина: {{ hidden.rejection_reasons|map(attribute="label_ru")|join(", ") }}</span>
-      {% endif %}
-      {% if hidden.original_url %}<br /><span class="vacancy__link"><a href="{{ hidden.original_url }}">{{ hidden.original_url }}</a></span>{% endif %}
-    </div>
-    {% endfor %}
+    <p class="muted">
+      Отсеяно жёсткими фильтрами: {{ search_result.hidden_filtered_items|length }}.
+      Список с причинами — в JSON-выгрузке этого поиска.
+    </p>
     {% endif %}
 
     <script>
