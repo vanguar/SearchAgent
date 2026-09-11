@@ -9,6 +9,10 @@ Acceptance tests covering:
 """
 from __future__ import annotations
 
+from datetime import timedelta
+
+from app.core.time import utc_now
+
 import itertools
 from collections.abc import Generator
 from unittest.mock import MagicMock
@@ -58,7 +62,9 @@ def _source_record(
         title=title,
         company=company,
         location=location,
-        posted_at="2026-04-15",
+        # Относительная дата: абсолютная со временем «протухает» и роняет тест
+        # на свежести объявления, а проверяем мы здесь не её.
+        posted_at=(utc_now().date() - timedelta(days=2)).isoformat(),
         detail_url=f"https://example.org/jobs/{external_id}",
         raw_payload={"description": description},
     )

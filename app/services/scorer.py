@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import re
+from datetime import date
 
+from app.core.time import utc_now
 from app.services.ai_tools_profile import (
     build_ai_tools_match_text,
     build_ai_tools_title_text,
@@ -16,6 +18,7 @@ from app.services.profile_parser import (
     DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
 )
 from app.services.rule_catalog import BASE_SCORE, inspect_vacancy
+from app.services.vacancy_quality_signals import quality_differentiator_hits
 from app.services.search_models import (
     FilterResult,
     RuleHit,
@@ -208,6 +211,7 @@ class VacancyScorer:
         filter_result: FilterResult | None = None,
         feedback_adjustment: int | None = None,
         search_mode: str | None = None,
+        today: date | None = None,
     ) -> ScoreResult:
         resolved_signals = signals or inspect_vacancy(canonical, profile)
         resolved_filter = filter_result or self.filter_engine.evaluate(
@@ -438,6 +442,21 @@ class VacancyScorer:
         if title_penalties:
             score += sum(hit.weight for hit in title_penalties)
             negative_hits.extend(title_penalties)
+
+        # Различение ВНУТРИ категории. Всё выше отвечает на вопрос «подходит ли роль»,
+        # и для профиля, чья категория совпадает с вакансией, даёт всем одинаковый балл.
+        # Эти признаки меняются от вакансии к вакансии: свежесть, оплата, тип договора.
+        differentiator_hits = quality_differentiator_hits(
+            posted_date=canonical.posted_date,
+            vacancy_text=resolved_signals.combined_text,
+            today=today or utc_now().date(),
+        )
+        for hit in differentiator_hits:
+            score += hit.weight
+            if hit.weight >= 0:
+                positive_hits.append(hit)
+            else:
+                negative_hits.append(hit)
 
         # Bounded feedback adjustment — applied before hard reject cap.
         # Cannot override hard reject: cap below still enforces the deterministic ceiling.

@@ -1,3 +1,5 @@
+from datetime import date
+
 from app.services.filter_engine import FilterEngine
 from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.normalizer import VacancyNormalizer
@@ -28,6 +30,12 @@ def _build_profile(**overrides: object) -> SearchProfileContext:
     }
     payload.update(overrides)
     return SearchProfileContext(**payload)
+
+
+# Фикстуры опубликованы 2026-04-16. Дата прогона выбрана так, чтобы возраст объявления
+# попал в НЕЙТРАЛЬНУЮ полосу свежести (4-14 дней) и вносил в балл ровно ноль: эти тесты
+# сравнивают роли и стек технологий, а не возраст вакансии.
+FIXTURE_TODAY = date(2026, 4, 24)
 
 
 def _build_canonical(*, title: str, body: str) -> CanonicalVacancyGroup:
@@ -158,11 +166,24 @@ def test_scorer_makes_no_german_basic_german_and_ukrainian_welcome_top_prioritie
         result = scorer.score(canonical, profile, signals=signals, filter_result=filter_result)
         return result.score, {hit.code for hit in result.positive_hits}
 
-    unspecified_score, unspecified_codes = score("Allgemeine Hilfstätigkeiten.")
-    basic_score, basic_codes = score("Deutschkenntnisse A1 ausreichend.")
-    no_german_score, no_german_codes = score("Deutschkenntnisse nicht erforderlich.")
+    # Описание должно быть достаточно длинным: утверждать «немецкий не указан» можно
+    # только по реальному тексту, а не по его отсутствию.
+    unspecified_score, unspecified_codes = score(
+        "Allgemeine Hilfstätigkeiten in der Halle. Wir bieten geregelte Arbeitszeiten, "
+        "puenktliche Bezahlung und eine bezahlte Einarbeitung durch erfahrene Kollegen. "
+        "Der Einstieg ist kurzfristig moeglich."
+    )
+    basic_score, basic_codes = score(
+        "Deutschkenntnisse A1 ausreichend. Wir bieten geregelte Arbeitszeiten, puenktliche "
+        "Bezahlung und eine bezahlte Einarbeitung. Der Einstieg ist kurzfristig moeglich."
+    )
+    no_german_score, no_german_codes = score(
+        "Deutschkenntnisse nicht erforderlich. Wir bieten geregelte Arbeitszeiten, puenktliche "
+        "Bezahlung und eine bezahlte Einarbeitung. Der Einstieg ist kurzfristig moeglich."
+    )
     ukrainian_score, ukrainian_codes = score(
-        "Deutschkenntnisse nicht erforderlich. Ukrainische Bewerber sind ausdrücklich willkommen."
+        "Deutschkenntnisse nicht erforderlich. Ukrainische Bewerber sind ausdrücklich willkommen. "
+        "Wir bieten geregelte Arbeitszeiten, puenktliche Bezahlung und eine bezahlte Einarbeitung."
     )
 
     assert "no_mandatory_german_mentioned" in unspecified_codes
@@ -250,7 +271,9 @@ def _score_it(title: str, body: str) -> tuple[int, str, set[str], set[str]]:
     profile = _build_it_profile()
     canonical = _build_canonical(title=title, body=body)
     filter_result = filter_engine.evaluate(canonical, profile)
-    score_result = scorer.score(canonical, profile, filter_result=filter_result)
+    # Явная дата прогона: иначе тест зависит от реальных часов и со временем
+    # начинает измерять возраст фикстуры вместо стека технологий.
+    score_result = scorer.score(canonical, profile, filter_result=filter_result, today=FIXTURE_TODAY)
     bucket = _assign_bucket(filter_result=filter_result, score=score_result.score)
     return (
         score_result.score,
@@ -379,7 +402,9 @@ def _score_driver_b(
     profile = _build_driver_b_profile()
     canonical = _build_canonical(title=title, body=body)
     filter_result = filter_engine.evaluate(canonical, profile)
-    score_result = scorer.score(canonical, profile, filter_result=filter_result)
+    # Явная дата прогона: иначе тест зависит от реальных часов и со временем
+    # начинает измерять возраст фикстуры вместо стека технологий.
+    score_result = scorer.score(canonical, profile, filter_result=filter_result, today=FIXTURE_TODAY)
     return (
         score_result.score,
         _assign_bucket(filter_result=filter_result, score=score_result.score),
