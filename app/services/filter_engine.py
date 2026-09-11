@@ -269,7 +269,7 @@ def _heavy_vehicle_mismatch_hit(
     signals: VacancySignalSnapshot,
     profile: SearchProfileContext,
 ) -> RuleHit | None:
-    if not _is_b_only_driving_profile(profile):
+    if not is_b_only_driving_profile(profile):
         return None
 
     detected = signals.heavy_vehicle_signals or signals.heavy_driver_qualification_signals
@@ -288,7 +288,12 @@ def _heavy_vehicle_mismatch_hit(
     )
 
 
-def _is_b_only_driving_profile(profile: SearchProfileContext) -> bool:
+def is_b_only_driving_profile(profile: SearchProfileContext) -> bool:
+    """Профиль водителя, ограниченный категорией B (до 3,5 т).
+
+    Публичная: тем же признаком поиск отсекает тяжёлые ключевики ДО отправки запроса,
+    чтобы не скачивать то, что этот же фильтр потом всё равно отклонит.
+    """
     if set(extract_profile_driver_license_categories(profile.driver_license)) != {"B"}:
         return False
     if _is_driver_b_fernverkehr_profile(profile):

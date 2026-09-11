@@ -70,6 +70,9 @@ FAMILY_SYNONYMS: dict[RoleFamily, tuple[str, ...]] = {
         "warehouse associate", "warehouse worker", "picker",
     ),
     RoleFamily.DRIVING: (
+        # Лёгкий транспорт (до 3,5 т) и тяжёлый перемешаны намеренно: порядок попыток
+        # сохраняется как был. Для профиля с категорией B тяжёлая часть отсекается
+        # через HEAVY_VEHICLE_KEYWORDS — см. drop_heavy_vehicle_keywords.
         "fahrer", "kurier", "zusteller", "lieferfahrer", "kraftfahrer", "berufskraftfahrer",
         "auslieferungsfahrer", "paketzusteller", "lkw-fahrer", "delivery driver", "truck driver",
     ),
@@ -85,6 +88,34 @@ FAMILY_SYNONYMS: dict[RoleFamily, tuple[str, ...]] = {
         "helfer", "aushilfe", "hilfskraft", "produktionshelfer", "lagerhelfer",
     ),
 }
+
+# Ключевики, обозначающие работу на тяжёлом транспорте (C/CE, от 7,5 т, дальнобой).
+# Профилю с категорией B они дают только отказы: живой прогон по профилю «Доставка/Курьер»
+# показал, что berufskraftfahrer / lkw-fahrer / truck driver вернули 78 вакансий и 0 hot —
+# всё срезал heavy_vehicle_mismatch уже ПОСЛЕ скачивания. Отсекаем их до запроса.
+HEAVY_VEHICLE_KEYWORDS: frozenset[str] = frozenset({
+    "kraftfahrer",
+    "berufskraftfahrer",
+    "fernfahrer",
+    "lkw-fahrer",
+    "lkw fahrer",
+    "lkwfahrer",
+    "truck driver",
+    "hgv driver",
+})
+
+
+def drop_heavy_vehicle_keywords(candidates: tuple[str, ...]) -> tuple[str, ...]:
+    """Убирает ключевики тяжёлого транспорта из автоматически расширенного списка.
+
+    Применяется ТОЛЬКО к синонимам, которые подобрала сама система. Термины, явно
+    записанные пользователем в профиль, не трогаются — это его осознанный выбор.
+    """
+    return tuple(
+        keyword for keyword in candidates
+        if keyword.strip().casefold() not in HEAVY_VEHICLE_KEYWORDS
+    )
+
 
 # Per-ROLE alternative job titles (German + English), keyed by the German primary keyword
 # used in ROLE_INTENT_MAP (RoleIntent.primary_de). Unlike FAMILY_SYNONYMS this is safe for
@@ -170,6 +201,7 @@ def get_fallback_keywords(
     role: str | None,
     low_language: bool,
     query_family: RoleFamily | None = None,
+    light_vehicle_only: bool = False,
 ) -> tuple[str, ...]:
     """Return ordered fallback keywords for a role, excluding the primary query.
 
@@ -205,6 +237,9 @@ def get_fallback_keywords(
     if broad_fallback_allowed:
         combined = combined + LOW_LANGUAGE_FALLBACK
 
+    if light_vehicle_only:
+        combined = drop_heavy_vehicle_keywords(combined)
+
     return _finalize_fallback_keywords(combined, primary_query=primary_query)
 
 
@@ -213,6 +248,7 @@ def get_intent_fallback_keywords(
     intent: RoleIntent,
     primary_query: str,
     low_language: bool,
+    light_vehicle_only: bool = False,
 ) -> tuple[str, ...]:
     """Return ordered fallback keywords for a known RoleIntent, excluding primary_query."""
     # Role-specific synonyms first (most relevant), then same-family alternative titles.
@@ -223,6 +259,8 @@ def get_intent_fallback_keywords(
     )
     if low_language and not prohibits_broad_fallback(intent.family):
         combined = combined + LOW_LANGUAGE_FALLBACK
+    if light_vehicle_only:
+        combined = drop_heavy_vehicle_keywords(combined)
     return _finalize_fallback_keywords(combined, primary_query=primary_query)
 
 
@@ -232,6 +270,7 @@ def get_profile_fallback_keywords(
     family: RoleFamily,
     role_primary_de: str = "",
     broaden: bool,
+    light_vehicle_only: bool = False,
 ) -> tuple[str, ...]:
     """Fallback keywords for a saved multi-term profile, excluding the primary term.
 
@@ -241,26 +280,52 @@ def get_profile_fallback_keywords(
     """
     if not profile_terms:
         return ()
-    base = tuple(profile_terms[1:])
-    if broaden:
-        combined = (
-            base
-            + ROLE_SYNONYMS_DE.get(role_primary_de.strip().lower(), ())
-            + FAMILY_SYNONYMS.get(family, ())
-        )
-    else:
-        combined = base
-    return _finalize_fallback_keywords(combined, primary_query=profile_terms[0])
+    primary = profile_terms[0]
+
+    # Явные термины профиля — это план, заданный пользователем: они НЕ обрезаются лимитом.
+    # Лимит существует, чтобы ограничить автоподбор синонимов, а не чтобы выкидывать то,
+    # что человек сам записал в профиль.
+    explicit = _finalize_fallback_keywords(
+        tuple(profile_terms[1:]), primary_query=primary, limit=None
+    )
+    if not broaden:
+        return explicit
+
+    broadened = (
+        ROLE_SYNONYMS_DE.get(role_primary_de.strip().lower(), ())
+        + FAMILY_SYNONYMS.get(family, ())
+    )
+    if light_vehicle_only:
+        # Режем только автоподбор: явные термины профиля — осознанный выбор пользователя.
+        broadened = drop_heavy_vehicle_keywords(broadened)
+
+    remaining = _MAX_FALLBACK_KEYWORDS - len(explicit)
+    if remaining <= 0:
+        return explicit
+    extra = _finalize_fallback_keywords(
+        broadened, primary_query=primary, limit=remaining, already_seen=explicit
+    )
+    return explicit + extra
 
 
-def _finalize_fallback_keywords(candidates: tuple[str, ...], *, primary_query: str) -> tuple[str, ...]:
+def _finalize_fallback_keywords(
+    candidates: tuple[str, ...],
+    *,
+    primary_query: str,
+    limit: int | None = _MAX_FALLBACK_KEYWORDS,
+    already_seen: tuple[str, ...] = (),
+) -> tuple[str, ...]:
     """Drop the primary query, dedupe, and cap the number of attempts.
 
     Dedup and primary exclusion are CASE-INSENSITIVE: job-board APIs are case-insensitive,
     so e.g. a profile term "Lagermitarbeiter" and a pool term "lagermitarbeiter" are the same
     query — keeping both wastes a fetch round and a cap slot. First-seen casing is preserved.
+
+    `limit=None` disables the cap (used for explicit profile terms, which are a user-defined
+    plan rather than generated synonyms). `already_seen` lets a second call continue the
+    dedup of an earlier one instead of re-emitting its keywords.
     """
-    seen: set[str] = set()
+    seen: set[str] = {keyword.strip().casefold() for keyword in already_seen}
     primary_norm = primary_query.strip().casefold()
     result: list[str] = []
     for keyword in candidates:
@@ -269,7 +334,7 @@ def _finalize_fallback_keywords(candidates: tuple[str, ...], *, primary_query: s
             continue
         seen.add(normalized)
         result.append(keyword)
-        if len(result) >= _MAX_FALLBACK_KEYWORDS:
+        if limit is not None and len(result) >= limit:
             break
     return tuple(result)
 

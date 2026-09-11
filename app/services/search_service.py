@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 from app.core.logging import logger
 from app.services.ai_tools_profile import AI_TOOLS_WESTERN_QUERY_TRANSLATIONS
-from app.services.filter_engine import FilterEngine
+from app.services.filter_engine import FilterEngine, is_b_only_driving_profile
 from app.services.hashers import normalize_text_for_fingerprint
 from app.services.match_explainer import MatchExplainer
 from app.services.normalization_models import CanonicalVacancyGroup, NormalizedVacancyRecord
@@ -279,13 +279,29 @@ class SearchService:
             german_level=resolved_profile.german_level,
             english_level=resolved_profile.english_level,
         )
+        # Профиль с категорией B: тяжёлые ключевики отсекаем ДО сети — тот же самый признак
+        # используется жёстким фильтром, который иначе отклонит эти вакансии после скачивания.
+        light_vehicle_only = is_b_only_driving_profile(resolved_profile)
 
         profile_terms = _resolve_profile_search_terms(
             resolved_profile,
             source_ids=resolved_source_ids,
         )
         if profile_terms:
-            effective_primary_query = profile_terms[0]
+            # What the user typed is an explicit instruction and runs FIRST; the profile's
+            # own search plan then runs in full as the following stages. When the field was
+            # prefilled from the profile both agree and dedup collapses them, so the plan is
+            # unchanged — the typed query only ever adds a stage, it never drops one.
+            effective_primary_query = _effective_query_for_profile_run(
+                submitted_query=primary_query,
+                profile_terms=profile_terms,
+                preserve_raw_terms=(
+                    _uses_only_russian_language_sources(resolved_source_ids)
+                    # Worldwide-источники (Remotive, RemoteJobs, Arbeitnow) — англоязычные:
+                    # немецкий перевод там обнуляет выдачу, см. _effective_query_for_profile_run.
+                    or search_input.search_mode == "remote_worldwide"
+                ),
+            )
             # Family from the role intent (handles already-German terms like "lager", which
             # classify_query_ru — Russian-only — would mislabel as GENERIC).
             primary_intent = normalize_role_intent(effective_primary_query)
@@ -297,13 +313,14 @@ class SearchService:
             # Broaden with same-family alternative titles for German/western sources only;
             # Russian-only source runs keep the raw profile terms.
             fallback_keywords = get_profile_fallback_keywords(
-                profile_terms=profile_terms,
+                profile_terms=(effective_primary_query, *profile_terms),
                 family=query_family,
                 role_primary_de=primary_intent.primary_de if primary_intent is not None else "",
                 broaden=(
                     is_specific_family(query_family)
                     and not _uses_only_russian_language_sources(resolved_source_ids)
                 ),
+                light_vehicle_only=light_vehicle_only,
             )
         else:
             intent = normalize_role_intent(primary_query)
@@ -314,6 +331,7 @@ class SearchService:
                     intent=intent,
                     primary_query=effective_primary_query,
                     low_language=low_language,
+                    light_vehicle_only=light_vehicle_only,
                 )
             else:
                 effective_primary_query = primary_query
@@ -322,6 +340,7 @@ class SearchService:
                     primary_query=primary_query,
                     role=primary_role,
                     low_language=low_language,
+                    light_vehicle_only=light_vehicle_only,
                 )
 
         def _run(query: str) -> SearchRunResult:
@@ -967,6 +986,49 @@ def _log_attempt_result(
         record.rejection_reason_counts,
         record.reason_continued,
     )
+
+
+def _effective_query_for_profile_run(
+    *,
+    submitted_query: str,
+    profile_terms: tuple[str, ...],
+    preserve_raw_terms: bool,
+) -> str:
+    """Primary query for a run that also has a saved profile plan.
+
+    The submitted query wins — it is the one thing the user stated for THIS run.
+
+    Two cases, and the difference matters a lot:
+
+    1. The query just repeats one of the profile's own terms (the normal case — the form is
+       prefilled from the profile). It is then kept verbatim as that term, so it collapses
+       in dedup instead of adding a near-duplicate stage.
+    2. The query is something else. It is translated to German exactly like a query with no
+       profile at all, because German sources answer German titles: on live APIs
+       "warehouse worker" returns 50 hits against 13071 for "lagermitarbeiter", and
+       "cleaner" 270 against 5707 for "reinigungskraft".
+
+    `preserve_raw_terms` turns that translation off for runs whose sources are not German:
+    Russian-only lanes, and worldwide remote lanes, which are English — "python developer"
+    returns 20 vacancies on RemoteJobs.org and 8 on Arbeitnow where "softwareentwickler"
+    returns 0 on both.
+
+    An empty submitted query falls back to the profile plan.
+    """
+    query = submitted_query.strip()
+    if not query:
+        return profile_terms[0]
+
+    normalized_query = query.casefold()
+    for term in profile_terms:
+        if term.strip().casefold() == normalized_query:
+            return term
+
+    if preserve_raw_terms:
+        # Источник отвечает не по-немецки — перевод только сузил бы выдачу.
+        return query
+    intent = normalize_role_intent(query)
+    return intent.primary_de if intent is not None else query
 
 
 def _resolve_profile_search_terms(

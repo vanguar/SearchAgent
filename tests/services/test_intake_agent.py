@@ -112,9 +112,13 @@ def _capture_saved_profile_query_plan(db: Session, *, profile_id: int) -> tuple[
         )
 
     service.search = MagicMock(side_effect=empty_search_result)
+    # Введённый запрос теперь идёт первой попыткой, поэтому чтобы увидеть именно план
+    # профиля, подставляем в строку то же, что подставил бы UI — search_query_de профиля.
+    saved_profile = db.get(SearchProfile, profile_id)
+    prefilled_query = (saved_profile.search_query_de or "") if saved_profile is not None else ""
     service.orchestrated_search(
         search_input=SourceSearchInput(
-            query="ignored form query",
+            query=prefilled_query,
             location="Deutschland",
             page=1,
             page_size=8,

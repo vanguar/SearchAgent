@@ -235,19 +235,23 @@ def test_remote_worldwide_runs_all_deterministic_fallbacks_even_when_primary_is_
         search_input=_make_search_input("profile term 0", search_mode="remote_worldwide")
     )
 
-    assert svc.search.call_count == 2
+    assert svc.search.call_count == 3
     assert result.attempt_summary is not None
     assert [attempt.stage_name for attempt in result.attempt_summary.attempts] == [
         "primary",
         "fallback_1",
+        "fallback_2",
     ]
+    # Введённый запрос идёт первым, план профиля — следом и целиком.
     assert [attempt.query_used for attempt in result.attempt_summary.attempts] == [
+        "profile term 0",
         "profile term 1",
         "profile term 2",
     ]
     assert result.attempt_summary.final_query_used == "all profile queries"
-    assert len(result.hot_results) == 3
-    assert len(result.maybe_results) == 5
+    # В worldwide результаты всех попыток сливаются: 2+1+3 hot и 3+2+5 maybe.
+    assert len(result.hot_results) == 6
+    assert len(result.maybe_results) == 10
 
 
 def test_germany_local_runs_all_profile_search_terms_even_when_primary_is_enough() -> None:
@@ -312,7 +316,10 @@ def test_driver_b_profile_runs_all_specialized_queries_in_order() -> None:
         )
     )
 
-    result = svc.orchestrated_search(search_input=_make_search_input("ignored"), profile_id=2)
+    # Строка поиска повторяет подстановку профиля — обычный случай, план не меняется.
+    result = svc.orchestrated_search(
+        search_input=_make_search_input(DRIVER_B_FERNVERKEHR_SEARCH_TERMS[0]), profile_id=2
+    )
 
     queries = [attempt.query_used for attempt in result.attempt_summary.attempts]
     assert queries == list(DRIVER_B_FERNVERKEHR_SEARCH_TERMS)
@@ -343,9 +350,12 @@ def test_profile_switching_it_driver_it_keeps_query_plans_isolated() -> None:
     svc = _make_service([_make_result()])
     svc.get_profile_context = MagicMock(side_effect=lambda *, profile_id=None: profiles[profile_id])
 
-    it_first = svc.orchestrated_search(search_input=_make_search_input("ignored"), profile_id=1)
-    driver = svc.orchestrated_search(search_input=_make_search_input("ignored"), profile_id=2)
-    it_again = svc.orchestrated_search(search_input=_make_search_input("ignored"), profile_id=1)
+    # Каждый профиль ищется со своей подстановкой в строке — как это делает UI.
+    it_first = svc.orchestrated_search(search_input=_make_search_input("Python Entwickler"), profile_id=1)
+    driver = svc.orchestrated_search(
+        search_input=_make_search_input(DRIVER_B_FERNVERKEHR_SEARCH_TERMS[0]), profile_id=2
+    )
+    it_again = svc.orchestrated_search(search_input=_make_search_input("Python Entwickler"), profile_id=1)
 
     it_first_queries = [attempt.query_used for attempt in it_first.attempt_summary.attempts]
     driver_queries = [attempt.query_used for attempt in driver.attempt_summary.attempts]
@@ -820,3 +830,190 @@ def test_scoring_pipeline_not_modified_by_orchestrator() -> None:
 
     assert len(result.hot_results) == 3
     assert len(result.maybe_results) == 1
+
+
+def test_typed_query_runs_first_and_profile_plan_follows_in_full() -> None:
+    """Введённый запрос — явная команда на ЭТОТ прогон: он первый, план профиля идёт следом."""
+    svc = _make_service([_make_result()])
+    svc.get_profile_context = MagicMock(
+        return_value=_make_profile(
+            desired_roles=("Доставка", "Курьер"),
+            search_query_terms=("zusteller", "kurier", "lieferfahrer"),
+        )
+    )
+
+    result = svc.orchestrated_search(search_input=_make_search_input("Lagerhelfer"), profile_id=1)
+
+    queries = [attempt.query_used for attempt in result.attempt_summary.attempts]
+    # Приводится к канонической форме роли; API вакансий регистронезависимы.
+    assert queries[0].casefold() == "lagerhelfer"
+    # План профиля не теряется — он целиком идёт после введённого запроса.
+    assert queries[1:4] == ["zusteller", "kurier", "lieferfahrer"]
+
+
+def test_typed_query_matching_the_profile_term_does_not_add_a_duplicate_stage() -> None:
+    """Обычный случай: строка подставлена из профиля — лишней попытки быть не должно."""
+    svc = _make_service([_make_result()])
+    svc.get_profile_context = MagicMock(
+        return_value=_make_profile(
+            desired_roles=("Доставка",),
+            search_query_terms=("zusteller", "kurier"),
+        )
+    )
+
+    result = svc.orchestrated_search(search_input=_make_search_input("zusteller"), profile_id=1)
+
+    queries = [attempt.query_used for attempt in result.attempt_summary.attempts]
+    assert queries[:2] == ["zusteller", "kurier"]
+    assert queries.count("zusteller") == 1
+
+
+def test_russian_typed_query_is_translated_before_matching_the_profile_plan() -> None:
+    """Кириллица в строке переводится так же, как термины профиля — иначе будет дубль."""
+    svc = _make_service([_make_result()])
+    svc.get_profile_context = MagicMock(
+        return_value=_make_profile(
+            desired_roles=("Доставка",),
+            search_query_terms=("Курьер", "Водитель"),
+        )
+    )
+
+    result = svc.orchestrated_search(search_input=_make_search_input("курьер"), profile_id=1)
+
+    queries = [attempt.query_used for attempt in result.attempt_summary.attempts]
+    assert not any(_CYRILLIC in query for query in queries for _CYRILLIC in "абвгдеёжзиклмнопрстуфхцчшщэюя")
+    assert len(queries) == len(set(queries))
+
+
+def test_empty_typed_query_falls_back_to_the_profile_plan() -> None:
+    svc = _make_service([_make_result()])
+    svc.get_profile_context = MagicMock(
+        return_value=_make_profile(
+            desired_roles=("Доставка",),
+            search_query_terms=("zusteller", "kurier"),
+        )
+    )
+
+    result = svc.orchestrated_search(search_input=_make_search_input("   "), profile_id=1)
+
+    queries = [attempt.query_used for attempt in result.attempt_summary.attempts]
+    assert queries[:2] == ["zusteller", "kurier"]
+
+
+def test_driver_b_profile_never_sends_heavy_vehicle_queries() -> None:
+    """Права B: тяжёлые ключевики не должны доходить до сети — их же режет жёсткий фильтр."""
+    from app.services.search_fallback import HEAVY_VEHICLE_KEYWORDS
+
+    svc = _make_service([_make_result()])
+    svc.get_profile_context = MagicMock(
+        return_value=_make_profile(
+            desired_roles=("курьер", "водитель"),
+            search_query_terms=(),
+            driver_license="B",
+        )
+    )
+
+    result = svc.orchestrated_search(search_input=_make_search_input("zusteller"), profile_id=1)
+
+    queries = {attempt.query_used.casefold() for attempt in result.attempt_summary.attempts}
+    assert not queries & HEAVY_VEHICLE_KEYWORDS
+    # Поиск при этом не должен схлопнуться в одну попытку.
+    assert len(queries) >= 3
+
+
+def test_driver_with_ce_licence_still_gets_heavy_vehicle_queries() -> None:
+    svc = _make_service([_make_result()])
+    svc.get_profile_context = MagicMock(
+        return_value=_make_profile(
+            desired_roles=("курьер", "водитель"),
+            search_query_terms=(),
+            driver_license="B, C, CE",
+        )
+    )
+
+    result = svc.orchestrated_search(search_input=_make_search_input("zusteller"), profile_id=1)
+
+    from app.services.search_fallback import HEAVY_VEHICLE_KEYWORDS
+    queries = {attempt.query_used.casefold() for attempt in result.attempt_summary.attempts}
+    assert queries & HEAVY_VEHICLE_KEYWORDS
+
+
+def test_english_typed_query_is_translated_to_german_even_with_an_active_profile() -> None:
+    """Немецкие источники отвечают на немецкие названия.
+
+    На живых API "warehouse worker" даёт 50 вакансий против 13071 у "lagermitarbeiter",
+    поэтому перевод запроса не должен отключаться только из-за того, что у профиля есть план.
+    """
+    svc = _make_service([_make_result()])
+    svc.get_profile_context = MagicMock(
+        return_value=_make_profile(
+            desired_roles=("Доставка",),
+            search_query_terms=("zusteller", "kurier"),
+        )
+    )
+
+    result = svc.orchestrated_search(search_input=_make_search_input("warehouse worker"), profile_id=1)
+
+    queries = [attempt.query_used for attempt in result.attempt_summary.attempts]
+    assert queries[0] == "lagermitarbeiter"
+
+
+def test_typed_query_repeating_a_profile_term_is_kept_verbatim() -> None:
+    """Повтор термина плана не должен переводиться в другую форму и плодить дубль-этап."""
+    svc = _make_service([_make_result()])
+    svc.get_profile_context = MagicMock(
+        return_value=_make_profile(
+            desired_roles=("Middle Python Developer",),
+            search_query_terms=("Middle Python Developer", "Python Backend Developer"),
+        )
+    )
+
+    result = svc.orchestrated_search(
+        search_input=_make_search_input("Middle Python Developer"), profile_id=1
+    )
+
+    queries = [attempt.query_used for attempt in result.attempt_summary.attempts]
+    assert queries[0] == "Middle Python Developer"
+    # Без сохранения дословной формы здесь появился бы ещё и "softwareentwickler".
+    assert "softwareentwickler" not in {query.casefold() for query in queries}
+
+
+def test_worldwide_run_keeps_the_typed_query_in_its_original_language() -> None:
+    """Worldwide-источники англоязычные: немецкий перевод обнуляет там выдачу.
+
+    Живой замер: "python developer" -> 20 вакансий на RemoteJobs.org и 8 на Arbeitnow,
+    "softwareentwickler" -> 0 на обоих.
+    """
+    svc = _make_service([_make_result()])
+    svc._resolve_source_ids = MagicMock(return_value=("remotive", "remotejobs"))
+    svc.get_profile_context = MagicMock(
+        return_value=_make_profile(
+            desired_roles=("Доставка",),
+            search_query_terms=("zusteller", "kurier"),
+        )
+    )
+
+    result = svc.orchestrated_search(
+        search_input=_make_search_input("python developer", search_mode="remote_worldwide")
+    )
+
+    queries = [attempt.query_used for attempt in result.attempt_summary.attempts]
+    assert queries[0] == "python developer"
+    assert "softwareentwickler" not in {query.casefold() for query in queries}
+
+
+def test_germany_run_still_translates_the_typed_query() -> None:
+    """Немецкий лейн перевод терять не должен — проверка, что фикс worldwide его не сломал."""
+    svc = _make_service([_make_result()])
+    svc.get_profile_context = MagicMock(
+        return_value=_make_profile(
+            desired_roles=("Доставка",),
+            search_query_terms=("zusteller", "kurier"),
+        )
+    )
+
+    result = svc.orchestrated_search(
+        search_input=_make_search_input("warehouse worker", search_mode="germany_local")
+    )
+
+    assert result.attempt_summary.attempts[0].query_used == "lagermitarbeiter"
