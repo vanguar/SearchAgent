@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 from app.core.config import Settings
@@ -133,18 +134,65 @@ def _item_to_record(source_id: str, source_name: str, raw_item: dict[str, Any]) 
     external_id = _to_text(raw_item.get("guid")) or _to_text(raw_item.get("link"))
     if external_id is None:
         return None
+    raw_title = _to_text(raw_item.get("title")) or "Без названия"
+    parsed = parse_dou_title(raw_title)
     return SourceRecordPreview(
         source_id=source_id,
         source_name=source_name,
         external_id=external_id,
         source_reference=external_id,
-        title=_to_text(raw_item.get("title")) or "Без названия",
-        company=None,
-        location=None,
+        title=parsed.role,
+        company=parsed.company,
+        location=parsed.location,
         posted_at=_to_text(raw_item.get("pub_date")),
         detail_url=_to_text(raw_item.get("link")),
         raw_payload=dict(raw_item),
     )
+
+
+@dataclass(frozen=True, slots=True)
+class DouTitleParts:
+    role: str
+    company: str | None
+    location: str | None
+
+
+# DOU кладёт всё в один заголовок: "<роль> в <Компания>, <город>, віддалено, $600–1800".
+# Отдельных полей в фиде нет, поэтому без разбора карточка показывала
+# "Компания не указана" у каждой вакансии, а локация отсутствовала совсем —
+# то есть отфильтровать выдачу по географии было нечем.
+_DOU_COMPANY_SEPARATOR = " в "
+# Куски после компании: зарплата либо место. Зарплату в локацию писать нельзя.
+_SALARY_MARKERS = ("$", "€", "грн")
+
+
+def parse_dou_title(title: str) -> DouTitleParts:
+    """Разделить заголовок DOU на роль, компанию и место.
+
+    Разделителем берётся ПОСЛЕДНЕЕ " в ": предлог встречается и внутри самой
+    роли ("розробник систем цифрової логістики, військовослужбовець в 13 бригада...").
+    """
+    separator_at = title.rfind(_DOU_COMPANY_SEPARATOR)
+    if separator_at == -1:
+        return DouTitleParts(role=title.strip(), company=None, location=None)
+
+    role = title[:separator_at].strip(" ,;")
+    tail_chunks = [chunk.strip() for chunk in title[separator_at + len(_DOU_COMPANY_SEPARATOR):].split(",")]
+    tail_chunks = [chunk for chunk in tail_chunks if chunk]
+    if not role or not tail_chunks:
+        return DouTitleParts(role=title.strip(), company=None, location=None)
+
+    company = tail_chunks[0]
+    locations = [chunk for chunk in tail_chunks[1:] if not _looks_like_salary(chunk)]
+    return DouTitleParts(
+        role=role,
+        company=company or None,
+        location=", ".join(locations) or None,
+    )
+
+
+def _looks_like_salary(chunk: str) -> bool:
+    return any(marker in chunk for marker in _SALARY_MARKERS)
 
 
 def _to_text(value: Any) -> str | None:

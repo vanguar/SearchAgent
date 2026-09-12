@@ -60,3 +60,56 @@ def test_vacancy_normalizer_handles_adapter_response_contract() -> None:
     assert len(normalized_records) == 1
     assert normalized_records[0].normalized_title == "produktionshelfer"
     assert normalized_records[0].normalized_location.city == "Hamburg"
+
+
+def test_html_bodies_from_rss_sources_are_turned_into_readable_text() -> None:
+    """RSS-источники отдают тело объявления размеченным.
+
+    Сырая разметка портила всё сразу: правила искали слова вместе с тегами,
+    дедупликация сравнивала разметку наравне с текстом, а в резюме от LLM
+    уезжали «&nbsp;» и «</li><li>».
+    """
+    record = VacancyNormalizer().normalize_source_record(
+        SourceRecordPreview(
+            source_id="djinni_rss",
+            source_name="Djinni Jobs RSS",
+            external_id="dj-1",
+            source_reference="dj-1",
+            title="Python Engineer",
+            company=None,
+            location=None,
+            posted_at="2026-09-10",
+            detail_url="https://djinni.co/jobs/1/",
+            raw_payload={
+                "description": (
+                    "<p><strong>About us</strong></p><ul><li>Python&nbsp;3.12</li>"
+                    "<li>FastAPI &amp; Postgres</li></ul>"
+                )
+            },
+        )
+    )
+
+    body = record.body_text or ""
+    assert "<" not in body
+    assert "&nbsp;" not in body and "&amp;" not in body
+    assert "Python 3.12" in body
+    assert "FastAPI & Postgres" in body
+
+
+def test_plain_text_bodies_are_left_alone() -> None:
+    record = VacancyNormalizer().normalize_source_record(
+        SourceRecordPreview(
+            source_id="ba",
+            source_name="BA",
+            external_id="ba-1",
+            source_reference="ba-1",
+            title="Lagerhelfer (m/w/d)",
+            company="Nord GmbH",
+            location="Rostock",
+            posted_at="2026-09-10",
+            detail_url=None,
+            raw_payload={"description": "Kommissionieren und Verpacken. 2 < 3 Schichten."},
+        )
+    )
+
+    assert record.body_text == "Kommissionieren und Verpacken. 2 < 3 Schichten."

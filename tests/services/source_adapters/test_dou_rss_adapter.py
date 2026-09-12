@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from app.core.config import Settings
-from app.services.source_adapters.dou_rss_adapter import DouRssAdapter
+from app.services.source_adapters.dou_rss_adapter import DouRssAdapter, parse_dou_title
 from app.services.source_adapters.errors import AdapterRequestError, HttpTransportError
 from app.services.source_adapters.http import HttpTextResponse
 from app.services.source_adapters.models import SourceSearchInput
@@ -68,3 +69,43 @@ def test_dou_rss_adapter_reports_cloudflare_1010_without_html_dump() -> None:
         assert exc.retryable is False
     else:
         raise AssertionError("Expected AdapterRequestError")
+
+
+@pytest.mark.parametrize(
+    ("title", "role", "company", "location"),
+    [
+        ("AI Engineer в Atlas Technica, віддалено", "AI Engineer", "Atlas Technica", "віддалено"),
+        (
+            "Solution Lead for AI Tools; ID 102481 в SoftServe, Київ, Харків, віддалено",
+            "Solution Lead for AI Tools; ID 102481",
+            "SoftServe",
+            "Київ, Харків, віддалено",
+        ),
+        ("Python Developer в Elementica, $1500–3500, Ужгород", "Python Developer", "Elementica", "Ужгород"),
+        ("Strong Junior/Middle DevOps", "Strong Junior/Middle DevOps", None, None),
+    ],
+)
+def test_dou_title_carries_company_and_location(
+    title: str, role: str, company: str | None, location: str | None
+) -> None:
+    """DOU кладёт всё в заголовок; отдельных полей в фиде нет.
+
+    Без разбора каждая карточка показывала «Компания не указана», а локации не
+    было вовсе — то есть отфильтровать выдачу по географии было нечем.
+    """
+    parts = parse_dou_title(title)
+
+    assert parts.role == role
+    assert parts.company == company
+    assert parts.location == location
+
+
+def test_dou_title_splits_on_the_last_preposition() -> None:
+    """Предлог "в" встречается и внутри самой роли."""
+    parts = parse_dou_title(
+        "Backend Developer, розробник систем логістики, військовослужбовець в 13 бригада НГУ, $595–1900"
+    )
+
+    assert parts.company == "13 бригада НГУ"
+    assert parts.role.startswith("Backend Developer")
+    assert parts.location is None

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import re
 from datetime import date, datetime
 from typing import Any
@@ -99,6 +100,36 @@ def _normalize_company_name(company_name: str | None) -> str | None:
     return stripped or normalized
 
 
+# Теги, после которых в тексте должен остаться перенос строки, а не склейка слов.
+_HTML_BLOCK_TAG_RE = re.compile(
+    r"</?(?:p|div|br|li|ul|ol|tr|h[1-6]|table|section|article|blockquote)\b[^>]*>",
+    re.IGNORECASE,
+)
+_HTML_TAG_RE = re.compile(r"<[^>]+>")
+_WHITESPACE_RUN_RE = re.compile(r"[ \t\u00a0]+")
+_BLANK_LINES_RE = re.compile(r"\n{3,}")
+
+
+def strip_html(text: str) -> str:
+    """Превратить HTML-описание вакансии в читаемый текст.
+
+    RSS-источники (Djinni, DOU, Remotive, RemoteJobs) отдают тело объявления
+    размеченным. Сырая разметка портила всё сразу: правила искали слова вместе
+    с тегами, дедупликация сравнивала разметку наравне с текстом, а в резюме
+    от LLM уезжали "&nbsp;" и "</li><li>".
+    """
+    without_blocks = _HTML_BLOCK_TAG_RE.sub("\n", text)
+    without_tags = _HTML_TAG_RE.sub(" ", without_blocks)
+    unescaped = html.unescape(without_tags).replace("\u00a0", " ")
+    collapsed = _WHITESPACE_RUN_RE.sub(" ", unescaped)
+    lines = [line.strip() for line in collapsed.split("\n")]
+    return _BLANK_LINES_RE.sub("\n\n", "\n".join(lines)).strip()
+
+
+def _looks_like_html(text: str) -> bool:
+    return "<" in text and ">" in text and bool(_HTML_TAG_RE.search(text))
+
+
 def _extract_body_text(raw_payload: Any) -> str | None:
     if not isinstance(raw_payload, dict):
         return None
@@ -106,7 +137,9 @@ def _extract_body_text(raw_payload: Any) -> str | None:
     for key in _BODY_KEYS:
         value = raw_payload.get(key)
         if isinstance(value, str) and value.strip():
-            return value.strip()
+            cleaned = strip_html(value) if _looks_like_html(value) else value.strip()
+            if cleaned:
+                return cleaned
 
     for value in raw_payload.values():
         if isinstance(value, dict):

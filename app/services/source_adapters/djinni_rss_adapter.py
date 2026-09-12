@@ -40,7 +40,9 @@ class DjinniRssAdapter(BaseSourceAdapter):
             status_label="Готов" if enabled else "Отключен",
             status_kind="success" if enabled else "disabled",
             status_detail=(
-                "Украинский/remote IT-источник через RSS Djinni; API optional только при официальном доступе."
+                "Украинский/remote IT-источник через RSS Djinni. В фиде есть только заголовок, "
+                "ссылка и описание: компанию и город Djinni не отдаёт, поэтому на карточках "
+                "этих вакансий они остаются пустыми."
                 if enabled
                 else "SOURCE_DJINNI_ENABLED=false."
             ),
