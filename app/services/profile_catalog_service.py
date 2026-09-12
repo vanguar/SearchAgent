@@ -63,6 +63,25 @@ class ProfileCatalogService:
             result.append(ProfileCatalogEntry(profile=sp, user_profile=up, is_default=sp.is_default))
         return result
 
+    def get_home_city(self, db: Session) -> str | None:
+        """Город проживания. От него считается дорога до работы во всех профилях."""
+        user_profile = db.execute(select(UserProfile).order_by(UserProfile.id.asc())).scalars().first()
+        return user_profile.city if user_profile is not None else None
+
+    def set_home_city(self, db: Session, *, city: str | None) -> None:
+        """Сменить город проживания.
+
+        Отдельная правка, а не перезапуск intake: переезд меняет только это поле,
+        и заставлять пользователя заново пересказывать всю свою ситуацию, чтобы
+        поменять один город, неразумно.
+        """
+        user_profile = db.execute(select(UserProfile).order_by(UserProfile.id.asc())).scalars().first()
+        if user_profile is None:
+            return
+        normalized = (city or "").strip()
+        user_profile.city = normalized or None
+        db.commit()
+
     def get_profile(self, db: Session, *, profile_id: int) -> SearchProfile | None:
         return db.get(SearchProfile, profile_id)
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 from starlette.datastructures import FormData
 
@@ -29,11 +29,30 @@ def profile_page(
         page_key="profile",
         page_title=meta["title"],
         page_subtitle="Ваши профили поиска. Выберите активный профиль или создайте новый.",
-        extra_context={"profile_entries": entries},
+        extra_context={
+            "profile_entries": entries,
+            "home_city": catalog_service.get_home_city(db),
+        },
     )
 
 
-@router.post("/profile/{profile_id}/set-default", response_class=HTMLResponse)
+@router.post("/profile/home-city")
+async def profile_set_home_city(
+    request: Request,
+    db: Session = Depends(get_db),
+    catalog_service: ProfileCatalogService = Depends(get_profile_catalog_service),
+) -> RedirectResponse:
+    form = await read_form_data(request)
+    catalog_service.set_home_city(db, city=_read_text(form, "home_city"))
+    return RedirectResponse(url="/profile", status_code=303)
+
+
+def _read_text(form: FormData, key: str) -> str | None:
+    value = form.get(key)
+    return value if isinstance(value, str) else None
+
+
+@router.post("/profile/{profile_id}/set-default")
 def profile_set_default(
     profile_id: int,
     request: Request,
@@ -44,7 +63,7 @@ def profile_set_default(
     return RedirectResponse(url="/profile", status_code=303)
 
 
-@router.post("/profile/{profile_id}/duplicate", response_class=HTMLResponse)
+@router.post("/profile/{profile_id}/duplicate")
 def profile_duplicate(
     profile_id: int,
     request: Request,
@@ -61,7 +80,7 @@ def profile_edit_page(
     request: Request,
     db: Session = Depends(get_db),
     catalog_service: ProfileCatalogService = Depends(get_profile_catalog_service),
-) -> HTMLResponse:
+) -> Response:
     profile = catalog_service.get_profile(db, profile_id=profile_id)
     if profile is None:
         return RedirectResponse(url="/profile", status_code=303)
@@ -98,7 +117,7 @@ async def profile_edit_submit(
     return RedirectResponse(url="/profile", status_code=303)
 
 
-@router.post("/profile/{profile_id}/delete", response_class=HTMLResponse)
+@router.post("/profile/{profile_id}/delete")
 def profile_delete(
     profile_id: int,
     db: Session = Depends(get_db),

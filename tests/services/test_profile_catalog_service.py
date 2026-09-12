@@ -277,3 +277,25 @@ def test_resolve_default_profile_id_no_profiles(db_session: Session) -> None:
     service = ProfileCatalogService()
     result = service.resolve_default_profile_id(db_session)
     assert result is None
+
+
+def test_home_city_round_trips(db_session: Session, user_profile: UserProfile) -> None:
+    """Переезд меняет одно поле, а не весь профиль."""
+    service = ProfileCatalogService()
+
+    assert service.get_home_city(db_session) is None
+
+    service.set_home_city(db_session, city="  Tribsees  ")
+    assert service.get_home_city(db_session) == "Tribsees"
+
+    service.set_home_city(db_session, city="Hamburg")
+    assert service.get_home_city(db_session) == "Hamburg"
+
+
+def test_blank_home_city_clears_the_field(db_session: Session, user_profile: UserProfile) -> None:
+    service = ProfileCatalogService()
+    service.set_home_city(db_session, city="Rostock")
+
+    service.set_home_city(db_session, city="   ")
+
+    assert service.get_home_city(db_session) is None

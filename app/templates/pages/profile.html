@@ -18,6 +18,31 @@
   <span class="pcard-new__plus" aria-hidden="true">+</span> Новый профиль поиска
 </a>
 
+<section class="profiles-home">
+  <div class="profiles-notify__head">
+    <h3>Место жительства</h3>
+    <p class="muted">
+      От этого города считается дорога до работы: вакансии ближе к дому получают
+      более высокий балл. Указывайте город или посёлок в Германии.
+    </p>
+  </div>
+  <form method="post" action="/profile/home-city" class="inline-form">
+    <input
+      type="text"
+      name="home_city"
+      value="{{ home_city or '' }}"
+      placeholder="например, Tribsees"
+      aria-label="Город проживания"
+    />
+    <button type="submit" class="btn btn--outline">Сохранить</button>
+  </form>
+  {% if not home_city %}
+  <p class="muted top-gap">
+    Пока город не указан, расстояние до вакансии не учитывается в баллах.
+  </p>
+  {% endif %}
+</section>
+
 <section class="profiles-notify">
   <div class="profiles-notify__head">
     <h3>Уведомления</h3>
