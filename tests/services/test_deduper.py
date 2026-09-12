@@ -93,3 +93,108 @@ def test_vacancy_deduper_rejects_unrelated_vacancy() -> None:
     duplicate = deduper.find_duplicate_candidate(record, (candidate,))
 
     assert duplicate is None
+
+
+def _snapshot_of(record, *, key: str = "canonical-x"):
+    return CanonicalVacancySnapshot(
+        canonical_key=key,
+        normalized_title=record.normalized_title,
+        normalized_company=record.normalized_company,
+        normalized_location=record.normalized_location,
+        title_tokens=record.title_tokens,
+        content_tokens=record.content_tokens,
+        posted_date=record.posted_date,
+    )
+
+
+_BOILERPLATE = (
+    "Wir suchen zum naechstmoeglichen Zeitpunkt Verstaerkung. "
+    "Kommissionieren, Verpacken und Versand im Schichtbetrieb. "
+    "Wir bieten uebertarifliche Bezahlung und Urlaubsgeld."
+)
+
+
+def test_city_district_and_its_city_are_the_same_location() -> None:
+    """Biestow — район Ростока.
+
+    Раньше BA отдавал "Rostock", Adzuna — "Biestow", записи не склеивались,
+    и одна вакансия показывалась дважды с расхождением в баллах до 30.
+    """
+    deduper = VacancyDeduper()
+    left = _make_record(
+        source_name="BA", external_id="ba-1", title="Staplerfahrer (m/w/d)",
+        company="Jobtimum GmbH", location="18055 Rostock, Deutschland",
+        posted_at="2026-09-01", body_text=_BOILERPLATE,
+    )
+    right = _make_record(
+        source_name="Adzuna", external_id="adz-1", title="Staplerfahrer (m/w/d)",
+        company="Jobtimum", location="Biestow",
+        posted_at="2026-09-02", body_text=_BOILERPLATE,
+    )
+
+    verdict = deduper.evaluate(left, _snapshot_of(right))
+
+    assert verdict.location_match is True
+    assert verdict.is_duplicate is True
+
+
+def test_branch_suffix_does_not_make_a_different_employer() -> None:
+    deduper = VacancyDeduper()
+    left = _make_record(
+        source_name="BA", external_id="ba-2", title="Versandmitarbeiter (m/w/d)",
+        company="Randstad", location="18055 Rostock, Deutschland",
+        posted_at="2026-09-01", body_text=_BOILERPLATE,
+    )
+    right = _make_record(
+        source_name="Careerjet", external_id="cj-2", title="Versandmitarbeiter (m/w/d)",
+        company="Randstad Deutschland", location="Rostock",
+        posted_at="2026-09-01", body_text=_BOILERPLATE,
+    )
+
+    verdict = deduper.evaluate(left, _snapshot_of(right))
+
+    assert verdict.company_match is True
+    assert verdict.is_duplicate is True
+
+
+def test_same_agency_in_two_cities_stays_two_vacancies() -> None:
+    """Тело объявления кадрового агентства шаблонно и совпадает между филиалами.
+
+    Без запрета по географии "Versandmitarbeiter" от Randstad в Ростоке и в
+    Муггенстурме (700 км) склеивались в одну карточку, и одна из двух реальных
+    вакансий исчезала из выдачи.
+    """
+    deduper = VacancyDeduper()
+    left = _make_record(
+        source_name="BA", external_id="ba-3", title="Versandmitarbeiter (m/w/d)",
+        company="Randstad Deutschland", location="18055 Rostock, Deutschland",
+        posted_at="2026-09-01", body_text=_BOILERPLATE,
+    )
+    right = _make_record(
+        source_name="BA", external_id="ba-4", title="Versandmitarbeiter (m/w/d)",
+        company="Randstad Deutschland", location="76461 Muggensturm, Deutschland",
+        posted_at="2026-09-01", body_text=_BOILERPLATE,
+    )
+
+    verdict = deduper.evaluate(left, _snapshot_of(right))
+
+    assert verdict.is_duplicate is False
+
+
+def test_different_employers_sharing_a_first_word_are_not_merged() -> None:
+    deduper = VacancyDeduper()
+    left = _make_record(
+        source_name="BA", external_id="ba-5", title="Fahrer (m/w/d)",
+        company="Meyer Transport GmbH", location="Rostock",
+        posted_at="2026-09-01", body_text=_BOILERPLATE,
+    )
+    right = _make_record(
+        source_name="BA", external_id="ba-6", title="Fahrer (m/w/d)",
+        company="Meyer Bau GmbH", location="Rostock",
+        posted_at="2026-09-01", body_text=_BOILERPLATE,
+    )
+
+    verdict = deduper.evaluate(left, _snapshot_of(right))
+
+    assert verdict.company_match is False
+    assert verdict.is_duplicate is False
