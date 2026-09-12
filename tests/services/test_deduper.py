@@ -198,3 +198,59 @@ def test_different_employers_sharing_a_first_word_are_not_merged() -> None:
 
     assert verdict.company_match is False
     assert verdict.is_duplicate is False
+
+
+def test_city_inside_the_title_does_not_block_the_merge() -> None:
+    """Источники дописывают место прямо в название.
+
+    «Postbote für Pakete und Briefe (m/w/d) in 18059 Rostock» против
+    «Postbote für Pakete und Briefe (m/w/d)» — одна работа, но сходство
+    заголовков падало до 0.62 при пороге 0.82, и карточек выходило две.
+    """
+    deduper = VacancyDeduper()
+    with_city = _make_record(
+        source_name="BA", external_id="ba-7",
+        title="Postbote für Pakete und Briefe (m/w/d) in 18059 Rostock",
+        company="Deutsche Post", location="Rostock", posted_at="2026-09-01", body_text=_BOILERPLATE,
+    )
+    without_city = _make_record(
+        source_name="Adzuna", external_id="adz-7",
+        title="Postbote für Pakete und Briefe (m/w/d)",
+        company="Deutsche Post", location="Brinckmansdorf", posted_at="2026-09-01", body_text=_BOILERPLATE,
+    )
+
+    verdict = deduper.evaluate(with_city, _snapshot_of(without_city))
+
+    assert verdict.is_duplicate is True
+
+
+def test_stripping_the_city_from_titles_does_not_merge_across_cities() -> None:
+    """Убрав город из заголовка, нельзя потерять разницу между городами."""
+    deduper = VacancyDeduper()
+    rostock = _make_record(
+        source_name="BA", external_id="ba-8",
+        title="Postbote für Pakete und Briefe (m/w/d) in 18059 Rostock",
+        company="Deutsche Post", location="Rostock", posted_at="2026-09-01", body_text=_BOILERPLATE,
+    )
+    hamburg = _make_record(
+        source_name="BA", external_id="ba-9",
+        title="Postbote für Pakete und Briefe (m/w/d) HH Billstedt",
+        company="Deutsche Post", location="Hamburg", posted_at="2026-09-01", body_text=_BOILERPLATE,
+    )
+
+    assert deduper.evaluate(rostock, _snapshot_of(hamburg)).is_duplicate is False
+
+
+def test_site_abbreviation_in_the_title_does_not_block_the_merge() -> None:
+    """«Auslieferungsfahrer (m/w/d), FM Rostock» — тот же «Auslieferungsfahrer»."""
+    deduper = VacancyDeduper()
+    plain = _make_record(
+        source_name="BA", external_id="ba-10", title="Auslieferungsfahrer (m/w/d)",
+        company="Fleurametz Deutschland", location="Rostock", posted_at="2026-09-01", body_text=_BOILERPLATE,
+    )
+    with_site = _make_record(
+        source_name="BA", external_id="ba-11", title="Auslieferungsfahrer (m/w/d), FM Rostock",
+        company="Fleurametz Deutschland", location="Rostock", posted_at="2026-09-01", body_text=_BOILERPLATE,
+    )
+
+    assert deduper.evaluate(plain, _snapshot_of(with_site)).is_duplicate is True

@@ -33,7 +33,10 @@ class VacancyDeduper:
         record: NormalizedVacancyRecord,
         candidate: CanonicalVacancySnapshot,
     ) -> DuplicateCandidate:
-        title_similarity = token_similarity(record.title_tokens, candidate.title_tokens)
+        title_similarity = max(
+            token_similarity(record.title_tokens, candidate.title_tokens),
+            token_similarity(_role_tokens(record), _role_tokens(candidate)),
+        )
         content_similarity = token_similarity(record.content_tokens, candidate.content_tokens)
         company_match = _companies_match(record.normalized_company, candidate.normalized_company)
         location_match = _locations_match(record, candidate)
@@ -84,6 +87,44 @@ class VacancyDeduper:
             posting_date_close=posting_date_close,
             reason_codes=tuple(reason_codes or ("no_safe_duplicate_signal",)),
         )
+
+
+# Слова и обрывки, которые в заголовке вакансии никогда не описывают роль:
+# предлоги перед местом, почтовый индекс и короткие аббревиатуры филиалов
+# ("FM Rostock", "HH Billstedt"). Отбрасывать их безопасно, потому что склейку
+# вакансий из разных городов всё равно запрещает проверка географии.
+_LOCATION_FILLER_TOKENS: frozenset[str] = frozenset({
+    "in", "im", "bei", "am", "an", "raum", "region", "standort", "umgebung", "umland",
+})
+
+
+def _role_tokens(
+    item: NormalizedVacancyRecord | CanonicalVacancySnapshot,
+) -> tuple[str, ...]:
+    """Токены заголовка без города и почтового индекса.
+
+    Источники дописывают место прямо в название: "Postbote für Pakete und Briefe
+    (m/w/d) in 18059 Rostock" против "Postbote für Pakete und Briefe (m/w/d)" —
+    одна и та же работа, но сходство заголовков падает до 0.62 при пороге 0.82,
+    и вакансия показывается дважды. Место живёт в своём поле, и сравнивать роли
+    нужно без него; если города при этом окажутся разными, склейку всё равно
+    запретит проверка географии.
+    """
+    location = item.normalized_location
+    drop = {
+        token
+        for source in (canonical_city(location.city), canonical_city(location.raw_text), location.postal_code)
+        if source
+        for token in source.split()
+    }
+    return tuple(
+        token
+        for token in item.title_tokens
+        if token not in drop
+        and token not in _LOCATION_FILLER_TOKENS
+        and not token.isdigit()
+        and len(token) > 2
+    )
 
 
 # Хвосты в названии фирмы, которые обозначают филиал, а не другую компанию.
