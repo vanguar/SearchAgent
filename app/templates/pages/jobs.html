@@ -85,6 +85,11 @@
 
       <div class="search-field search-field--radius">
         <label class="search-field__label" for="jobs-radius">Радиус, км</label>
+        {#
+          Радиус отмеряется от города. Когда в поле стоит страна целиком, мерить
+          не от чего, и раньше значение молча игнорировалось: форма показывала
+          «25 км», а поиск возвращал вакансии со всей Германии.
+        #}
         <input
           id="jobs-radius"
           name="radius_km"
@@ -92,7 +97,9 @@
           min="0"
           value="{{ form_values['radius_km'] }}"
           placeholder="25"
+          data-radius-input
         />
+        <p class="search-field__hint" data-radius-hint hidden>Поиск по всей стране — радиус не применяется.</p>
       </div>
 
       <div class="search-field search-field--source">
@@ -318,4 +325,32 @@
 </section>
 
 {% include "partials/section_hint_loader.html" %}
+<script>
+  // Радиус отмеряется от города: если в поле локации стоит страна целиком,
+  // мерить не от чего. Гасим поле, чтобы значение в нём не обещало того,
+  // чего поиск не сделает. Настоящее решение принимает сервер.
+  (function () {
+    var countryWide = ["deutschland", "germany", "по всей германии", "вся германия", "по германии"];
+    var location = document.getElementById("jobs-location");
+    var radius = document.querySelector("[data-radius-input]");
+    var hint = document.querySelector("[data-radius-hint]");
+    if (!location || !radius || !hint) return;
+
+    function isCountryWide(value) {
+      var parts = String(value || "").toLowerCase().split(/[,;/|]/)
+        .map(function (part) { return part.trim(); })
+        .filter(Boolean);
+      return parts.length > 0 && parts.every(function (part) { return countryWide.indexOf(part) !== -1; });
+    }
+
+    function sync() {
+      var disabled = isCountryWide(location.value);
+      radius.disabled = disabled;
+      hint.hidden = !disabled;
+    }
+
+    location.addEventListener("input", sync);
+    sync();
+  })();
+</script>
 {% endblock %}

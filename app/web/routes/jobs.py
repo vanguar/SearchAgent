@@ -26,6 +26,7 @@ from app.services.search_export_service import (
 from app.services.search_history_service import SearchHistoryService
 from app.services.search_models import SearchRunResult
 from app.services.search_normalizer import (
+    is_country_wide_location,
     is_remote_worldwide_location,
     normalize_location,
     normalize_query_from_roles,
@@ -331,6 +332,13 @@ def _extract_form_values(form_data: Mapping[str, object]) -> dict[str, str]:
     return values
 
 
+def _radius_km_for_search(form_values: dict[str, str]) -> int | None:
+    """Радиус запроса или None, когда искать просят по всей стране."""
+    if is_country_wide_location(form_values.get("location")):
+        return None
+    return _parse_radius_km(form_values["radius_km"])
+
+
 def _parse_radius_km(raw_value: str) -> int | None:
     if not raw_value:
         return None
@@ -546,7 +554,7 @@ async def jobs_search_start(
     search_input = SourceSearchInput(
         query=form_values["query"],
         location=form_values["location"] or None,
-        radius_km=_parse_radius_km(form_values["radius_km"]),
+        radius_km=_radius_km_for_search(form_values),
         search_mode=form_values["search_mode"],  # type: ignore[arg-type]
         page=1,
         page_size=SEARCH_PAGE_SIZE,
@@ -705,7 +713,7 @@ async def jobs_search_results(
         search_input = SourceSearchInput(
             query=form_values["query"],
             location=form_values["location"] or None,
-            radius_km=_parse_radius_km(form_values["radius_km"]),
+            radius_km=_radius_km_for_search(form_values),
             search_mode=form_values["search_mode"],  # type: ignore[arg-type]
             page=1,
             page_size=SEARCH_PAGE_SIZE,

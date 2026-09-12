@@ -5,6 +5,8 @@
 """
 from __future__ import annotations
 
+import re
+
 # Русские/украинские названия городов → официальное немецкое написание
 CITY_TO_DE: dict[str, str] = {
     "берлин": "Berlin", "берлін": "Berlin",
@@ -130,6 +132,33 @@ _REMOTE_WORLDWIDE_TOKENS: tuple[str, ...] = (
     "по всему миру",
     "весь мир",
 )
+
+
+# Названия, которыми пользователь обозначает «вся страна». Радиус к ним
+# неприменим: страна — не точка, и отмерять от неё километры не от чего.
+_COUNTRY_WIDE_LOCATION_TOKENS: tuple[str, ...] = (
+    "deutschland",
+    "germany",
+    "по всей германии",
+    "вся германия",
+    "по германии",
+)
+
+
+def is_country_wide_location(location: str | None) -> bool:
+    """True, когда в поле города стоит страна целиком, а не место в ней.
+
+    Радиус в этом случае бессмыслен и раньше молча игнорировался: форма
+    показывала «25 км», поиск возвращал вакансии со всей Германии, и понять,
+    почему поле ни на что не влияет, было невозможно.
+    """
+    if not location:
+        return False
+    normalized = " ".join(location.strip().lower().split())
+    if not normalized:
+        return False
+    parts = [part.strip() for part in re.split(r"[,;/|]", normalized) if part.strip()]
+    return bool(parts) and all(part in _COUNTRY_WIDE_LOCATION_TOKENS for part in parts)
 
 
 def is_remote_worldwide_location(locations: list[str] | tuple[str, ...] | None) -> bool:

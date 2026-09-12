@@ -2488,6 +2488,20 @@ body {
   font-weight: 600;
 }
 
+/* Пояснение под полем формы: почему поле сейчас не действует. */
+.search-field__hint {
+  margin: 4px 0 0;
+  color: var(--text-soft);
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+.search-field input:disabled {
+  background: #f2ede4;
+  color: var(--text-soft);
+  cursor: not-allowed;
+}
+
 /* Segmented mode control (radios styled as segments) */
 .seg-mode {
   display: inline-flex;
