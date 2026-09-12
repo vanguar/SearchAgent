@@ -912,6 +912,17 @@ def _measure_distances(
         location_text=canonical.location_text,
     )
     if vacancy_point is None:
+        # Каноническая запись хранит уже урезанную локацию; исходная строка
+        # источника часто богаче ("Brinckmansdorf, Rostock" против "Brinckmansdorf").
+        for record in canonical.source_records:
+            vacancy_point = resolve_point(
+                city=record.normalized_location.city,
+                postal_code=record.normalized_location.postal_code,
+                location_text=record.normalized_location.raw_text or record.original_location,
+            )
+            if vacancy_point is not None:
+                break
+    if vacancy_point is None:
         return None, None
 
     home_point = resolve_point(city=profile.home_city) if profile.home_city else None

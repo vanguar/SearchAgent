@@ -206,6 +206,7 @@ _COMMUTE_BANDS: tuple[tuple[float, int], ...] = (
     (120.0, -10),
 )
 _COMMUTE_FAR_PENALTY = -18
+_COMMUTE_UNKNOWN_PENALTY = -3
 # Готовность к переезду не делает дорогу короче, но меняет её смысл: далёкая
 # вакансия перестаёт быть ошибкой и становится вариантом с переездом.
 _COMMUTE_RELOCATION_FLOOR = -8
@@ -222,7 +223,17 @@ def _commute_distance_hit(
     """
     distance = signals.distance_from_home_km
     if distance is None:
-        return None
+        # Молчание здесь означало бы, что вакансия без локации выгоднее вакансии
+        # с локацией: соперники получают штраф за дорогу, а она — ноль, и всплывает
+        # наверх. В прогоне по всей Германии верхнюю строку заняла именно такая.
+        # Штраф маленький: виноват источник, а не вакансия.
+        if not profile.home_city:
+            return None
+        return RuleHit(
+            code="commute_distance_unknown",
+            label_ru="источник не указал место работы",
+            weight=_COMMUTE_UNKNOWN_PENALTY,
+        )
 
     weight = _COMMUTE_FAR_PENALTY
     for limit, band_weight in _COMMUTE_BANDS:
@@ -233,10 +244,14 @@ def _commute_distance_hit(
     if weight < 0 and profile.relocation_ready:
         weight = max(weight, _COMMUTE_RELOCATION_FLOOR)
 
-    if weight == 0:
-        return None
+    # Ноль баллов не значит «молчать». Расстояние — это то, что человек хочет
+    # видеть на карточке, и в нейтральной полосе оно так же важно: без этой
+    # строки километраж считался, но пользователю не показывался ни разу из
+    # двадцати девяти вакансий.
     if weight > 0:
         label = f"рядом с домом, {distance:.0f} км"
+    elif weight == 0:
+        label = f"{distance:.0f} км от дома"
     elif profile.relocation_ready:
         label = f"{distance:.0f} км от дома — реально только с переездом"
     else:
@@ -510,6 +525,7 @@ class VacancyScorer:
         if commute_hit is not None:
             score += commute_hit.weight
             (positive_hits if commute_hit.weight >= 0 else negative_hits).append(commute_hit)
+
 
         if resolved_signals.low_language_signal:
             score += 12

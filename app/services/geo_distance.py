@@ -77,6 +77,7 @@ _CITY_DISTRICT_PARENTS: dict[str, str] = {
     "markgrafenheide": "rostock",
     "hinrichsdorf": "rostock",
     "krummendorf": "rostock",
+    "nienhagen bei rostock": "rostock",
     "kassebohm": "rostock",
     "seebad warnemunde": "rostock",
     "riekdahl": "rostock",
@@ -101,6 +102,13 @@ _CITY_DISTRICT_PARENTS: dict[str, str] = {
     "hamburg bezirk altona": "hamburg",
     "hamburg bezirk wandsbek": "hamburg",
     "hamburg bezirk bergedorf": "hamburg",
+    "altona altstadt": "hamburg",
+    "wohldorf ohlstedt": "hamburg",
+    "billstedt": "hamburg",
+    "winterhude": "hamburg",
+    "ottensen": "hamburg",
+    "rahlstedt": "hamburg",
+    "stellingen": "hamburg",
     # Берлин
     "charlottenburg": "berlin",
     "kreuzberg": "berlin",
@@ -121,6 +129,11 @@ _CITY_DISTRICT_PARENTS: dict[str, str] = {
     "wedding": "berlin",
     "moabit": "berlin",
     "prenzlauer berg": "berlin",
+    "nikolassee": "berlin",
+    "zehlendorf": "berlin",
+    "wilmersdorf": "berlin",
+    "schoneberg": "berlin",
+    "gesundbrunnen": "berlin",
 }
 
 # Псевдонимы названий. Две группы:
@@ -149,6 +162,29 @@ _CITY_EXONYMS: dict[str, str] = {
     "saxony": "sachsen",
 }
 
+# Центроиды федеральных земель. Источники иногда дают только землю
+# ("Sachsen-Anhalt"), и это не город — но и не повод считать расстояние
+# неизвестным: в масштабе страны ошибка в сто километров лучше, чем пропуск,
+# из-за которого вакансия без локации обходит в рейтинге вакансию с локацией.
+_STATE_CENTROIDS: dict[str, tuple[float, float]] = {
+    "baden wurttemberg": (48.66, 9.35),
+    "bayern": (48.95, 11.40),
+    "berlin": (52.52, 13.40),
+    "brandenburg": (52.40, 13.06),
+    "bremen": (53.08, 8.80),
+    "hamburg": (53.55, 9.99),
+    "hessen": (50.60, 9.00),
+    "mecklenburg vorpommern": (53.75, 12.60),
+    "niedersachsen": (52.75, 9.40),
+    "nordrhein westfalen": (51.45, 7.40),
+    "rheinland pfalz": (49.95, 7.45),
+    "saarland": (49.38, 6.97),
+    "sachsen": (51.05, 13.35),
+    "sachsen anhalt": (51.95, 11.70),
+    "schleswig holstein": (54.20, 9.80),
+    "thuringen": (50.90, 11.03),
+}
+
 # Приставки и хвосты, которые источники приклеивают к названию города.
 _CITY_NOISE_PREFIX_RE = re.compile(r"^(?:raum|region|grossraum|nahe|naehe|bei|umkreis|umgebung)\s+")
 _CITY_NOISE_SUFFIX_RE = re.compile(
@@ -159,6 +195,8 @@ _CITY_NOISE_SUFFIX_RE = re.compile(
 )
 # "Roggentin bei Rostock", "Freiburg im Breisgau" — город стоит слева от уточнения.
 _CITY_QUALIFIER_RE = re.compile(r"\s+(?:bei|an|am|im|in|auf|ob|vor)\s+.+$")
+_CITY_PARENTHETICAL_RE = re.compile(r"\([^)]*\)")
+_LOCATION_SEGMENT_SPLIT_RE = re.compile(r"[,;/|]")
 _CITY_QUALIFIER_CAPTURE_RE = re.compile(r"\s+(?:bei|an|am|im|in|vor)\s+(?P<anchor>.+)$")
 # Тёзки, разбросанные дальше этого, — разные места, и без уточнения выбрать
 # между ними нельзя.
@@ -269,10 +307,58 @@ def resolve_point(
             if postal is not None and (point := postal_table.get(postal)) is not None:
                 return point
 
+    # Источники присылают локацию иерархией: Adzuna даёт "Brinckmansdorf, Rostock",
+    # а нормализатор оставляет только первый сегмент. Родительский город при этом
+    # известен, и терять его — значит выбрасывать расстояние на ровном месте.
+    for segment in _location_segments(location_text):
+        for candidate in _city_candidates(segment):
+            point = _pick_place(place_table.get(candidate), segment, place_table)
+            if point is not None:
+                return point
+
     postal = _extract_postal_code(postal_code) or _extract_postal_code(location_text)
-    if postal is not None:
-        return prefix_table.get(postal[:2])
+    if postal is not None and (point := prefix_table.get(postal[:2])) is not None:
+        return point
+
+    # Составные названия вида "Berlin-Bezirk Mitte" начинаются с самого города.
+    # Требуем, чтобы ведущая часть была настоящим местом, иначе "Bad Homburg"
+    # схлопнется в "Bad".
+    for value in (city, location_text):
+        point = _leading_city_point(value, place_table)
+        if point is not None:
+            return point
+
+    # Последний рубеж — федеральная земля.
+    for value in (city, location_text):
+        for segment in (*_location_segments(value), _normalize_city(value)):
+            coords = _STATE_CENTROIDS.get(segment)
+            if coords is not None:
+                return GeoPoint(*coords)
     return None
+
+
+def _leading_city_point(
+    value: str | None,
+    place_table: dict[str, tuple[_WeightedPlace, ...]],
+) -> GeoPoint | None:
+    """Город, стоящий в начале составного названия."""
+    normalized = _normalize_city(value)
+    tokens = normalized.split()
+    for length in range(min(len(tokens) - 1, 3), 0, -1):
+        head = " ".join(tokens[:length])
+        head = _CITY_DISTRICT_PARENTS.get(head, _CITY_EXONYMS.get(head, head))
+        point = _pick_place(place_table.get(head), None, place_table)
+        if point is not None:
+            return point
+    return None
+
+
+def _location_segments(location_text: str | None) -> tuple[str, ...]:
+    """Части составной локации, от самой узкой к самой широкой."""
+    if not location_text:
+        return ()
+    parts = [part.strip() for part in _LOCATION_SEGMENT_SPLIT_RE.split(location_text)]
+    return tuple(part for part in parts if part)
 
 
 def _pick_place(
@@ -355,7 +441,10 @@ def _ascii_fold(text: str) -> str:
 def _normalize_city(city: str | None) -> str:
     if not city:
         return ""
-    normalized = _ascii_fold(city)
+    # "Berlin (Zentrale)", "München (Homeoffice)", "Rostock (Hauptsitz)" — уточнение
+    # в скобках относится к офису, а не к городу. Без его отсечения Берлин в 182 км
+    # от места поиска не опознавался и проходил мимо радиуса.
+    normalized = _ascii_fold(_CITY_PARENTHETICAL_RE.sub(" ", city))
     if not normalized:
         return ""
     normalized = _CITY_NOISE_PREFIX_RE.sub("", normalized)

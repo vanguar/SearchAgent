@@ -814,3 +814,48 @@ def test_servicing_e_scooters_by_car_is_not_a_bicycle_job() -> None:
     )
 
     assert not any(hit.code == "driver_muscle_powered_vehicle" for hit in result.negative_hits)
+
+
+def test_commute_distance_is_reported_even_when_it_costs_nothing() -> None:
+    """Ноль баллов не значит «молчать»: километраж пользователь хочет видеть.
+
+    В нейтральной полосе строка исчезала, и на реальном прогоне расстояние не
+    показалось ни разу из двадцати девяти вакансий.
+    """
+    profile = _build_profile(desired_roles=("Lagerarbeiter",), home_city="Tribsees")
+    canonical = _build_canonical(
+        title="Lagerarbeiter (m/w/d)", body="Kommissionierung.", location="Rostock, Deutschland"
+    )
+
+    result = VacancyScorer().score(canonical, profile)
+    hit = next(h for h in result.positive_hits if h.code == "commute_distance")
+
+    assert hit.weight == 0
+    assert "км от дома" in hit.label_ru
+
+
+def test_missing_location_is_not_cheaper_than_a_known_one() -> None:
+    """Иначе вакансия без локации обходит вакансию с локацией.
+
+    В прогоне по всей Германии верхнюю строку заняла именно такая.
+    """
+    profile = _build_profile(desired_roles=("Lagerarbeiter",), home_city="Tribsees")
+    scorer = VacancyScorer()
+    unknown = scorer.score(
+        _build_canonical(title="Lagerarbeiter (m/w/d)", body="Kommissionierung.", location="Zzz Unbekannt"),
+        profile,
+    )
+
+    assert any(h.code == "commute_distance_unknown" for h in unknown.negative_hits)
+
+
+def test_no_home_city_means_no_distance_scoring_at_all() -> None:
+    profile = _build_profile(desired_roles=("Lagerarbeiter",), home_city=None)
+    result = VacancyScorer().score(
+        _build_canonical(title="Lagerarbeiter (m/w/d)", body="Kommissionierung.", location="Zzz Unbekannt"),
+        profile,
+    )
+
+    codes = {h.code for h in result.positive_hits} | {h.code for h in result.negative_hits}
+    assert "commute_distance_unknown" not in codes
+    assert "commute_distance" not in codes
