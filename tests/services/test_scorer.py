@@ -82,6 +82,65 @@ def test_video_montage_does_not_false_match_production_family() -> None:
     assert not any(hit.code == "production_family" for hit in signals.positive_role_hits)
 
 
+def test_data_warehouse_does_not_false_match_warehouse_family() -> None:
+    """"data warehouse" is a database — it must NOT make an AI job a warehouse role."""
+    from app.services.rule_catalog import inspect_vacancy
+
+    profile = _build_profile(desired_roles=("Lagerarbeiter", "Lagermitarbeiter"))
+    canonical = _build_canonical(
+        title="AI Engineer",
+        body="Connect approved AI workflows to databases, data warehouses and file stores.",
+    )
+
+    signals = inspect_vacancy(canonical, profile)
+
+    assert not any(hit.code == "warehouse_family" for hit in signals.positive_role_hits)
+
+
+def test_go_to_market_distribution_does_not_false_match_logistics_family() -> None:
+    """Startup "distribution" (go-to-market) is not a logistics signal."""
+    from app.services.rule_catalog import inspect_vacancy
+
+    profile = _build_profile(desired_roles=("Lagerarbeiter",))
+    canonical = _build_canonical(
+        title="Founding Engineer, AI Router Product",
+        body="Strong distribution and real credibility behind the company from day one.",
+    )
+
+    signals = inspect_vacancy(canonical, profile)
+
+    assert not any(hit.code == "logistics_family" for hit in signals.positive_role_hits)
+
+
+def test_blue_collar_role_hits_are_dropped_for_an_it_profile() -> None:
+    """An IT profile must never be told a vacancy fits because it is warehouse work."""
+    from app.services.rule_catalog import inspect_vacancy
+
+    it_profile = _build_profile(desired_roles=("AI Automation Specialist", "Python Developer"))
+    canonical = _build_canonical(
+        title="Lagermitarbeiter (m/w/d)",
+        body="Kommissionierung und Versand im Lager, Schichtarbeit.",
+    )
+
+    signals = inspect_vacancy(canonical, it_profile)
+
+    assert not signals.positive_role_hits
+
+
+def test_blue_collar_role_hits_survive_for_a_warehouse_profile() -> None:
+    from app.services.rule_catalog import inspect_vacancy
+
+    signals = inspect_vacancy(
+        _build_canonical(
+            title="Lagermitarbeiter (m/w/d)",
+            body="Kommissionierung und Versand im Lager, Schichtarbeit.",
+        ),
+        _build_profile(),
+    )
+
+    assert any(hit.code == "warehouse_family" for hit in signals.positive_role_hits)
+
+
 def test_german_assembly_still_matches_production_family() -> None:
     """Genuine German assembly/production keywords must still score as production work."""
     from app.services.rule_catalog import inspect_vacancy

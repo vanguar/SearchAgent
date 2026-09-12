@@ -7,6 +7,12 @@ from app.services.ai_tools_profile import is_ai_tools_profile
 from app.services.driver_license_signal_extractor import extract_driver_license_requirements
 from app.services.hashers import normalize_text_for_fingerprint
 from app.services.normalization_models import CanonicalVacancyGroup
+from app.services.role_family import (
+    RoleFamily,
+    classify_desired_roles,
+    families_are_compatible,
+    is_specific_family,
+)
 from app.services.search_models import RuleHit, SearchProfileContext, VacancySignalSnapshot, normalize_profile_text
 from app.services.vehicle_class_signal_extractor import extract_vehicle_class_signals
 from app.services.search_normalizer import is_remote_worldwide_location
@@ -27,12 +33,32 @@ POSITIVE_ROLE_FAMILIES: tuple[TextRule, ...] = (
     TextRule(
         code="warehouse_family",
         label_ru="складская роль",
-        patterns=(r"\blager\w*", r"\bwarehouse\w*", r"\bkommissionier\w*", r"\bpicker\b"),
+        # NB: "warehouse" and "picker" are ambiguous outside blue-collar ads. A "data
+        # warehouse" is a database, not a building — an AI Engineer ad that mentioned
+        # "databases, data warehouses, file stores" was scored as a warehouse job and
+        # explained itself on the card as "складская роль". A "date/color/file picker"
+        # is a UI widget, not an order picker. Excluded by context, not dropped.
+        patterns=(
+            r"\blager\w*",
+            r"(?<!data )\bwarehouse\w*",
+            r"\bkommissionier\w*",
+            r"(?<!date )(?<!time )(?<!color )(?<!colour )(?<!file )(?<!image )(?<!emoji )\bpicker\b",
+        ),
     ),
     TextRule(
         code="logistics_family",
         label_ru="логистическая роль",
-        patterns=(r"\blogistik\w*", r"\bversand\w*", r"\bfulfillment\b", r"\bdistribution\b"),
+        # NB: bare "distribution" is not a logistics signal — startup ads use it for
+        # go-to-market ("strong distribution and real credibility behind the company"),
+        # software ads for package/content distribution. Only the logistics compounds
+        # and explicit logistics phrases count.
+        patterns=(
+            r"\blogistik\w*",
+            r"\bversand\w*",
+            r"\bfulfillment\b",
+            r"\bdistributions(?:zentrum|zentren|lager|center)\w*",
+            r"\bdistribution (?:cent(?:er|re)|warehouse|hub|logistics)\b",
+        ),
     ),
     TextRule(
         code="packaging_family",
@@ -64,6 +90,21 @@ POSITIVE_ROLE_FAMILIES: tuple[TextRule, ...] = (
         patterns=(r"\b\w*fahrer\w*", r"\bzusteller\w*", r"\bkurier\w*", r"\blieferfahrer\w*", r"\bkraftfahrer\w*"),
     ),
 )
+
+# Role family behind each positive blue-collar rule. A hit only counts as a positive
+# signal for a profile that actually looks for that kind of work: for an IT profile a
+# "warehouse role" is never a reason to rank a vacancy higher, it is noise from a word
+# that happens to appear in the ad (data warehouse, distribution, packaging of a build).
+# helper_family is deliberately unmapped — "Helfer"/"Aushilfe" spans every manual family
+# and carries no family of its own.
+POSITIVE_ROLE_HIT_FAMILIES: dict[str, RoleFamily] = {
+    "warehouse_family": RoleFamily.WAREHOUSE,
+    "logistics_family": RoleFamily.WAREHOUSE,
+    "packaging_family": RoleFamily.WAREHOUSE,
+    "production_family": RoleFamily.PRODUCTION,
+    "delivery_driving_family": RoleFamily.DRIVING,
+}
+
 
 NEGATIVE_ROLE_FAMILIES: tuple[TextRule, ...] = (
     TextRule(
@@ -404,7 +445,10 @@ def _has_analyzable_body(canonical: CanonicalVacancyGroup) -> bool:
 def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileContext) -> VacancySignalSnapshot:
     combined_text = build_combined_text(canonical)
     title_text = build_title_text(canonical)
-    positive_role_hits = _match_rules(combined_text, POSITIVE_ROLE_FAMILIES)
+    positive_role_hits = _keep_profile_relevant_role_hits(
+        _match_rules(combined_text, POSITIVE_ROLE_FAMILIES),
+        profile,
+    )
     negative_role_hits = _match_rules(combined_text, NEGATIVE_ROLE_FAMILIES)
 
     desired_role_hits = _dedupe_hits([
@@ -550,6 +594,31 @@ def _should_include_main_occupation(*, main_occupation: str, vacancy_text: str) 
 
     occupation_signals = extract_vehicle_class_signals(main_occupation)
     return occupation_signals.heavy_vehicle != ("Berufskraftfahrer",)
+
+
+def _keep_profile_relevant_role_hits(
+    hits: tuple[RuleHit, ...],
+    profile: SearchProfileContext,
+) -> tuple[RuleHit, ...]:
+    """Drop blue-collar role hits that no desired role of the profile is asking for.
+
+    Only families the profile itself declares are used, so a profile whose roles do not
+    classify into any specific family keeps every hit — the gate stays conservative.
+    """
+    query_families = {
+        family
+        for family in classify_desired_roles(profile.desired_roles)
+        if is_specific_family(family)
+    }
+    if not query_families:
+        return hits
+
+    return tuple(
+        hit
+        for hit in hits
+        if (hit_family := POSITIVE_ROLE_HIT_FAMILIES.get(hit.code)) is None
+        or any(families_are_compatible(query_family, hit_family) for query_family in query_families)
+    )
 
 
 def _match_rules(text: str, rules: tuple[TextRule, ...]) -> tuple[RuleHit, ...]:
