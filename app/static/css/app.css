@@ -2488,6 +2488,19 @@ body {
   font-weight: 600;
 }
 
+/* Раздел «рядом с домом»: досягаемое ежедневно не должно тонуть в выдаче
+   по всей стране. */
+.jobs-nearby-panel {
+  border-left: 3px solid var(--accent, #2f6f4f);
+}
+
+.jobs-nearby-panel__note {
+  margin: 0 0 4px;
+  padding: 0 16px 12px;
+  color: var(--text-soft);
+  font-size: 0.78rem;
+}
+
 /* Пояснение под полем формы: почему поле сейчас не действует. */
 .search-field__hint {
   margin: 4px 0 0;

@@ -225,6 +225,11 @@ class SearchSourceState:
     error_message: str | None = None
 
 
+# Граница ежедневной поездки на работу. Дальше неё речь идёт уже о переезде,
+# а не о дороге; тем же порогом заканчивается нейтральная полоса в скоринге.
+DAILY_COMMUTE_LIMIT_KM = 50.0
+
+
 @dataclass(frozen=True, slots=True)
 class SearchResultItem:
     canonical_group: CanonicalVacancyGroup
@@ -240,6 +245,20 @@ class SearchResultItem:
     # Deterministic role family derived from canonical normalized title — used for feedback matching.
     role_family: str | None = None
     search_query: str | None = None
+
+    @property
+    def distance_from_home_km(self) -> float | None:
+        return self.signals.distance_from_home_km
+
+    @property
+    def is_within_daily_commute(self) -> bool:
+        """Досягаемо из дома ежедневно, без переезда.
+
+        Неизвестное расстояние не считается близким: утверждать «рядом» можно
+        только про то, что мы действительно измерили.
+        """
+        distance = self.signals.distance_from_home_km
+        return distance is not None and distance <= DAILY_COMMUTE_LIMIT_KM
 
     @property
     def priority_highlights(self) -> tuple[RuleHit, ...]:
@@ -339,6 +358,46 @@ class SearchRunResult:
     @property
     def has_results(self) -> bool:
         return bool(self.results)
+
+    @property
+    def nearby_results(self) -> tuple[SearchResultItem, ...]:
+        """Показываемые вакансии в пределах ежедневной досягаемости из дома."""
+        return tuple(item for item in self._displayed_results if item.is_within_daily_commute)
+
+    @property
+    def countrywide_results(self) -> tuple[SearchResultItem, ...]:
+        """Всё остальное показываемое: дальше досягаемости либо без локации."""
+        return tuple(item for item in self._displayed_results if not item.is_within_daily_commute)
+
+    @property
+    def distance_split_available(self) -> bool:
+        """Делить выдачу по расстоянию имеет смысл только когда есть обе части.
+
+        Профиль водителя ищет по всей стране, и близкие вакансии тонули среди
+        тех, что за шестьсот километров; но если всё найденное одинаково далеко
+        или одинаково близко, лишний заголовок только мешает.
+        """
+        if not self.profile.home_city:
+            return False
+        return bool(self.nearby_results) and bool(self.countrywide_results)
+
+    @property
+    def hot_results_beyond_commute(self) -> tuple[SearchResultItem, ...]:
+        """Горячие за пределами ежедневной досягаемости.
+
+        Когда выдача разделена по расстоянию, ближние уже показаны отдельным
+        разделом, и повторять их в общем списке нельзя: одна вакансия — одна
+        карточка.
+        """
+        return tuple(item for item in self.hot_results if not item.is_within_daily_commute)
+
+    @property
+    def maybe_results_beyond_commute(self) -> tuple[SearchResultItem, ...]:
+        return tuple(item for item in self.maybe_results if not item.is_within_daily_commute)
+
+    @property
+    def _displayed_results(self) -> tuple[SearchResultItem, ...]:
+        return self.hot_results + self.maybe_results
 
 
 def normalize_profile_text(text: str | None) -> str:

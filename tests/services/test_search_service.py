@@ -1,6 +1,8 @@
 import logging
 from types import SimpleNamespace
 
+from app.services.normalization_models import CanonicalVacancyGroup
+from app.services.normalizer import VacancyNormalizer
 from app.services.relevance_feedback_service import RelevanceFeedbackService
 from app.services.relevance_memory_service import (
     FeedbackPattern,
@@ -8,7 +10,14 @@ from app.services.relevance_memory_service import (
     RelevanceMemoryService,
     SourceQualitySignal,
 )
-from app.services.search_models import SearchProfileContext, VacancySignalSnapshot
+from app.services.search_models import (
+    FilterResult,
+    ScoreResult,
+    SearchProfileContext,
+    SearchResultItem,
+    SearchRunResult,
+    VacancySignalSnapshot,
+)
 from app.services.search_service import SearchService, _result_sort_key
 from app.services.source_adapters.base import BaseSourceAdapter
 from app.services.source_adapters.errors import AdapterRequestError
@@ -890,3 +899,98 @@ def test_collapse_keeps_the_first_and_best_ranked_card() -> None:
     kept = _collapse_items_sharing_a_source_record([alone, grouped])
 
     assert [entry.name for entry in kept] == ["одиночная"]
+
+
+def _make_result_item(*, distance_km: float | None, bucket: str = "hot") -> SearchResultItem:
+    """Карточка результата с заданным расстоянием до дома."""
+    record = VacancyNormalizer().normalize_source_record(
+        SourceRecordPreview(
+            source_id="ba", source_name="BA", external_id=f"d-{distance_km}",
+            source_reference=f"d-{distance_km}", title="Fahrer (m/w/d)", company="Nord GmbH",
+            location="Rostock", posted_at="2026-09-01", detail_url=None,
+            raw_payload={"description": "Auslieferung."},
+        )
+    )
+    canonical = CanonicalVacancyGroup(
+        canonical_key=f"canonical-{distance_km}", normalized_title=record.normalized_title,
+        company_name=record.normalized_company, location_text=record.normalized_location.normalized_text,
+        country_code=record.normalized_location.country_code, city=record.normalized_location.city,
+        posted_date=record.posted_date, language_signals=record.language_signals,
+        source_records=(record,), provenance=(record.source_record_key,),
+    )
+    return SearchResultItem(
+        canonical_group=canonical,
+        primary_record=record,
+        signals=VacancySignalSnapshot(combined_text="", distance_from_home_km=distance_km),
+        filter_result=FilterResult(decision="allow"),
+        score_result=ScoreResult(score=70),
+        bucket=bucket,
+        explanation_ru="",
+    )
+
+
+def _make_run_result(*, home_city: str | None, hot: tuple[SearchResultItem, ...]) -> SearchRunResult:
+    profile = SearchProfileContext(
+        profile_label="Driver", profile_source="saved", home_city=home_city, desired_roles=("Fahrer",)
+    )
+    return SearchRunResult(profile=profile, source_states=(), results=hot, hot_results=hot)
+
+
+def test_nearby_and_countrywide_split_uses_the_daily_commute_limit() -> None:
+    """Вакансии в получасе от дома тонули среди тех, что за шестьсот километров."""
+    near = _make_result_item(distance_km=42.0)
+    far = _make_result_item(distance_km=319.0)
+    result = _make_run_result(home_city="Tribsees", hot=(near, far))
+
+    assert result.nearby_results == (near,)
+    assert result.countrywide_results == (far,)
+    assert result.distance_split_available is True
+
+
+def test_unknown_distance_is_never_called_nearby() -> None:
+    """Утверждать «рядом» можно только про измеренное."""
+    near = _make_result_item(distance_km=10.0)
+    unknown = _make_result_item(distance_km=None)
+    result = _make_run_result(home_city="Tribsees", hot=(near, unknown))
+
+    assert result.nearby_results == (near,)
+    assert result.countrywide_results == (unknown,)
+
+
+def test_split_is_hidden_when_it_would_say_nothing() -> None:
+    """Если всё одинаково близко или одинаково далеко, заголовок только мешает."""
+    all_near = _make_run_result(home_city="Tribsees", hot=(_make_result_item(distance_km=12.0),))
+    all_far = _make_run_result(home_city="Tribsees", hot=(_make_result_item(distance_km=400.0),))
+
+    assert all_near.distance_split_available is False
+    assert all_far.distance_split_available is False
+
+
+def test_split_needs_a_home_city() -> None:
+    result = _make_run_result(
+        home_city=None,
+        hot=(_make_result_item(distance_km=12.0), _make_result_item(distance_km=400.0)),
+    )
+
+    assert result.distance_split_available is False
+
+
+def test_nearby_results_are_not_repeated_in_the_countrywide_lists() -> None:
+    """Одна вакансия — одна карточка, даже когда выдача разделена по расстоянию."""
+    near = _make_result_item(distance_km=42.0)
+    far = _make_result_item(distance_km=319.0)
+    maybe_near = _make_result_item(distance_km=20.0, bucket="maybe")
+    result = SearchRunResult(
+        profile=SearchProfileContext(
+            profile_label="Driver", profile_source="saved", home_city="Tribsees", desired_roles=("Fahrer",)
+        ),
+        source_states=(),
+        results=(near, far, maybe_near),
+        hot_results=(near, far),
+        maybe_results=(maybe_near,),
+    )
+
+    assert result.hot_results_beyond_commute == (far,)
+    assert result.maybe_results_beyond_commute == ()
+    shown = result.nearby_results + result.hot_results_beyond_commute + result.maybe_results_beyond_commute
+    assert len(shown) == len({id(item) for item in shown}) == 3

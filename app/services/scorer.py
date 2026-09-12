@@ -21,6 +21,7 @@ from app.services.profile_parser import (
 from app.services.role_family import RoleFamily, classify_vacancy_de
 from app.services.rule_catalog import BASE_SCORE, inspect_vacancy
 from app.services.search_models import (
+    DAILY_COMMUTE_LIMIT_KM,
     FilterResult,
     RuleHit,
     ScoreResult,
@@ -203,7 +204,7 @@ _DRIVER_B_LONG_ROUTE_CODES = frozenset({
 _COMMUTE_BANDS: tuple[tuple[float, int], ...] = (
     (15.0, 5),
     (30.0, 3),
-    (50.0, 0),
+    (DAILY_COMMUTE_LIMIT_KM, 0),
     (80.0, -5),
     (120.0, -10),
 )

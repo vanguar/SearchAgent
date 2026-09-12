@@ -24,7 +24,7 @@ from app.services.search_export_service import (
     build_search_export,
 )
 from app.services.search_history_service import SearchHistoryService
-from app.services.search_models import SearchRunResult
+from app.services.search_models import DAILY_COMMUTE_LIMIT_KM, SearchRunResult
 from app.services.search_normalizer import (
     is_country_wide_location,
     is_remote_worldwide_location,
@@ -515,6 +515,7 @@ def _render_results(request: Request, result: SearchRunResult | None, profile_id
         page_subtitle=JOBS_PAGE_SUBTITLE,
         extra_context={
             "search_result": result,
+            "daily_commute_limit_km": int(DAILY_COMMUTE_LIMIT_KM),
             "form_error": form_error,
             "profile_id": profile_id,
             # Present only for completed background searches — enables the PDF export button.
@@ -674,6 +675,7 @@ def jobs_export(task_id: str, request: Request) -> HTMLResponse:
         context={
             "page_title": meta["title"],
             "search_result": result,
+            "daily_commute_limit_km": int(DAILY_COMMUTE_LIMIT_KM),
             "generated_at": utc_now(),
         },
     )
@@ -762,6 +764,7 @@ async def jobs_search_results(
         page_subtitle=JOBS_PAGE_SUBTITLE,
         extra_context={
             "search_result": search_result,
+            "daily_commute_limit_km": int(DAILY_COMMUTE_LIMIT_KM),
             "form_error": form_error,
             "profile_id": profile_id,
         },

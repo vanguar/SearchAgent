@@ -136,6 +136,23 @@
       <span><b>Сырых записей:</b> {{ search_result.total_raw_records }}</span>
     </div>
 
+    {#
+      Досягаемое из дома ежедневно печатается первым: в выгрузке по всей стране
+      вакансия в получасе от дома иначе теряется среди тех, что за шестьсот
+      километров. Ниже она не повторяется — карточка одна.
+    #}
+    {% set printed = namespace(keys=[]) %}
+    {% if search_result.distance_split_available %}
+      <h2 class="section-title">
+        Рядом с домом — до {{ daily_commute_limit_km }} км от {{ search_result.profile.home_city }}
+        ({{ search_result.nearby_results|length }})
+      </h2>
+      {% for item in search_result.nearby_results %}
+        {% set _ = printed.keys.append(item.canonical_group.canonical_key) %}
+        {{ render_vacancy(item) }}
+      {% endfor %}
+    {% endif %}
+
     {% set keyword_groups = search_result.query_result_groups | selectattr("query") | list %}
     {% if keyword_groups %}
       {#
@@ -144,7 +161,6 @@
         ключевикам дали 301 страницу — документ, который невозможно прочитать.
         Печатаем каждую один раз, в первом ключевике, который её нашёл.
       #}
-      {% set printed = namespace(keys=[]) %}
       <p class="muted" style="margin: 0 0 14px;">
         Документ сгруппирован по ключевикам поиска. Каждая вакансия показана один раз —
         в том ключевике, который нашёл её первым.
@@ -163,8 +179,9 @@
         {% endif %}
       {% endfor %}
     {% else %}
-      {% for item in search_result.hot_results %}{{ render_vacancy(item) }}{% endfor %}
-      {% for item in search_result.maybe_results %}{{ render_vacancy(item) }}{% endfor %}
+      {% for item in search_result.hot_results + search_result.maybe_results %}
+        {% if item.canonical_group.canonical_key not in printed.keys %}{{ render_vacancy(item) }}{% endif %}
+      {% endfor %}
     {% endif %}
 
     {# Отклонённые вакансии в ПДФ намеренно не выводятся. Это отчёт о том, на что

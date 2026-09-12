@@ -350,6 +350,28 @@
 </article>
 
 {% set visible_results = search_result.hot_results + search_result.maybe_results %}
+
+{#
+  Профиль вроде «дальние рейсы» ищет по всей стране, и вакансии в получасе от
+  дома тонули среди тех, что за шестьсот километров: балл у них сопоставимый,
+  а разница для человека огромная. Поэтому досягаемое ежедневно выносится
+  наверх отдельным разделом — но только когда есть и то и другое, иначе
+  заголовок сообщал бы о делении, которого нет.
+#}
+{% if search_result.distance_split_available %}
+<article class="panel jobs-nearby-panel">
+  {{ render_bucket_body(
+      "Рядом с домом — до " ~ daily_commute_limit_km ~ " км от " ~ search_result.profile.home_city,
+      search_result.nearby_results,
+      profile_id,
+  ) }}
+  <p class="jobs-nearby-panel__note">
+    Остальные {{ search_result.countrywide_results|length }} — дальше или без указанной локации,
+    они ниже.
+  </p>
+</article>
+{% endif %}
+
 {% if search_result.attempt_summary and search_result.attempt_summary.attempts and search_result.query_result_groups %}
 {% set tabs = namespace(count=0) %}
 <article class="panel jobs-query-tabs-panel" data-query-tabs>
@@ -390,8 +412,14 @@
   {% endfor %}
 </article>
 {% else %}
-  {{ render_bucket("Горячие вакансии", search_result.hot_results, profile_id) }}
-  {{ render_bucket("Можно проверить", search_result.maybe_results, profile_id) }}
+  {# Ближние уже показаны разделом выше — здесь только остальные. #}
+  {% if search_result.distance_split_available %}
+    {{ render_bucket("Горячие вакансии по стране", search_result.hot_results_beyond_commute, profile_id) }}
+    {{ render_bucket("Можно проверить по стране", search_result.maybe_results_beyond_commute, profile_id) }}
+  {% else %}
+    {{ render_bucket("Горячие вакансии", search_result.hot_results, profile_id) }}
+    {{ render_bucket("Можно проверить", search_result.maybe_results, profile_id) }}
+  {% endif %}
 {% endif %}
 
 
