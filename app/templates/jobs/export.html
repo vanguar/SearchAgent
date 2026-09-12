@@ -138,14 +138,28 @@
 
     {% set keyword_groups = search_result.query_result_groups | selectattr("query") | list %}
     {% if keyword_groups %}
+      {#
+        Одна вакансия находится сразу несколькими ключевиками, и раньше она
+        печаталась в каждом разделе. На реальном прогоне 102 вакансии по 16
+        ключевикам дали 301 страницу — документ, который невозможно прочитать.
+        Печатаем каждую один раз, в первом ключевике, который её нашёл.
+      #}
+      {% set printed = namespace(keys=[]) %}
       <p class="muted" style="margin: 0 0 14px;">
-        Документ сгруппирован по ключевикам поиска. Одна вакансия может попасть в несколько ключевиков.
+        Документ сгруппирован по ключевикам поиска. Каждая вакансия показана один раз —
+        в том ключевике, который нашёл её первым.
       </p>
       {% for group in keyword_groups %}
-        {% if group.hot_results or group.maybe_results %}
-        <h2 class="section-title">Ключевик: «{{ group.query }}» ({{ group.visible_count }})</h2>
-        {% for item in group.hot_results %}{{ render_vacancy(item) }}{% endfor %}
-        {% for item in group.maybe_results %}{{ render_vacancy(item) }}{% endfor %}
+        {% set fresh = [] %}
+        {% for item in group.hot_results + group.maybe_results %}
+          {% if item.canonical_group.canonical_key not in printed.keys %}
+            {% set _ = fresh.append(item) %}
+            {% set printed.keys = printed.keys + [item.canonical_group.canonical_key] %}
+          {% endif %}
+        {% endfor %}
+        {% if fresh %}
+        <h2 class="section-title">Ключевик: «{{ group.query }}» ({{ fresh|length }})</h2>
+        {% for item in fresh %}{{ render_vacancy(item) }}{% endfor %}
         {% endif %}
       {% endfor %}
     {% else %}
