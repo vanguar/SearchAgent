@@ -195,6 +195,10 @@ class FilterEngine:
         ):
             rejection_hits.append(RuleHit(code="location_mismatch", label_ru="локация не совпадает с профилем"))
 
+        outside_radius = _outside_search_radius_hit(resolved_signals, profile, worldwide_search)
+        if outside_radius is not None:
+            rejection_hits.append(outside_radius)
+
         if resolved_signals.sponsorship_ambiguity:
             review_hits.append(RuleHit(code="sponsorship_review", label_ru="есть вопросы по допуску к работе"))
 
@@ -210,6 +214,47 @@ class FilterEngine:
             rejection_hits=_dedupe_hits(rejection_hits),
             review_hits=_dedupe_hits(review_hits),
         )
+
+
+# Радиус из формы трактуется как намерение, а не как забор по линейке: координаты
+# берутся по центру населённого пункта, да и "в районе Ростока" человек понимает
+# широко. Поэтому режем на удвоенном радиусе — этого хватает, чтобы убрать Мюнхен
+# и Берлин из поиска по Ростоку, и мало, чтобы спорить с пользователем о соседнем
+# посёлке. Нижний порог защищает крошечные радиусы от отсечения соседней улицы.
+_SEARCH_RADIUS_TOLERANCE_FACTOR = 2.0
+_SEARCH_RADIUS_MIN_LIMIT_KM = 25.0
+
+
+def _outside_search_radius_hit(
+    signals: VacancySignalSnapshot,
+    profile: SearchProfileContext,
+    worldwide_search: bool,
+) -> RuleHit | None:
+    """Вакансия вне радиуса, который пользователь явно задал в форме поиска.
+
+    Раньше радиус уходил только в те адаптеры, которые его поддерживают, и нигде
+    не проверялся после: поиск "Росток, 25 км" возвращал Мюнхен, Берлин и
+    Дармштадт из Arbeitnow, который фильтрует на своей стороне без радиуса.
+
+    Проверка не зависит от relocation_ready: готовность к переезду — это свойство
+    профиля, а радиус пользователь задал для ЭТОГО запроса.
+    """
+    if worldwide_search or not profile.search_radius_km:
+        return None
+    distance = signals.distance_from_search_location_km
+    if distance is None:
+        return None
+
+    limit = max(profile.search_radius_km * _SEARCH_RADIUS_TOLERANCE_FACTOR, _SEARCH_RADIUS_MIN_LIMIT_KM)
+    if distance <= limit:
+        return None
+    return RuleHit(
+        code="outside_search_radius",
+        label_ru=(
+            f"до вакансии {distance:.0f} км от «{profile.search_location}», "
+            f"а в поиске задан радиус {profile.search_radius_km} км"
+        ),
+    )
 
 
 def _collect_positive_hits(signals: VacancySignalSnapshot, profile: SearchProfileContext) -> tuple[RuleHit, ...]:
@@ -273,6 +318,10 @@ def _heavy_vehicle_mismatch_hit(
         return None
 
     detected = signals.heavy_vehicle_signals or signals.heavy_driver_qualification_signals
+    if not detected and not signals.light_commercial_vehicle_signals:
+        # Ни одного явного признака грузовика, но и ни одного упоминания лёгкого транспорта:
+        # в этой тишине формальное "Kraftfahrer" читается как грузовик, а не как Sprinter.
+        detected = signals.heavy_vehicle_context_signals
     if not detected:
         return None
 

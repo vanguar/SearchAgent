@@ -18,7 +18,6 @@ from app.services.profile_parser import (
     DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
 )
 from app.services.rule_catalog import BASE_SCORE, inspect_vacancy
-from app.services.vacancy_quality_signals import quality_differentiator_hits
 from app.services.search_models import (
     FilterResult,
     RuleHit,
@@ -28,6 +27,7 @@ from app.services.search_models import (
     normalize_profile_text,
 )
 from app.services.search_normalizer import is_remote_worldwide_location
+from app.services.vacancy_quality_signals import quality_differentiator_hits
 
 _CORE_STACK_RULES: tuple[tuple[str, str, int, tuple[str, ...]], ...] = (
     ("stack_python", "Python в стеке", 14, ("python",)),
@@ -155,6 +155,34 @@ _DRIVER_B_NEGATIVE_RULES: tuple[tuple[str, str, int, tuple[str, ...]], ...] = (
         -12,
         (r"\btur\s+zu\s+tur\b", r"\bpakete?\s+an\s+privatkunden\b"),
     ),
+    (
+        "driver_press_distribution",
+        "разноска прессы и рекламы",
+        -24,
+        # Разноска газет — та же массовая развозка с десятками точек, которую
+        # профиль исключает для посылок. В списке исключений профиля её не было,
+        # и "Transporterfahrer für Zeitungszustellung" держался в горячих.
+        (
+            r"\bzeitungs(?:zustell|bot|austrag|verteil)\w*",
+            r"\b(?:prospekt|werbe|anzeigenblatt)\w*(?:verteil|zustell)\w*",
+            r"\bwochenblatt\w*\s+(?:zustell|verteil)\w*",
+        ),
+    ),
+    (
+        "driver_muscle_powered_vehicle",
+        "доставка на велосипеде, а не на автомобиле",
+        -26,
+        # Профиль — Sprinter и длинные рейсы; велокурьер это другая работа.
+        # Указывается именно транспорт доставки: обслуживание чужих e-scooter
+        # на автомобиле (Fahrer/Fahrzeugpfleger) под эти формы не попадает.
+        (
+            r"\b(?:fahrrad|rad|velo|e\s*bike|ebike|lastenrad|cargobike)kurier\w*",
+            r"\bkurier\w*\s+(?:mit|per|auf)\s+(?:dem\s+)?(?:fahrrad|e\s*bike|lastenrad)\b",
+            r"\bzustell\w*\s+(?:mit|per)\s+(?:dem\s+)?(?:fahrrad|e\s*bike|lastenrad)\b",
+            r"\blieferung\s+(?:mit|per)\s+(?:dem\s+)?(?:fahrrad|e\s*bike)\b",
+            r"\bfahrradfahrer\w*",
+        ),
+    ),
 )
 _DRIVER_B_LONG_ROUTE_CODES = frozenset({
     "driver_long_distance",
@@ -162,6 +190,91 @@ _DRIVER_B_LONG_ROUTE_CODES = frozenset({
     "driver_nationwide_routes",
     "driver_multiday_routes",
 })
+# Дорога на работу от места жительства.
+#
+# Пороги подобраны под сельскую Германию, а не под большой город: если человек
+# живёт в Трибзесе, ближайший рынок труда — Росток в 42 км, и штрафовать за него
+# весь регион бессмысленно (на калибровке "40 км = штраф" из hot вылетели 22 из
+# 47 нормальных складских вакансий). Поэтому до ~50 км — нейтральная зона,
+# ближние города получают небольшой плюс, а штраф начинается там, где ежедневная
+# поездка кончается и начинается переезд.
+_COMMUTE_BANDS: tuple[tuple[float, int], ...] = (
+    (15.0, 5),
+    (30.0, 3),
+    (50.0, 0),
+    (80.0, -5),
+    (120.0, -10),
+)
+_COMMUTE_FAR_PENALTY = -18
+# Готовность к переезду не делает дорогу короче, но меняет её смысл: далёкая
+# вакансия перестаёт быть ошибкой и становится вариантом с переездом.
+_COMMUTE_RELOCATION_FLOOR = -8
+
+
+def _commute_distance_hit(
+    signals: VacancySignalSnapshot,
+    profile: SearchProfileContext,
+) -> RuleHit | None:
+    """Балл за реальное расстояние от места жительства до работы.
+
+    Считается от дома, а не от города поиска: искать можно по Ростоку, живя в
+    другом месте, и ездить придётся именно из дома.
+    """
+    distance = signals.distance_from_home_km
+    if distance is None:
+        return None
+
+    weight = _COMMUTE_FAR_PENALTY
+    for limit, band_weight in _COMMUTE_BANDS:
+        if distance <= limit:
+            weight = band_weight
+            break
+
+    if weight < 0 and profile.relocation_ready:
+        weight = max(weight, _COMMUTE_RELOCATION_FLOOR)
+
+    if weight == 0:
+        return None
+    if weight > 0:
+        label = f"рядом с домом, {distance:.0f} км"
+    elif profile.relocation_ready:
+        label = f"{distance:.0f} км от дома — реально только с переездом"
+    else:
+        label = f"{distance:.0f} км от дома — далеко ездить"
+    return RuleHit(code="commute_distance", label_ru=label, weight=weight)
+
+
+# Упоминание профильной темы только в теле объявления — слабый сигнал: он
+# подтверждает, что вакансия из смежного мира, но не то, что это нужная работа.
+_BODY_ONLY_ROLE_BONUS = 8
+_BODY_ONLY_DESIRED_BONUS = 4
+
+# Подписи семейств для карточки. Раньше на любое попадание выводилось
+# "целевая складская или производственная роль", и IT-вакансия объясняла себя
+# пользователю как складская.
+_ROLE_FAMILY_LABELS: dict[str, str] = {
+    "warehouse_family": "складская роль",
+    "logistics_family": "логистическая роль",
+    "packaging_family": "роль в упаковке",
+    "production_family": "производственная роль",
+    "helper_family": "простая вспомогательная роль",
+    "delivery_driving_family": "роль в доставке или вождении",
+}
+
+
+def _role_family_label(hits: tuple[RuleHit, ...]) -> str:
+    """Подпись по фактически сработавшим семьям, а не общая складская формулировка."""
+    labels = [
+        label
+        for hit in hits
+        if (label := _ROLE_FAMILY_LABELS.get(hit.code)) is not None
+    ]
+    if not labels:
+        return "целевая роль по профилю"
+    unique = list(dict.fromkeys(labels))
+    return unique[0] if len(unique) == 1 else ", ".join(unique[:2])
+
+
 _DRIVER_B_POSITIVE_BONUS_CAP = 28
 _DRIVER_B_NEGATIVE_PENALTY_FLOOR = -36
 _DRIVER_B_LONG_ROUTE_FEW_STOPS_BONUS = 5
@@ -299,14 +412,44 @@ class VacancyScorer:
                 )
             )
 
-        if resolved_signals.positive_role_hits:
-            role_bonus = 26 + min(6, (len(resolved_signals.positive_role_hits) - 1) * 3)
+        # Вес роли задаёт заголовок. Тело объявления сплошь и рядом упоминает склад
+        # или логистику мимоходом — как соседний отдел ("Schnittstelle zwischen
+        # Vertrieb und Lager") или как отрасль работодателя ("spezialisiert auf
+        # Lager- und Logistiksysteme"). Раньше такое упоминание давало +26…+32, и
+        # автомастерская с подработкой «шиномонтаж» обгоняла настоящий склад.
+        if resolved_signals.positive_role_hits_in_title:
+            role_bonus = 26 + min(6, (len(resolved_signals.positive_role_hits_in_title) - 1) * 3)
             score += role_bonus
-            positive_hits.append(RuleHit(code="priority_role", label_ru="целевая складская или производственная роль", weight=role_bonus))
+            positive_hits.append(
+                RuleHit(
+                    code="priority_role",
+                    label_ru=_role_family_label(resolved_signals.positive_role_hits_in_title),
+                    weight=role_bonus,
+                )
+            )
+        elif resolved_signals.positive_role_hits:
+            score += _BODY_ONLY_ROLE_BONUS
+            positive_hits.append(
+                RuleHit(
+                    code="related_role_mention",
+                    label_ru="профильная тематика упоминается только в описании",
+                    weight=_BODY_ONLY_ROLE_BONUS,
+                )
+            )
 
         if resolved_signals.desired_role_hits:
-            score += 10
-            positive_hits.append(RuleHit(code="desired_role_match", label_ru="совпадает с профилем поиска", weight=10))
+            # Полный вес — когда профиль узнаётся в самом заголовке вакансии.
+            # Совпадение, найденное только в теле, слабее: там профильные слова
+            # часто описывают соседний отдел или отрасль работодателя.
+            desired_bonus = (
+                10
+                if (resolved_signals.desired_role_hits_in_title or resolved_signals.positive_role_hits_in_title)
+                else _BODY_ONLY_DESIRED_BONUS
+            )
+            score += desired_bonus
+            positive_hits.append(
+                RuleHit(code="desired_role_match", label_ru="совпадает с профилем поиска", weight=desired_bonus)
+            )
         elif (
             profile.search_query_terms
             and not resolved_signals.positive_role_hits
@@ -362,6 +505,11 @@ class VacancyScorer:
             if non_core_hits:
                 score += sum(hit.weight for hit in non_core_hits)
                 negative_hits.extend(non_core_hits)
+
+        commute_hit = _commute_distance_hit(resolved_signals, profile)
+        if commute_hit is not None:
+            score += commute_hit.weight
+            (positive_hits if commute_hit.weight >= 0 else negative_hits).append(commute_hit)
 
         if resolved_signals.low_language_signal:
             score += 12

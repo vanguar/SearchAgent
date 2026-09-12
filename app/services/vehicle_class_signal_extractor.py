@@ -11,6 +11,10 @@ class VehicleClassSignals:
     light_commercial: tuple[str, ...] = ()
     heavy_vehicle: tuple[str, ...] = ()
     heavy_qualification: tuple[str, ...] = ()
+    # Признаки тяжёлого транспорта, которые НЕ являются доказательством сами по себе:
+    # объявление на Sprinter вполне может называть водителя "Kraftfahrer". Их перебивает
+    # любой явный сигнал лёгкого транспорта, поэтому они живут отдельно от heavy_vehicle.
+    heavy_vehicle_context: tuple[str, ...] = ()
 
 
 _LIGHT_COMMERCIAL_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
@@ -57,6 +61,26 @@ _HEAVY_VEHICLE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("Bus", re.compile(r"\b(?:busfahrer|omnibus|linienbus|reisebus)\w*\b")),
 )
 
+# Марки и модели, которые выпускаются только как грузовики: объявление, называющее их,
+# не про Sprinter. Требуют транспортного контекста (как и тоннаж), потому что короткие
+# токены совпадают с аббревиатурами из других областей ("daf" — Deutsch als Fremdsprache).
+_HEAVY_TRUCK_BRAND_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("DAF", re.compile(r"\bdaf\b")),
+    ("Scania", re.compile(r"\bscania\b")),
+    ("Mercedes Actros", re.compile(r"\b(?:actros|arocs|atego|axor)\b")),
+    ("MAN TG", re.compile(r"\btg[lmsx]\b")),
+    ("Iveco", re.compile(r"\b(?:stralis|eurocargo)\b")),
+    ("Volvo FH/FM", re.compile(r"\bvolvo\s+f[hm]\b")),
+    ("Renault Trucks", re.compile(r"\brenault\s+trucks?\b")),
+)
+
+# "Kraftfahrer" без приставки "Berufs-" — формальное немецкое название водителя грузовика,
+# но им изредка называют и водителя до 3,5 т. Поэтому сигнал слабый: он отсекает вакансию
+# только тогда, когда в тексте нет ни одного упоминания лёгкого транспорта.
+_HEAVY_CONTEXT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("Kraftfahrer", re.compile(r"\bkraftfahrer(?:in)?\b")),
+)
+
 _HEAVY_QUALIFICATION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     (
         "Berufskraftfahrerqualifikation",
@@ -97,8 +121,12 @@ def extract_vehicle_class_signals(text: str | None) -> VehicleClassSignals:
     light_commercial = _matching_labels(normalized, _LIGHT_COMMERCIAL_PATTERNS)
     heavy_vehicle = list(_matching_labels(normalized, _HEAVY_VEHICLE_PATTERNS, ignore_negated=True))
     heavy_qualification = _matching_labels(normalized, _HEAVY_QUALIFICATION_PATTERNS, ignore_negated=True)
+    heavy_context = _matching_labels(normalized, _HEAVY_CONTEXT_PATTERNS, ignore_negated=True)
 
     if _DRIVER_OR_VEHICLE_CONTEXT_RE.search(normalized):
+        for label in _matching_labels(normalized, _HEAVY_TRUCK_BRAND_PATTERNS, ignore_negated=True):
+            if label not in heavy_vehicle:
+                heavy_vehicle.append(label)
         for match in _HEAVY_MASS_RE.finditer(normalized):
             if _is_negated_heavy_match(normalized, match):
                 continue
@@ -112,6 +140,7 @@ def extract_vehicle_class_signals(text: str | None) -> VehicleClassSignals:
         light_commercial=light_commercial,
         heavy_vehicle=tuple(heavy_vehicle),
         heavy_qualification=heavy_qualification,
+        heavy_vehicle_context=heavy_context,
     )
 
 

@@ -101,3 +101,46 @@ def test_light_signal_does_not_override_non_negated_heavy_conflict() -> None:
 
     assert "Sprinter" in result.light_commercial
     assert "Sattelzug" in result.heavy_vehicle
+
+
+def test_truck_only_brands_count_as_heavy_when_a_driving_context_is_present() -> None:
+    # Объявление RW Transporte не содержит слова "LKW" вообще: грузовик выдают
+    # только марки и груз. Раньше оно набирало 93/100 и вставало первым.
+    text = (
+        "Kraftfahrer (m/w/d) Fernverkehr Montag-Freitag. Du fährst Betonfertigteile "
+        "und Stahl auf offener Platte. Personenbezogenes Fahrzeug der Marken DAF, "
+        "Volvo und Mercedes."
+    )
+
+    result = extract_vehicle_class_signals(text)
+
+    assert "DAF" in result.heavy_vehicle
+
+
+def test_truck_brand_without_driving_context_is_not_a_heavy_signal() -> None:
+    # "DaF" — Deutsch als Fremdsprache. Вне водительского контекста это не грузовик.
+    result = extract_vehicle_class_signals("Lehrkraft für DaF und Alphabetisierung")
+
+    assert result.heavy_vehicle == ()
+
+
+def test_kraftfahrer_alone_is_only_a_weak_heavy_signal() -> None:
+    result = extract_vehicle_class_signals("Kraftfahrer (m/w/d) Fernverkehr")
+
+    assert result.heavy_vehicle == ()
+    assert "Kraftfahrer" in result.heavy_vehicle_context
+
+
+def test_light_commercial_evidence_coexists_with_the_weak_signal() -> None:
+    # Слабый сигнал остаётся, но рядом есть явный лёгкий транспорт — решает фильтр.
+    result = extract_vehicle_class_signals("Kraftfahrer für Sprinter bis 3,5 t, Direktfahrten")
+
+    assert result.heavy_vehicle == ()
+    assert "Kraftfahrer" in result.heavy_vehicle_context
+    assert "Sprinter" in result.light_commercial
+
+
+def test_berufskraftfahrer_stays_a_strong_heavy_signal() -> None:
+    result = extract_vehicle_class_signals("Berufskraftfahrer im Fernverkehr")
+
+    assert "Berufskraftfahrer" in result.heavy_vehicle

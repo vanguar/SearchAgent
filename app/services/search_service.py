@@ -128,7 +128,9 @@ class SearchService:
         feedback_memory: ProfileFeedbackMemory | None = None,
         enrich_with_llm: bool = True,
     ) -> SearchRunResult:
-        resolved_profile = profile or self.get_profile_context(profile_id=profile_id)
+        resolved_profile = _with_run_geography(
+            profile or self.get_profile_context(profile_id=profile_id), search_input
+        )
         resolved_source_ids = self._resolve_source_ids(source_ids)
 
         fetched_records: list[SourceRecordPreview] = []
@@ -271,7 +273,7 @@ class SearchService:
         feedback_memory: ProfileFeedbackMemory | None = None,
     ) -> SearchRunResult:
         """Run search with staged keyword fallback. Returns the best result with attempt_summary attached."""
-        resolved_profile = self.get_profile_context(profile_id=profile_id)
+        resolved_profile = _with_run_geography(self.get_profile_context(profile_id=profile_id), search_input)
         resolved_source_ids = self._resolve_source_ids(source_ids)
         primary_query = search_input.query
         primary_role = resolved_profile.desired_roles[0] if resolved_profile.desired_roles else None
@@ -1029,6 +1031,22 @@ def _effective_query_for_profile_run(
         return query
     intent = normalize_role_intent(query)
     return intent.primary_de if intent is not None else query
+
+
+def _with_run_geography(
+    profile: SearchProfileContext,
+    search_input: SourceSearchInput,
+) -> SearchProfileContext:
+    """Перенести город и радиус ИЗ ФОРМЫ в контекст на время этого прогона.
+
+    Город поиска и радиус — свойство запроса, а не профиля: завтра тот же профиль
+    ищут по другому городу. Место жительства при этом остаётся профильным.
+    """
+    return dataclasses.replace(
+        profile,
+        search_location=search_input.location or None,
+        search_radius_km=search_input.radius_km,
+    )
 
 
 def _resolve_profile_search_terms(

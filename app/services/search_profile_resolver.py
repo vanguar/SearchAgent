@@ -116,6 +116,7 @@ class DatabaseSearchProfileResolver:
                 no_german_required=bool(search_profile.no_german_required),
                 section24_interpreted=legal_status.section24,
                 search_query_terms=tuple(search_profile.search_query_terms or ()),
+                home_city=getattr(user_profile, "city", None),
             )
             logger.info(
                 "search_profile_resolved profile_source=saved search_profile_id=%s user_profile_id=%s",

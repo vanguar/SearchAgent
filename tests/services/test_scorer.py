@@ -38,7 +38,7 @@ def _build_profile(**overrides: object) -> SearchProfileContext:
 FIXTURE_TODAY = date(2026, 4, 24)
 
 
-def _build_canonical(*, title: str, body: str) -> CanonicalVacancyGroup:
+def _build_canonical(*, title: str, body: str, location: str = "Berlin, Deutschland") -> CanonicalVacancyGroup:
     record = VacancyNormalizer().normalize_source_record(
         SourceRecordPreview(
             source_id="ba",
@@ -47,7 +47,7 @@ def _build_canonical(*, title: str, body: str) -> CanonicalVacancyGroup:
             source_reference="fixture-1",
             title=title,
             company="Nord Team GmbH",
-            location="Berlin, Deutschland",
+            location=location,
             posted_at="2026-04-16",
             detail_url="https://example.org/jobs/fixture-1",
             raw_payload={"description": body},
@@ -647,3 +647,170 @@ def test_driver_b_local_mass_delivery_vocabulary_is_recognized() -> None:
         _, _, _, negatives, hard_reject = _score_driver_b("Fahrer Klasse B", text)
         assert hard_reject is False, text
         assert expected_code in negatives, text
+
+
+def test_role_bonus_requires_the_title_not_an_incidental_body_mention() -> None:
+    """Реальный случай: 98 баллов за чужую работу.
+
+    "Fuhrparkdisponent" упоминает склад лишь как соседний отдел
+    ("Schnittstelle zwischen Vertrieb, Disposition und Lager") — и обгонял
+    настоящие складские вакансии.
+    """
+    profile = _build_profile(desired_roles=("Lagerarbeiter", "Lagermitarbeiter"))
+    in_title = _build_canonical(
+        title="Lagerarbeiter (m/w/d)",
+        body="Wareneingang und Kommissionierung in einem strukturierten Umfeld.",
+    )
+    in_body_only = _build_canonical(
+        title="Fuhrparkdisponent (m/w/d)",
+        body="Schnittstelle zwischen Vertrieb, Disposition und Lager. Belieferung unserer Kunden.",
+    )
+
+    scorer = VacancyScorer()
+    title_score = scorer.score(in_title, profile).score
+    body_score = scorer.score(in_body_only, profile).score
+
+    assert title_score > body_score
+    title_codes = {hit.code for hit in scorer.score(in_title, profile).positive_hits}
+    body_codes = {hit.code for hit in scorer.score(in_body_only, profile).positive_hits}
+    assert "priority_role" in title_codes
+    assert "priority_role" not in body_codes
+    assert "related_role_mention" in body_codes
+
+
+def test_role_hit_label_names_the_actual_family() -> None:
+    """Раньше любое попадание подписывалось как складская роль — даже у IT-вакансии."""
+    profile = _build_profile(desired_roles=("Курьер", "Водитель"), driver_license="B")
+    canonical = _build_canonical(
+        title="Auslieferungsfahrer (m/w/d)",
+        body="Belieferung von Kunden mit dem Sprinter, Führerschein Klasse B.",
+    )
+
+    hits = {hit.code: hit.label_ru for hit in VacancyScorer().score(canonical, profile).positive_hits}
+
+    assert "складская" not in hits.get("priority_role", "")
+    assert hits.get("priority_role") == "роль в доставке или вождении"
+
+
+def _score_with_home(home: str, location: str) -> int:
+    profile = _build_profile(desired_roles=("Lagerarbeiter",), home_city=home, relocation_ready=False)
+    canonical = _build_canonical(
+        title="Lagerarbeiter (m/w/d)",
+        body="Kommissionierung und Wareneingang.",
+        location=location,
+    )
+    return VacancyScorer().score(canonical, profile).score
+
+
+def test_commute_distance_is_measured_from_the_home_city_in_the_profile() -> None:
+    """Одна и та же вакансия стоит разного в зависимости от места жительства.
+
+    Ничего не зашито: переезд пользователя меняет ранжирование сам собой.
+    """
+    near = _score_with_home("Rostock", "Rostock, Deutschland")
+    mid = _score_with_home("Tribsees", "Rostock, Deutschland")
+    far = _score_with_home("München", "Rostock, Deutschland")
+
+    assert near > mid > far
+
+
+def test_nearest_town_outranks_the_bigger_city_for_the_same_job() -> None:
+    profile = _build_profile(desired_roles=("Lagerarbeiter",), home_city="Tribsees")
+    scorer = VacancyScorer()
+    close = scorer.score(
+        _build_canonical(title="Lagerarbeiter (m/w/d)", body="Kommissionierung.", location="Bad Sülze, Deutschland"),
+        profile,
+    ).score
+    farther = scorer.score(
+        _build_canonical(title="Lagerarbeiter (m/w/d)", body="Kommissionierung.", location="Rostock, Deutschland"),
+        profile,
+    ).score
+
+    assert close > farther
+
+
+def test_unknown_distance_neither_rewards_nor_penalises() -> None:
+    profile = _build_profile(desired_roles=("Lagerarbeiter",), home_city="Tribsees")
+    canonical = _build_canonical(
+        title="Lagerarbeiter (m/w/d)", body="Kommissionierung.", location="Zzz Unbekannt"
+    )
+
+    codes = {hit.code for hit in VacancyScorer().score(canonical, profile).positive_hits}
+    negative_codes = {hit.code for hit in VacancyScorer().score(canonical, profile).negative_hits}
+
+    assert "commute_distance" not in codes
+    assert "commute_distance" not in negative_codes
+
+
+def test_relocation_readiness_softens_but_does_not_erase_the_distance_penalty() -> None:
+    ready = _build_profile(desired_roles=("Lagerarbeiter",), home_city="München", relocation_ready=True)
+    not_ready = _build_profile(desired_roles=("Lagerarbeiter",), home_city="München", relocation_ready=False)
+    canonical = _build_canonical(
+        title="Lagerarbeiter (m/w/d)", body="Kommissionierung.", location="Rostock, Deutschland"
+    )
+
+    scorer = VacancyScorer()
+    assert scorer.score(canonical, ready).score > scorer.score(canonical, not_ready).score
+
+
+def _driver_b_profile() -> SearchProfileContext:
+    return _build_profile(
+        desired_roles=("Driver B – Fernverkehr",),
+        search_query_terms=("Fahrer Klasse B", "Sprinterfahrer"),
+        driver_license="B",
+    )
+
+
+def test_press_distribution_is_penalised_for_a_long_haul_driver() -> None:
+    """Разноска газет — та же массовая развозка, что и посылки.
+
+    В списке исключений профиля её не было, и "Transporterfahrer für
+    Zeitungszustellung" держался в горячих.
+    """
+    profile = _driver_b_profile()
+    scorer = VacancyScorer()
+    press = scorer.score(
+        _build_canonical(
+            title="Transporterfahrer (m/w/d) für Zeitungszustellung",
+            body="Zustellung von Zeitungen im Minijob.",
+        ),
+        profile,
+    )
+    plain = scorer.score(
+        _build_canonical(
+            title="Transporterfahrer (m/w/d)",
+            body="Auslieferung von Waren mit dem Sprinter.",
+        ),
+        profile,
+    )
+
+    assert press.score < plain.score
+    assert any(hit.code == "driver_press_distribution" for hit in press.negative_hits)
+
+
+def test_bicycle_courier_is_penalised_for_a_car_driver_profile() -> None:
+    profile = _driver_b_profile()
+    scorer = VacancyScorer()
+    bike = scorer.score(
+        _build_canonical(
+            title="Kurierfahrer mit E-Bike / Fahrrad (m/w/d)",
+            body="Lieferungen im Stadtgebiet mit dem Lastenrad.",
+        ),
+        profile,
+    )
+
+    assert any(hit.code == "driver_muscle_powered_vehicle" for hit in bike.negative_hits)
+
+
+def test_servicing_e_scooters_by_car_is_not_a_bicycle_job() -> None:
+    """Обслуживание чужих e-scooter на автомобиле — обычная водительская работа."""
+    profile = _driver_b_profile()
+    result = VacancyScorer().score(
+        _build_canonical(
+            title="Fahrer / Fahrzeugpfleger (m/w/d)",
+            body="Pflege und Verteilung von E-Scootern und Autos, Führerschein Klasse B erforderlich.",
+        ),
+        profile,
+    )
+
+    assert not any(hit.code == "driver_muscle_powered_vehicle" for hit in result.negative_hits)

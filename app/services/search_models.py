@@ -75,6 +75,14 @@ class SearchProfileContext:
     section24_interpreted: bool = False
     search_query_terms: tuple[str, ...] = ()
     driver_license: str | None = None
+    # Город проживания из профиля пользователя. От него считается дорога на
+    # работу; при переезде меняется только это поле.
+    home_city: str | None = None
+    # Геометрия конкретного запуска поиска: что пользователь ввёл в форме.
+    # Город поиска и радиус — это ограничение запроса, а не свойство профиля,
+    # поэтому проставляются на время прогона.
+    search_location: str | None = None
+    search_radius_km: int | None = None
 
     @classmethod
     def fallback(cls, *, note_ru: str) -> SearchProfileContext:
@@ -132,8 +140,14 @@ class SearchProfileContext:
 class VacancySignalSnapshot:
     combined_text: str
     positive_role_hits: tuple[RuleHit, ...] = ()
+    # Те же попадания, но найденные в ЗАГОЛОВКЕ, а не где-то в теле объявления.
+    # Заголовок называет саму работу; тело может упоминать соседний отдел или
+    # отрасль работодателя, и это не повод считать вакансию профильной.
+    positive_role_hits_in_title: tuple[RuleHit, ...] = ()
     negative_role_hits: tuple[RuleHit, ...] = ()
     desired_role_hits: tuple[RuleHit, ...] = ()
+    # То же совпадение с профилем, но найденное в заголовке вакансии.
+    desired_role_hits_in_title: tuple[RuleHit, ...] = ()
     excluded_role_hits: tuple[RuleHit, ...] = ()
     location_match: bool | None = None
     location_hits: tuple[str, ...] = ()
@@ -159,8 +173,14 @@ class VacancySignalSnapshot:
     allowed_driver_license_categories: tuple[str, ...] = ()
     optional_driver_license_categories: tuple[str, ...] = ()
     mentioned_driver_license_categories: tuple[str, ...] = ()
+    # Дорога от места жительства до вакансии и от города поиска до вакансии.
+    # None означает "неизвестно" — вести себя как при нуле нельзя.
+    distance_from_home_km: float | None = None
+    distance_from_search_location_km: float | None = None
     light_commercial_vehicle_signals: tuple[str, ...] = ()
     heavy_vehicle_signals: tuple[str, ...] = ()
+    # Слабые признаки тяжёлого транспорта: отсекают только при отсутствии сигналов лёгкого.
+    heavy_vehicle_context_signals: tuple[str, ...] = ()
     heavy_driver_qualification_signals: tuple[str, ...] = ()
 
 

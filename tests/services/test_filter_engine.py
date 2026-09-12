@@ -229,7 +229,7 @@ def test_filter_engine_rejects_degree_ausbildung_and_experience_mismatch_for_low
         title="Produktionshelfer/in",
         body=(
             "Abgeschlossene Ausbildung als Fachlagerist erforderlich. "
-            "Bachelor oder Studium ist von Vorteil. Mehrjahrige Erfahrung erforderlich."
+            "Bachelor oder Studium ist zwingend erforderlich. Mehrjahrige Erfahrung erforderlich."
         ),
     )
 
@@ -1233,3 +1233,164 @@ def test_freelance_writer_is_rejected_for_python_backend_profile_even_with_api_w
     assert hard_reject is True
     assert bucket == "rejected"
     assert any(hit.code == "non_it_writing_title_mismatch" for hit in result.rejection_hits)
+
+
+def test_kraftfahrer_without_light_vehicle_evidence_is_rejected_for_b_only_profile() -> None:
+    """Реальный случай: объявление RW Transporte набирало 93/100 и вставало первым.
+
+    Слова "LKW" в нём нет — грузовик выдают только формальное "Kraftfahrer" и
+    отсутствие любых упоминаний лёгкого транспорта.
+    """
+    profile = _build_profile(desired_roles=("Курьер", "Водитель"), driver_license="B")
+    canonical = _build_canonical(
+        title="Kraftfahrer (m/w/d) Fernverkehr Montag-Freitag",
+        body=(
+            "Du fährst Betonfertigteile und Stahl auf offener Platte. "
+            "Das Be- und Entladen übernehmen die Baustellen."
+        ),
+    )
+
+    result = FilterEngine().evaluate(canonical, profile)
+
+    assert result.hard_reject
+    assert any(hit.code == "heavy_vehicle_mismatch" for hit in result.rejection_hits)
+
+
+def test_kraftfahrer_with_sprinter_evidence_is_kept_for_b_only_profile() -> None:
+    profile = _build_profile(desired_roles=("Курьер", "Водитель"), driver_license="B")
+    canonical = _build_canonical(
+        title="Kraftfahrer (m/w/d) für Sprinter bis 3,5 t",
+        body="Direktfahrten und Sonderfahrten mit dem Planensprinter, Führerschein Klasse B genügt.",
+    )
+
+    result = FilterEngine().evaluate(canonical, profile)
+
+    assert not result.hard_reject
+    assert not any(hit.code == "heavy_vehicle_mismatch" for hit in result.rejection_hits)
+
+
+def test_weak_heavy_signal_does_not_apply_to_a_profile_without_b_only_licence() -> None:
+    profile = _build_profile(desired_roles=("склад",), driver_license=None)
+    canonical = _build_canonical(title="Kraftfahrer (m/w/d)", body="Fernverkehr in Norddeutschland.")
+
+    result = FilterEngine().evaluate(canonical, profile)
+
+    assert not any(hit.code == "heavy_vehicle_mismatch" for hit in result.rejection_hits)
+
+
+def test_vacancy_outside_the_typed_search_radius_is_rejected() -> None:
+    """Поиск "Росток, 25 км" возвращал Мюнхен, Берлин и Дармштадт.
+
+    Радиус уходил только в те адаптеры, которые его поддерживают, и нигде не
+    проверялся после: Arbeitnow фильтрует на своей стороне без радиуса.
+    """
+    profile = _build_profile(
+        desired_roles=("Курьер",),
+        home_city="Tribsees",
+        search_location="Rostock",
+        search_radius_km=25,
+    )
+    canonical = _build_canonical(
+        title="Auslieferungsfahrer (m/w/d)",
+        body="Belieferung von Kunden.",
+        location="München, Deutschland",
+    )
+
+    result = FilterEngine().evaluate(canonical, profile)
+
+    assert result.hard_reject
+    assert any(hit.code == "outside_search_radius" for hit in result.rejection_hits)
+
+
+def test_vacancy_inside_the_typed_search_radius_is_kept() -> None:
+    profile = _build_profile(
+        desired_roles=("Курьер",),
+        home_city="Tribsees",
+        search_location="Rostock",
+        search_radius_km=25,
+    )
+    canonical = _build_canonical(
+        title="Auslieferungsfahrer (m/w/d)",
+        body="Belieferung von Kunden.",
+        location="Bad Doberan, Deutschland",
+    )
+
+    result = FilterEngine().evaluate(canonical, profile)
+
+    assert not any(hit.code == "outside_search_radius" for hit in result.rejection_hits)
+
+
+def test_radius_is_ignored_without_a_resolvable_location() -> None:
+    """Неизвестное расстояние трактуется как неизвестное, а не как «далеко»."""
+    profile = _build_profile(
+        desired_roles=("Курьер",),
+        search_location="Rostock",
+        search_radius_km=25,
+    )
+    canonical = _build_canonical(
+        title="Auslieferungsfahrer (m/w/d)",
+        body="Belieferung von Kunden.",
+        location="Zzz Unbekannt",
+    )
+
+    result = FilterEngine().evaluate(canonical, profile)
+
+    assert not any(hit.code == "outside_search_radius" for hit in result.rejection_hits)
+
+
+def test_remote_worldwide_run_ignores_the_radius_entirely() -> None:
+    profile = _build_profile(
+        desired_roles=("Python Developer",),
+        search_location="Rostock",
+        search_radius_km=25,
+    )
+    canonical = _build_canonical(
+        title="Python Developer (m/w/d)",
+        body="Remote position.",
+        location="München, Deutschland",
+    )
+
+    result = FilterEngine().evaluate(canonical, profile, search_mode="remote_worldwide")
+
+    assert not any(hit.code == "outside_search_radius" for hit in result.rejection_hits)
+
+
+def test_qualification_named_as_an_advantage_does_not_reject() -> None:
+    """"Von Vorteil" — это приглашение, а не барьер.
+
+    Прежняя проверка искала слово "Ausbildung" в тексте и отклоняла вакансию,
+    даже когда объявление прямо писало, что без него тоже возьмут.
+    """
+    engine = FilterEngine()
+    profile = _build_profile()
+    canonical = _build_canonical(
+        title="Lagerhelfer (m/w/d)",
+        body=(
+            "Quereinsteiger willkommen. Eine abgeschlossene Ausbildung ist von Vorteil, "
+            "aber nicht erforderlich. Bachelor oder Studium ist von Vorteil."
+        ),
+    )
+
+    result = engine.evaluate(canonical, profile)
+
+    rejection_codes = {hit.code for hit in result.rejection_hits}
+    assert "vocational_mismatch" not in rejection_codes
+    assert "degree_mismatch" not in rejection_codes
+
+
+def test_qualification_hidden_behind_a_specialty_word_still_rejects() -> None:
+    """"Abgeschlossene kaufmännische Ausbildung" — требование, просто с уточнением.
+
+    Реальный случай: Fuhrparkdisponent требовал Ausbildung и висел в горячих,
+    потому что правило искало "abgeschlossene ausbildung" подряд.
+    """
+    engine = FilterEngine()
+    profile = _build_profile()
+    canonical = _build_canonical(
+        title="Fuhrparkdisponent (m/w/d)",
+        body="Eine abgeschlossene kaufmaennische Ausbildung, idealerweise im Bereich Logistik.",
+    )
+
+    result = engine.evaluate(canonical, profile)
+
+    assert any(hit.code == "vocational_mismatch" for hit in result.rejection_hits)

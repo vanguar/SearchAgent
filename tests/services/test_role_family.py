@@ -6,6 +6,7 @@ from app.services.role_family import (
     RoleFamily,
     classify_desired_roles,
     classify_query_ru,
+    classify_role_text,
     classify_vacancy_de,
     families_are_compatible,
     is_specific_family,
@@ -404,3 +405,54 @@ def test_families_are_compatible_is_symmetric_by_construction() -> None:
                 f"asymmetry detected: families_are_compatible({a!r}, {b!r}) != "
                 f"families_are_compatible({b!r}, {a!r})"
             )
+
+
+def test_german_profile_roles_classify_into_their_family() -> None:
+    """Роли профиля пишутся по-немецки, а классификатор понимал только русский.
+
+    Из-за этого classify_desired_roles возвращала GENERIC, межсемейный фильтр
+    отключался целиком, и складскому профилю прилетала автомастерская.
+    """
+    assert classify_desired_roles(("Lagerarbeiter", "Lagermitarbeiter")) == frozenset({RoleFamily.WAREHOUSE})
+    assert classify_desired_roles(("Fahrer Klasse B",)) == frozenset({RoleFamily.DRIVING})
+
+
+def test_english_profile_roles_classify_into_their_family() -> None:
+    assert classify_desired_roles(("Driver B - Fernverkehr",)) == frozenset({RoleFamily.DRIVING})
+    assert classify_desired_roles(("Warehouse Associate",)) == frozenset({RoleFamily.WAREHOUSE})
+
+
+def test_russian_delivery_role_is_a_driving_family() -> None:
+    assert classify_desired_roles(("Доставка", "Курьер")) == frozenset({RoleFamily.DRIVING})
+
+
+def test_forklift_is_warehouse_work_not_road_driving() -> None:
+    """"Staplerfahrer" кончается на "-fahrer", но работает на складе."""
+    for title in ("Staplerfahrer", "Gabelstaplerfahrer", "Schubmaststaplerfahrer"):
+        assert classify_role_text(title) is RoleFamily.WAREHOUSE, title
+
+
+def test_cargo_domain_does_not_override_the_role_head_noun() -> None:
+    """Водитель медизделий — водитель, а не медработник."""
+    assert classify_role_text("Auslieferungsfahrer Medizinprodukte") is RoleFamily.DRIVING
+
+
+def test_data_warehouse_is_not_a_warehouse_role() -> None:
+    assert classify_role_text("Data Warehouse Engineer") is not RoleFamily.WAREHOUSE
+
+
+def test_earliest_word_in_the_title_decides_the_family() -> None:
+    """Немецкий заголовок начинается с главного слова роли и дополняет его справа.
+
+    "Kommissionierer mit Fahrertätigkeiten" — складская вакансия с элементами
+    вождения, а не водительская; раньше побеждало то семейство, что стояло выше
+    в списке, и она попадала водительскому профилю.
+    """
+    assert classify_vacancy_de("kommissionierer mit fahrertatigkeiten") is RoleFamily.WAREHOUSE
+    assert classify_vacancy_de("fahrer mit lagertatigkeiten") is RoleFamily.DRIVING
+    assert classify_vacancy_de("helfer lagerwirtschaft transport") is RoleFamily.WAREHOUSE
+
+
+def test_equal_position_falls_back_to_list_order() -> None:
+    """В "Staplerfahrer" оба слова начинаются с нуля — решает порядок списка."""
+    assert classify_vacancy_de("staplerfahrer") is RoleFamily.WAREHOUSE

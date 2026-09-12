@@ -117,6 +117,7 @@ def test_database_search_profile_resolver_uses_section24_interpretation_for_work
     user_profile = SimpleNamespace(
         id=7,
         display_name="Профиль",
+        city="Tribsees",
         legal_status="temporary protection",
         work_authorized=False,
         german_level=None,
@@ -155,6 +156,7 @@ def test_database_search_profile_resolver_opens_session_without_db_reachability_
     user_profile = SimpleNamespace(
         id=8,
         display_name="Профиль 2",
+        city="Tribsees",
         legal_status="section24",
         work_authorized=False,
         german_level="A1",
@@ -212,6 +214,7 @@ def test_database_search_profile_resolver_explicit_profile_id_loads_correct_prof
     user_profile = SimpleNamespace(
         id=7,
         display_name="Профиль",
+        city="Tribsees",
         legal_status=None,
         work_authorized=True,
         german_level=None,

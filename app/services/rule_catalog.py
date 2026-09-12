@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from app.services.ai_tools_profile import is_ai_tools_profile
 from app.services.driver_license_signal_extractor import extract_driver_license_requirements
+from app.services.geo_distance import distance_km, resolve_point
 from app.services.hashers import normalize_text_for_fingerprint
 from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.role_family import (
@@ -14,8 +15,8 @@ from app.services.role_family import (
     is_specific_family,
 )
 from app.services.search_models import RuleHit, SearchProfileContext, VacancySignalSnapshot, normalize_profile_text
-from app.services.vehicle_class_signal_extractor import extract_vehicle_class_signals
 from app.services.search_normalizer import is_remote_worldwide_location
+from app.services.vehicle_class_signal_extractor import extract_vehicle_class_signals
 
 HOT_BUCKET_MIN_SCORE = 70
 MAYBE_BUCKET_MIN_SCORE = 45
@@ -43,6 +44,19 @@ POSITIVE_ROLE_FAMILIES: tuple[TextRule, ...] = (
             r"(?<!data )\bwarehouse\w*",
             r"\bkommissionier\w*",
             r"(?<!date )(?<!time )(?<!color )(?<!colour )(?<!file )(?<!image )(?<!emoji )\bpicker\b",
+            # Погрузчик и высотный склад — складская работа. Без этих форм
+            # "Staplerfahrer" попадал только в водительскую семью, и складской
+            # профиль терял свою же профильную вакансию (91 -> 61 баллов).
+            r"\b\w*stapler\w*",
+            r"\bhubwagen\w*",
+            r"\bflurforderzeug\w*",
+            r"\bhochregal\w*",
+            r"\bintralogistik\w*",
+            # "\blager\w*" не ловит формы, где "lager" стоит внутри слова.
+            r"\bfachlagerist\w*",
+            r"\bkuhlhaus\w*",
+            r"\bwareneingang\w*",
+            r"\bwarenausgang\w*",
         ),
     ),
     TextRule(
@@ -87,7 +101,16 @@ POSITIVE_ROLE_FAMILIES: tuple[TextRule, ...] = (
     TextRule(
         code="delivery_driving_family",
         label_ru="роль в доставке или вождении",
-        patterns=(r"\b\w*fahrer\w*", r"\bzusteller\w*", r"\bkurier\w*", r"\blieferfahrer\w*", r"\bkraftfahrer\w*"),
+        # Погрузчик исключён явно: "Staplerfahrer" кончается на "-fahrer", но это
+        # складская работа, а не дорожная. Без исключения водительский профиль
+        # считал бы складские вакансии своими.
+        patterns=(
+            r"\b(?!\w*stapler)\w*fahrer\w*",
+            r"\bzusteller\w*",
+            r"\bkurier\w*",
+            r"\blieferfahrer\w*",
+            r"\bkraftfahrer\w*",
+        ),
     ),
 )
 
@@ -149,6 +172,13 @@ STRONG_GERMAN_REQUIREMENT_RULE = TextRule(
         r"\b(?:sehr gute|gute|fliessend(?:e|er|es|en)?|verhandlungssicher(?:e|er|es|en)?|sichere|b1|b2|c1|c2)\s+deutsch",
         r"\bdeutsch(?:kenntnisse)?\s+(?:mindestens\s+)?(?:b1|b2|c1|c2)\b",
         r"\bdeutschkenntnisse\b(?!\s*.{0,30}\b(?:nicht|keine)\s+(?:erforderlich|notwendig)\b).{0,80}\b(?:erforderlich|vorausgesetzt|zwingend|required|mandatory|must)\b",
+        # Уверенный уровень, записанный без слова "Kenntnisse". Эти формы
+        # встречаются в объявлениях не реже канонических и пропускались целиком.
+        r"(?<!kein )(?<!keine )(?<!nicht )(?<!ohne )\bdeutsch\s+flie(?:ss|s)end\b",
+        r"\bmuttersprach\w*\s+(?:niveau\s+)?deutsch\b",
+        r"\bdeutsch\s+(?:auf\s+)?muttersprach\w*(?:\s+niveau)?\b",
+        r"\bsichere[rn]?\s+umgang\s+mit\s+der\s+deutschen\s+sprache\b",
+        r"\bexzellente\s+deutschkenntnisse\b",
         r"\bgerman\b.*\b(?:required|must|mandatory)\b",
     ),
 )
@@ -194,6 +224,14 @@ GERMAN_ANY_REQUIRED_RULE = TextRule(
         # "German nice to have") must NOT match — they signal German is optional, not required.
         r"\bgerman\s+(?:required|must|mandatory|needed|proficiency|language skills)\b",
         r"\bgerman\s+(?:is|as)\s+(?:required|mandatory|a must)\b",
+        # Требование, записанное без маркера обязательности: в немецком само
+        # "Du verfügst über Deutschkenntnisse" в разделе требований и есть
+        # требование, отдельного "erforderlich" там не пишут.
+        r"\b(?:du\s+verfugst|sie\s+verfugen)\s+uber\s+.{0,20}deutschkenntnisse\b",
+        r"\bgrundkenntnisse\s+(?:der\s+)?deutsch\w*(?:\s+sprache)?\b",
+        r"\b(?:du\s+solltest|sie\s+sollten)\s+deutsch\s+sprechen\b",
+        r"\bdeutsch\s+sprechen\s+konnen\b",
+        r"\bsprachkenntnisse\s*:?\s*deutsch\b",
     ),
 )
 ENGLISH_REQUIRED_RULE = TextRule(
@@ -289,11 +327,116 @@ VOCATIONAL_REQUIRED_RULE = TextRule(
     code="vocational_requirement",
     label_ru="нужен обязательный Ausbildung",
     patterns=(
-        r"\babgeschlossene ausbildung\b",
-        r"\bberufsausbildung\b",
-        r"\bausbildung\b.*\b(?:erforderlich|zwingend|required|must)\b",
+        # Между "abgeschlossene" и "Ausbildung" почти всегда стоит уточнение
+        # специальности: "abgeschlossene kaufmännische Ausbildung",
+        # "abgeschlossene technische Ausbildung". Без допуска на эти слова правило
+        # пропускало требование, и диспетчер автопарка с обязательным Ausbildung
+        # висел в горячих.
+        r"\babgeschlossene\w*(?:\s+\w+){0,2}\s+(?:berufs)?ausbildung\b",
+        r"\b(?:berufs)?ausbildung\b(?:\s+\w+){0,3}\s+(?:erforderlich|zwingend|vorausgesetzt|notwendig|pflicht)\b",
+        r"\bausgebildete[rn]?\s+\w+\b",
+        r"\bgelernte[rn]?\s+\w+\b",
+        r"\b(?:completed|vocational)\s+(?:apprenticeship|vocational training)\b",
     ),
 )
+
+# Слова, которые превращают требование в пожелание. Немецкие объявления почти
+# никогда не пишут "необязательно" прямо: они пишут "wünschenswert", "von
+# Vorteil", "idealerweise". Без этой проверки вакансия, куда берут и без
+# Ausbildung, жёстко отсекалась наравне с той, куда без него не берут.
+_QUALIFICATION_OPTIONAL_MARKERS: tuple[str, ...] = (
+    "wunschenswert",
+    "von vorteil",
+    "vorteilhaft",
+    "erwunscht",
+    "nicht zwingend",
+    "nicht erforderlich",
+    "nicht notwendig",
+    "kein muss",
+    "keine ausbildung",
+    "keine berufsausbildung",
+    "ohne ausbildung",
+    "kein abschluss",
+    "ohne abschluss",
+    "oder vergleichbare",
+    "oder ahnliche",
+    "quereinsteiger",
+    "auch ohne",
+    "nice to have",
+    "a plus",
+    "an asset",
+    "preferred",
+    "desirable",
+)
+
+# Слова, которые смягчают требование НЕ всегда. "Idealerweise" перед названием
+# области уточняет специальность, а не отменяет диплом: в "abgeschlossene
+# kaufmännische Ausbildung, idealerweise im Bereich Logistik" Ausbildung нужен
+# обязательно, и просто её отрасль предпочтительна.
+_CONDITIONAL_OPTIONAL_MARKERS: tuple[str, ...] = (
+    "idealerweise",
+    "vorzugsweise",
+    "gerne",
+    "bevorzugt",
+)
+# Продолжения, после которых смягчающее слово относится к области, а не к
+# самому требованию.
+_DOMAIN_CONTINUATION_RE = re.compile(
+    r"^\s*(?:im\s+bereich|im\s+umfeld|mit\s+schwerpunkt|in\s+der|in\s+den|im\s+"
+    r"|als\s|aus\s+dem\s+bereich|richtung)\b"
+)
+# Насколько близко к упоминанию квалификации должно стоять смягчение, чтобы
+# относиться именно к нему, а не к другому пункту списка требований.
+_QUALIFICATION_OPTIONALITY_WINDOW = 60
+
+
+def _window_softens_requirement(window: str) -> bool:
+    """Есть ли рядом с требованием слово, превращающее его в пожелание."""
+    if any(marker in window for marker in _QUALIFICATION_OPTIONAL_MARKERS):
+        return True
+    for marker in _CONDITIONAL_OPTIONAL_MARKERS:
+        for match in re.finditer(rf"\b{marker}\b", window):
+            if not _DOMAIN_CONTINUATION_RE.match(window[match.end() :]):
+                return True
+    return False
+
+
+_GERMAN_MENTION_RE = re.compile(r"\bdeutsch\w*")
+
+
+def _german_requirement_is_softened_everywhere(text: str) -> bool:
+    """Все упоминания немецкого в тексте поданы как пожелание.
+
+    Нужна отдельно от _requirement_is_mandatory, потому что часть сигналов о
+    немецком приходит готовым флагом из language_signal_extractor, и позиции
+    совпадения там уже нет — проверить окно можно только по самому тексту.
+    """
+    mentions = list(_GERMAN_MENTION_RE.finditer(text))
+    if not mentions:
+        return False
+    return all(
+        _window_softens_requirement(
+            text[max(0, match.start() - _QUALIFICATION_OPTIONALITY_WINDOW) : match.end() + _QUALIFICATION_OPTIONALITY_WINDOW]
+        )
+        for match in mentions
+    )
+
+
+def _requirement_is_mandatory(text: str, rule: TextRule) -> bool:
+    """Требование найдено И хотя бы одно упоминание не смягчено соседними словами.
+
+    Проверять наличие слова недостаточно: "Berufsausbildung wünschenswert" — это
+    приглашение, а не барьер, и отклонять по нему вакансию значит терять
+    подходящую работу. Обратная ошибка не менее дорога: пропущенное обязательное
+    требование выводит в горячие работу, на которую не возьмут.
+    """
+    for pattern in rule.patterns:
+        for match in re.finditer(pattern, text):
+            start = max(0, match.start() - _QUALIFICATION_OPTIONALITY_WINDOW)
+            window = text[start : match.end() + _QUALIFICATION_OPTIONALITY_WINDOW]
+            if not _window_softens_requirement(window):
+                return True
+    return False
 STRONG_EXPERIENCE_RULE = TextRule(
     code="experience_requirement",
     label_ru="просят заметный профильный опыт",
@@ -449,6 +592,10 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         _match_rules(combined_text, POSITIVE_ROLE_FAMILIES),
         profile,
     )
+    positive_role_hits_in_title = _keep_profile_relevant_role_hits(
+        _match_rules(title_text, POSITIVE_ROLE_FAMILIES),
+        profile,
+    )
     negative_role_hits = _match_rules(combined_text, NEGATIVE_ROLE_FAMILIES)
 
     desired_role_hits = _dedupe_hits([
@@ -467,6 +614,22 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
             fallback_label="совпадает с поисковыми терминами профиля",
         ),
     ])
+    desired_role_hits_in_title = _dedupe_hits([
+        *_match_profile_roles(
+            combined_text=title_text,
+            raw_roles=profile.desired_roles,
+            alias_catalog=_POSITIVE_ROLE_PROFILE_ALIASES,
+            fallback_code="desired_role_match",
+            fallback_label="совпадает с профилем поиска",
+        ),
+        *_match_profile_roles(
+            combined_text=title_text,
+            raw_roles=profile.search_query_terms,
+            alias_catalog={},
+            fallback_code="search_query_term_match",
+            fallback_label="совпадает с поисковыми терминами профиля",
+        ),
+    ])
     excluded_role_hits = _match_excluded_profile_roles(
         title_text=title_text,
         combined_text=combined_text,
@@ -475,12 +638,16 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
     driver_license_requirement = extract_driver_license_requirements(build_driver_license_text(canonical))
     vehicle_class_signals = extract_vehicle_class_signals(build_vehicle_class_text(canonical))
     location_match, location_hits = _match_profile_locations(canonical, profile)
+    distance_from_home, distance_from_search = _measure_distances(canonical, profile)
 
-    strong_german_required = canonical.language_signals.strong_german_required or _matches_rule(
-        combined_text,
-        STRONG_GERMAN_REQUIREMENT_RULE,
+    # Немецкий проверяется так же, как квалификация: важно не наличие слова, а
+    # есть ли рядом смягчение. Без этого "Deutsch B1 wünschenswert" читалось как
+    # жёсткое требование и отсекало вакансию, куда берут и без B1.
+    german_requirement_softened = _german_requirement_is_softened_everywhere(combined_text)
+    strong_german_required = _requirement_is_mandatory(combined_text, STRONG_GERMAN_REQUIREMENT_RULE) or (
+        canonical.language_signals.strong_german_required and not german_requirement_softened
     )
-    german_any_required = _matches_rule(combined_text, GERMAN_ANY_REQUIRED_RULE)
+    german_any_required = _requirement_is_mandatory(combined_text, GERMAN_ANY_REQUIRED_RULE)
     german_not_required_signal = (
         not strong_german_required and _matches_rule(combined_text, GERMAN_NOT_REQUIRED_RULE)
     )
@@ -503,6 +670,8 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
     return VacancySignalSnapshot(
         combined_text=combined_text,
         positive_role_hits=positive_role_hits,
+        positive_role_hits_in_title=positive_role_hits_in_title,
+        desired_role_hits_in_title=desired_role_hits_in_title,
         negative_role_hits=negative_role_hits,
         desired_role_hits=desired_role_hits,
         excluded_role_hits=excluded_role_hits,
@@ -510,8 +679,11 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         allowed_driver_license_categories=driver_license_requirement.allowed,
         optional_driver_license_categories=driver_license_requirement.optional,
         mentioned_driver_license_categories=driver_license_requirement.mentioned,
+        distance_from_home_km=distance_from_home,
+        distance_from_search_location_km=distance_from_search,
         light_commercial_vehicle_signals=vehicle_class_signals.light_commercial,
         heavy_vehicle_signals=vehicle_class_signals.heavy_vehicle,
+        heavy_vehicle_context_signals=vehicle_class_signals.heavy_vehicle_context,
         heavy_driver_qualification_signals=vehicle_class_signals.heavy_qualification,
         location_match=location_match,
         location_hits=location_hits,
@@ -532,8 +704,8 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         shift_signal=canonical.language_signals.shift_signal or _matches_rule(combined_text, SHIFT_RULE),
         relocation_signal=_matches_rule(combined_text, RELOCATION_RULE),
         immediate_start_signal=_matches_rule(combined_text, IMMEDIATE_START_RULE),
-        degree_required=_matches_rule(combined_text, DEGREE_REQUIRED_RULE),
-        vocational_training_required=_matches_rule(combined_text, VOCATIONAL_REQUIRED_RULE),
+        degree_required=_requirement_is_mandatory(combined_text, DEGREE_REQUIRED_RULE),
+        vocational_training_required=_requirement_is_mandatory(combined_text, VOCATIONAL_REQUIRED_RULE),
         strong_experience_required=_matches_rule(combined_text, STRONG_EXPERIENCE_RULE),
         entry_level_signal=_matches_rule(combined_text, ENTRY_LEVEL_RULE),
         sponsorship_ambiguity=_matches_rule(combined_text, SPONSORSHIP_REVIEW_RULE),
@@ -720,6 +892,31 @@ def _looks_like_it_software_role(text: str) -> bool:
             "automation",
         )
     )
+
+
+def _measure_distances(
+    canonical: CanonicalVacancyGroup,
+    profile: SearchProfileContext,
+) -> tuple[float | None, float | None]:
+    """Дорога до вакансии от дома и от города поиска, в километрах.
+
+    Два разных расстояния, потому что это два разных вопроса. От дома — сколько
+    реально ездить; это штраф в скоринге. От города поиска — попадает ли вакансия
+    в радиус, который пользователь явно задал в форме; это жёсткий фильтр.
+    """
+    if is_remote_worldwide_location(profile.preferred_locations):
+        return None, None
+
+    vacancy_point = resolve_point(
+        city=canonical.city,
+        location_text=canonical.location_text,
+    )
+    if vacancy_point is None:
+        return None, None
+
+    home_point = resolve_point(city=profile.home_city) if profile.home_city else None
+    search_point = resolve_point(city=profile.search_location) if profile.search_location else None
+    return distance_km(home_point, vacancy_point), distance_km(search_point, vacancy_point)
 
 
 def _match_profile_locations(

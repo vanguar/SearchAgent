@@ -13,10 +13,15 @@ unterhalten», а карточка показывала зелёную плаш�
 from __future__ import annotations
 
 import pytest
-
+from app.services.hashers import normalize_text_for_fingerprint as N
 from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.normalizer import VacancyNormalizer
-from app.services.rule_catalog import inspect_vacancy
+from app.services.rule_catalog import (
+    GERMAN_ANY_REQUIRED_RULE,
+    STRONG_GERMAN_REQUIREMENT_RULE,
+    _requirement_is_mandatory,
+    inspect_vacancy,
+)
 from app.services.search_models import SearchProfileContext
 from app.services.source_adapters.models import SourceRecordPreview
 
@@ -199,3 +204,49 @@ def test_requirement_found_inside_an_excerpt_is_still_reported() -> None:
     )
 
     assert signals.german_any_required is True
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Deutsch auf muttersprachlichem Niveau",
+        "Sprachkenntnisse: Deutsch fließend",
+        "Ein sicherer Umgang mit der deutschen Sprache wird erwartet",
+        "Exzellente Deutschkenntnisse",
+    ],
+)
+def test_confident_german_written_without_the_word_kenntnisse(text: str) -> None:
+    """Уверенный уровень записывают и без слова «Kenntnisse» — это тоже барьер."""
+    assert _requirement_is_mandatory(N(text), STRONG_GERMAN_REQUIREMENT_RULE)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Du verfügst über Deutschkenntnisse",
+        "Grundkenntnisse der deutschen Sprache",
+        "Du solltest Deutsch sprechen können",
+    ],
+)
+def test_german_required_without_an_obligation_marker(text: str) -> None:
+    """В разделе требований само упоминание и есть требование."""
+    assert _requirement_is_mandatory(N(text), GERMAN_ANY_REQUIRED_RULE)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Deutsch B1 wünschenswert",
+        "Deutschkenntnisse von Vorteil",
+        "Deutschkenntnisse sind nicht erforderlich",
+        "Deutsch ist keine Voraussetzung",
+    ],
+)
+def test_optional_german_is_not_a_requirement_in_either_direction(text: str) -> None:
+    """Обратная ошибка не дешевле: отсечь вакансию, куда берут и без немецкого.
+
+    «Deutsch B1 wünschenswert» раньше читалось как жёсткое требование B1.
+    """
+    normalized = N(text)
+    assert not _requirement_is_mandatory(normalized, STRONG_GERMAN_REQUIREMENT_RULE)
+    assert not _requirement_is_mandatory(normalized, GERMAN_ANY_REQUIRED_RULE)

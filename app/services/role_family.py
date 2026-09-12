@@ -9,6 +9,8 @@ from __future__ import annotations
 import re
 from enum import Enum
 
+from app.services.hashers import normalize_text_for_fingerprint
+
 
 class RoleFamily(str, Enum):
     IT = "it"
@@ -71,7 +73,7 @@ _QUERY_RU_TOKENS: list[tuple[RoleFamily, tuple[str, ...]]] = [
     (RoleFamily.SECURITY, ("охранник", "секьюрити")),
     (RoleFamily.OFFICE, ("бухгалтер", "секретарь", "офис-менеджер", "делопроизводств")),
     (RoleFamily.SALES, ("продавец", "торговый представ", "менеджер по продаж")),
-    (RoleFamily.DRIVING, ("водитель", "курьер")),
+    (RoleFamily.DRIVING, ("водитель", "курьер", "доставк", "развоз")),
     (RoleFamily.CONSTRUCTION, (
         "строитель", "монтажник", "электрик", "сварщик", "слесарь", "сантехник", "плотник",
     )),
@@ -94,6 +96,26 @@ _TITLE_DE_TOKENS: list[tuple[RoleFamily, tuple[str, ...]]] = [
         "it-techniker", "servicetechniker it",
         "ai automation", "ai tools", "llm", "agentic", "prompt engineer",
         "claude code", "codex", "ki automatisierung",
+    )),
+    # Семейство задаёт ГЛАВНОЕ СЛОВО роли, а не предметная область рядом с ним.
+    # "Auslieferungsfahrer Medizinprodukte" — это водитель, который возит
+    # медизделия, а не медработник; "Staplerfahrer" — складской работник, а не
+    # водитель. Поэтому явные названия профессий стоят ВЫШЕ предметных семейств
+    # (медицина, кухня, уборка), которые в таких заголовках описывают лишь груз
+    # или место работы.
+    # Погрузчик — складская работа, а не дорожная, хотя название кончается на
+    # "-fahrer". Запись стоит ДО водительской именно поэтому: иначе складской
+    # профиль отвергал бы Staplerfahrer как чужое семейство, а водительский
+    # профиль принимал бы его за свою вакансию.
+    (RoleFamily.WAREHOUSE, (
+        "gabelstaplerfahrer", "schubmaststaplerfahrer", "staplerfahrer",
+        "hochregalstaplerfahrer", "stapler", "hubwagen",
+    )),
+    (RoleFamily.DRIVING, (
+        "kraftfahrer", "lieferfahrer", "zusteller", "kurier",
+        "delivery driver", "truck driver", "van driver", "courier", "chauffeur",
+        "fahrer",  # short token after compound forms
+        "driver",  # English counterpart of the short token above
     )),
     (RoleFamily.HEALTHCARE, (
         "pflegekraft", "pflegehelferin", "altenpflege", "krankenschwester", "krankenhaus",
@@ -119,16 +141,17 @@ _TITLE_DE_TOKENS: list[tuple[RoleFamily, tuple[str, ...]]] = [
         "vertriebsmitarbeiter", "kundenberater", "vertrieb", "verkaufer", "einzelhandel", "kassierer",
         "customer success", "client success", "account manager", "account executive", "business development",
     )),
-    (RoleFamily.DRIVING, (
-        "kraftfahrer", "lieferfahrer", "zusteller", "kurier",
-        "fahrer",  # short token after compound forms
-    )),
     (RoleFamily.CONSTRUCTION, (
         "bauhelfer", "baustelle", "zimmerer", "maurer", "elektriker", "schlosser", "monteur", "trockenbau",
     )),
     (RoleFamily.WAREHOUSE, (
         "lagermitarbeiter", "lagerhelfer", "lagerist", "kommissionier",
         "intralogistik", "lagerverwaltung",
+        # Только составные английские формы: голое "warehouse" притягивает
+        # "data warehouse" из IT-объявлений — ровно та ошибка, от которой уже
+        # защищается POSITIVE_ROLE_FAMILIES в rule_catalog.
+        "warehouse associate", "warehouse worker", "warehouse operative",
+        "warehouse clerk", "warehouse assistant", "order picker", "forklift",
         "lager",  # short token after compound forms
     )),
     (RoleFamily.PRODUCTION, (
@@ -165,16 +188,50 @@ def classify_vacancy_de(normalized_title: str) -> RoleFamily:
     Classifies based on the job title only (not body text) to stay conservative
     and avoid false positives from incidental mentions in descriptions.
     Returns GENERIC when the title does not clearly indicate a specific family.
+
+    Побеждает слово, стоящее в заголовке РАНЬШЕ, а не семейство, стоящее выше в
+    списке. Немецкий заголовок начинается с главного слова роли и дополняет его
+    справа: "Kommissionierer mit Fahrertätigkeiten" — складская вакансия с
+    элементами вождения, а не водительская, и водительскому профилю она не нужна.
+    При равной позиции решает порядок списка: в "Staplerfahrer" и "stapler", и
+    "fahrer" начинаются с нуля, и складская запись стоит выше не случайно.
     """
+    best_position: int | None = None
+    best_family = RoleFamily.GENERIC
     for family, tokens in _TITLE_DE_TOKENS:
-        if any(token in normalized_title for token in tokens):
-            return family
-    return RoleFamily.GENERIC
+        positions = [position for token in tokens if (position := normalized_title.find(token)) != -1]
+        if not positions:
+            continue
+        earliest = min(positions)
+        if best_position is None or earliest < best_position:
+            best_position, best_family = earliest, family
+    return best_family
+
+
+def classify_role_text(text: str) -> RoleFamily:
+    """Classify a single profile role written in ANY of the supported languages.
+
+    Роли профиля пользователь пишет как угодно: "склад", "Lagerarbeiter",
+    "Driver B - Fernverkehr". Русский классификатор понимает только первое, и
+    раньше этого было достаточно, потому что роли приходили из русского intake.
+    Сейчас профили хранят немецкие и английские названия, и для них
+    classify_query_ru возвращал GENERIC — а GENERIC отключает межсемейный
+    фильтр целиком, из-за чего складскому профилю прилетала автомастерская,
+    а водительскому — погрузчик.
+    """
+    normalized = text.strip().lower()
+    if not normalized:
+        return RoleFamily.GENERIC
+
+    russian_family = classify_query_ru(normalized)
+    if is_specific_family(russian_family):
+        return russian_family
+    return classify_vacancy_de(normalize_text_for_fingerprint(normalized))
 
 
 def classify_desired_roles(roles: tuple[str, ...]) -> frozenset[RoleFamily]:
     """Return the set of RoleFamilies represented by the profile's desired roles."""
-    return frozenset(classify_query_ru(role.strip().lower()) for role in roles if role.strip())
+    return frozenset(classify_role_text(role) for role in roles if role.strip())
 
 
 def is_specific_family(family: RoleFamily) -> bool:
