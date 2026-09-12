@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
 from app.core.config import Settings
 from app.services.search_models import SearchProfileContext
 from app.services.search_service import SearchService

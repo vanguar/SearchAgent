@@ -3,8 +3,8 @@ from __future__ import annotations
 import re
 import unicodedata
 
-from app.services.search_models import RuleHit, SearchProfileContext, normalize_profile_text
 from app.services.normalization_models import CanonicalVacancyGroup
+from app.services.search_models import RuleHit, SearchProfileContext, normalize_profile_text
 
 AI_TOOLS_PROFILE_NAME = "AI Automation / Claude Code / Codex"
 AI_TOOLS_DESIRED_ROLES: tuple[str, ...] = (

@@ -4,14 +4,14 @@ from __future__ import annotations
 import itertools
 from unittest.mock import MagicMock
 
+from app.services.profile_parser import DRIVER_B_FERNVERKEHR_SEARCH_TERMS
+from app.services.role_family import RoleFamily
 from app.services.search_fallback import (
     get_fallback_keywords,
     get_intent_fallback_keywords,
     get_profile_fallback_keywords,
     is_low_language_profile,
 )
-from app.services.profile_parser import DRIVER_B_FERNVERKEHR_SEARCH_TERMS
-from app.services.role_family import RoleFamily
 from app.services.search_models import (
     SearchAttemptSummary,
     SearchProfileContext,

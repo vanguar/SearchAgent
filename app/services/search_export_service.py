@@ -13,7 +13,7 @@ import dataclasses
 from datetime import date, datetime
 from typing import Any
 
-from app.services.normalization_models import CanonicalVacancyGroup, NormalizedVacancyRecord
+from app.services.normalization_models import NormalizedVacancyRecord
 from app.services.search_models import (
     HiddenFilteredItem,
     RuleHit,

@@ -9,16 +9,14 @@ Acceptance tests covering:
 """
 from __future__ import annotations
 
-from datetime import timedelta
-
-from app.core.time import utc_now
-
 import itertools
 from collections.abc import Generator
+from datetime import timedelta
 from unittest.mock import MagicMock
 
 import app.db.models  # noqa: F401
 import pytest
+from app.core.time import utc_now
 from app.db.base import Base
 from app.db.models.profiles import SearchProfile, UserProfile
 from app.services.search_history_service import SearchHistoryService

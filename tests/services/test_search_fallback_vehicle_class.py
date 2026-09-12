@@ -10,8 +10,11 @@ from __future__ import annotations
 
 from app.services.filter_engine import is_b_only_driving_profile
 from app.services.role_family import RoleFamily
+from app.services.role_intent import normalize_role_intent
 from app.services.search_fallback import (
     _MAX_FALLBACK_KEYWORDS as MAX_FALLBACK_KEYWORDS_FOR_TEST,
+)
+from app.services.search_fallback import (
     HEAVY_VEHICLE_KEYWORDS,
     drop_heavy_vehicle_keywords,
     get_fallback_keywords,
@@ -19,7 +22,6 @@ from app.services.search_fallback import (
     get_profile_fallback_keywords,
 )
 from app.services.search_models import SearchProfileContext
-from app.services.role_intent import normalize_role_intent
 
 
 def _driver_profile(**overrides) -> SearchProfileContext:

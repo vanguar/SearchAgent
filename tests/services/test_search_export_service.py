@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import dataclasses
-
-import pytest
 from datetime import UTC, date, datetime
 
+import pytest
 from app.services.normalization_models import (
     CanonicalVacancyGroup,
     LanguageSignals,
