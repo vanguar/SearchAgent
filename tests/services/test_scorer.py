@@ -859,3 +859,35 @@ def test_no_home_city_means_no_distance_scoring_at_all() -> None:
     codes = {h.code for h in result.positive_hits} | {h.code for h in result.negative_hits}
     assert "commute_distance_unknown" not in codes
     assert "commute_distance" not in codes
+
+
+def test_route_bonuses_do_not_apply_to_a_non_driving_vacancy() -> None:
+    """Правила про устройство маршрута описывают работу водителя.
+
+    «Specialist HSE & Product Quality» получал бонус за слово «deutschlandweit»
+    в тексте и дотягивал до раздела «на проверку» у водительского профиля.
+    """
+    profile = _driver_b_profile()
+    result = VacancyScorer().score(
+        _build_canonical(
+            title="Specialist HSE & Product Quality (m/w/d)",
+            body="Wir betreuen deutschlandweit unsere Standorte und Lieferketten.",
+        ),
+        profile,
+    )
+
+    codes = {hit.code for hit in result.positive_hits}
+    assert not any(code.startswith("driver_") for code in codes)
+
+
+def test_route_bonuses_still_apply_to_a_real_driving_vacancy() -> None:
+    profile = _driver_b_profile()
+    result = VacancyScorer().score(
+        _build_canonical(
+            title="Sprinterfahrer (m/w/d)",
+            body="Direktfahrten und Sonderfahrten deutschlandweit mit dem Sprinter.",
+        ),
+        profile,
+    )
+
+    assert any(hit.code.startswith("driver_") for hit in result.positive_hits)

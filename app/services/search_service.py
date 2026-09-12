@@ -1156,7 +1156,9 @@ def _merge_search_results_for_worldwide(results: list[SearchRunResult]) -> Searc
         for item in result.deduped_preview_items:
             preview_by_key.setdefault(item.canonical_key, item)
 
-    ordered_results = tuple(sorted(result_by_key.values(), key=_merge_result_sort_key))
+    ordered_results = _collapse_items_sharing_a_source_record(
+        sorted(result_by_key.values(), key=_merge_result_sort_key)
+    )
     query_groups = tuple(
         group
         for result in results
@@ -1232,6 +1234,36 @@ def _merge_source_states_for_worldwide(results: list[SearchRunResult]) -> tuple[
         )
 
     return tuple(sorted(merged, key=lambda state: (state.error_message is not None, state.source_id)))
+
+
+def _collapse_items_sharing_a_source_record(
+    items: list[SearchResultItem],
+) -> tuple[SearchResultItem, ...]:
+    """Схлопнуть карточки, у которых есть общая исходная запись источника.
+
+    Каждая попытка поиска группирует свои записи заново, и одна и та же вакансия
+    получает в разных попытках разный canonical_key: в одной попытке она попала
+    в группу с двумя соседями, в другой пришла одна. Объединение попыток шло
+    только по ключу, и вакансия показывалась дважды — на реальном прогоне обе
+    карточки ссылались на одну и ту же запись BA 10001-1003661150-S.
+
+    Общий идентификатор внутри одного источника — однозначное тождество, поэтому
+    здесь не нужны пороги похожести. Список приходит уже отсортированным, и
+    остаётся первая, то есть лучшая карточка.
+    """
+    kept: list[SearchResultItem] = []
+    seen_records: set[str] = set()
+    for item in items:
+        record_keys = {
+            f"{record.source_id}:{record.external_id}"
+            for record in getattr(getattr(item, "canonical_group", None), "source_records", ())
+            if getattr(record, "external_id", None)
+        }
+        if record_keys & seen_records:
+            continue
+        seen_records |= record_keys
+        kept.append(item)
+    return tuple(kept)
 
 
 def _result_item_key(item: SearchResultItem) -> str:

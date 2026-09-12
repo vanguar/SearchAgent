@@ -835,3 +835,58 @@ def test_recorded_weak_feedback_moves_same_delivery_vacancy_from_hot_to_review(
     )
     assert maybe.score_result.score < 70
     assert any(hit.code == "explicit_feedback_weak" for hit in maybe.score_result.negative_hits)
+
+
+def test_attempts_sharing_a_source_record_collapse_into_one_card() -> None:
+    """Каждая попытка группирует записи заново, и ключи получаются разные.
+
+    На реальном прогоне одна вакансия BA (10001-1003661150-S) попала и в группу
+    из трёх записей, и в отдельную карточку: объединение шло только по
+    canonical_key, и в выдаче оказались две карточки одной работы.
+    """
+    from types import SimpleNamespace
+
+    from app.services.search_service import _collapse_items_sharing_a_source_record
+
+    def item(name: str, external_ids: tuple[str, ...]) -> SimpleNamespace:
+        return SimpleNamespace(
+            name=name,
+            canonical_group=SimpleNamespace(
+                source_records=[
+                    SimpleNamespace(source_id="ba", external_id=external_id)
+                    for external_id in external_ids
+                ]
+            ),
+        )
+
+    grouped = item("группа", ("10001-1003661150-S", "12811-2330043-S"))
+    alone = item("одиночная", ("10001-1003661150-S",))
+    other = item("другая", ("99999-1",))
+
+    kept = _collapse_items_sharing_a_source_record([grouped, alone, other])
+
+    assert [entry.name for entry in kept] == ["группа", "другая"]
+
+
+def test_collapse_keeps_the_first_and_best_ranked_card() -> None:
+    from types import SimpleNamespace
+
+    from app.services.search_service import _collapse_items_sharing_a_source_record
+
+    def item(name: str, external_ids: tuple[str, ...]) -> SimpleNamespace:
+        return SimpleNamespace(
+            name=name,
+            canonical_group=SimpleNamespace(
+                source_records=[
+                    SimpleNamespace(source_id="ba", external_id=external_id)
+                    for external_id in external_ids
+                ]
+            ),
+        )
+
+    alone = item("одиночная", ("10001-1003661150-S",))
+    grouped = item("группа", ("10001-1003661150-S", "12811-2330043-S"))
+
+    kept = _collapse_items_sharing_a_source_record([alone, grouped])
+
+    assert [entry.name for entry in kept] == ["одиночная"]

@@ -12,11 +12,13 @@ from app.services.ai_tools_profile import (
     match_ai_tools_signals,
 )
 from app.services.filter_engine import FilterEngine
+from app.services.hashers import normalize_text_for_fingerprint
 from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.profile_parser import (
     DRIVER_B_FERNVERKEHR_ROLE,
     DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
 )
+from app.services.role_family import RoleFamily, classify_vacancy_de
 from app.services.rule_catalog import BASE_SCORE, inspect_vacancy
 from app.services.search_models import (
     FilterResult,
@@ -476,6 +478,7 @@ class VacancyScorer:
         driver_positive_hits, driver_negative_hits = _score_driver_b_route_fit(
             resolved_signals.combined_text,
             profile,
+            vacancy_is_driving=_vacancy_looks_like_driving(canonical, resolved_signals),
         )
         if driver_positive_hits:
             score += min(
@@ -690,11 +693,30 @@ def _score_non_core_stack(text: str) -> list[RuleHit]:
     ]
 
 
+def _vacancy_looks_like_driving(
+    canonical: CanonicalVacancyGroup,
+    signals: VacancySignalSnapshot,
+) -> bool:
+    """Это вообще водительская вакансия?
+
+    Правила про устройство маршрута описывают, КАК устроена работа водителя.
+    К неводительской работе они неприменимы, а срабатывали: «Specialist HSE &
+    Product Quality» получал бонус за «deutschlandweit» в тексте и дотягивал до
+    раздела «на проверку» у водительского профиля.
+    """
+    if any(hit.code == "delivery_driving_family" for hit in signals.positive_role_hits_in_title):
+        return True
+    normalized_title = normalize_text_for_fingerprint(canonical.normalized_title or "")
+    return bool(normalized_title) and classify_vacancy_de(normalized_title) is RoleFamily.DRIVING
+
+
 def _score_driver_b_route_fit(
     text: str,
     profile: SearchProfileContext,
+    *,
+    vacancy_is_driving: bool = True,
 ) -> tuple[list[RuleHit], list[RuleHit]]:
-    if not _profile_is_driver_b_fernverkehr(profile):
+    if not _profile_is_driver_b_fernverkehr(profile) or not vacancy_is_driving:
         return [], []
 
     positive_hits = _match_weighted_rules(text, _DRIVER_B_POSITIVE_RULES)

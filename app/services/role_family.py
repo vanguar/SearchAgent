@@ -114,6 +114,7 @@ _TITLE_DE_TOKENS: list[tuple[RoleFamily, tuple[str, ...]]] = [
     (RoleFamily.DRIVING, (
         "kraftfahrer", "lieferfahrer", "zusteller", "kurier",
         "delivery driver", "truck driver", "van driver", "courier", "chauffeur",
+        "fahrpersonal", "fahrdienst", "auslieferung",
         "fahrer",  # short token after compound forms
         "driver",  # English counterpart of the short token above
     )),
