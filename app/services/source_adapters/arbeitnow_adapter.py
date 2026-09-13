@@ -149,7 +149,25 @@ def _parse_record(source_id: str, source_name: str, raw_job: Mapping[str, Any]) 
     )
 
 
+# Слова, которые сами по себе ничего не отбирают: класс водительских прав "B",
+# предлоги и служебные слова немецких названий должностей. Раньше запрос
+# "Fahrer Klasse B" совпадал по одной букве "b" почти с любым описанием.
+_NON_SELECTIVE_QUERY_TOKENS: frozenset[str] = frozenset(
+    {"a", "b", "c", "d", "e", "m", "w", "der", "die", "das", "und", "oder", "fur", "für", "mit", "im", "in", "von"}
+)
+_MIN_SELECTIVE_TOKEN_CHARS = 3
+
+
 def _matches_query(raw_job: Mapping[str, Any], query: str) -> bool:
+    """Совпадает ли вакансия с запросом.
+
+    Arbeitnow отдаёт весь фид и не фильтрует по ключевому слову, поэтому отбор
+    целиком на нашей стороне. Совпадение по ЛЮБОМУ слову запроса не годится:
+    "Fahrer Klasse B" проходил по букве "b", и в поиск водителя попадали
+    Steuerberater и Corporate Law (48 из 83 записей в реальном прогоне).
+
+    Считаем совпадением либо запрос целиком, либо все значимые слова запроса.
+    """
     normalized_query = query.strip().casefold()
     if not normalized_query:
         return True
@@ -164,7 +182,19 @@ def _matches_query(raw_job: Mapping[str, Any], query: str) -> bool:
             ],
         )
     ).casefold()
-    return any(part in haystack for part in normalized_query.split())
+
+    if normalized_query in haystack:
+        return True
+
+    selective_tokens = [
+        token
+        for token in normalized_query.split()
+        if len(token) >= _MIN_SELECTIVE_TOKEN_CHARS and token not in _NON_SELECTIVE_QUERY_TOKENS
+    ]
+    if not selective_tokens:
+        # Запрос состоит из одних неразличающих слов — отбирать по нему нечего.
+        return normalized_query in haystack
+    return all(token in haystack for token in selective_tokens)
 
 
 def _matches_mode(raw_job: Mapping[str, Any], search_mode: str) -> bool:

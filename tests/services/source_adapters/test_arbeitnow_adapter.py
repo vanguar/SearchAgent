@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.core.config import Settings
-from app.services.source_adapters.arbeitnow_adapter import ArbeitnowAdapter
+from app.services.source_adapters.arbeitnow_adapter import ArbeitnowAdapter, _matches_query
 from app.services.source_adapters.http import HttpJsonResponse
 from app.services.source_adapters.models import SourceSearchInput
 
@@ -64,3 +64,57 @@ def test_arbeitnow_adapter_filters_remote_worldwide_jobs() -> None:
     )
 
     assert [record.external_id for record in response.records] == ["py-remote"]
+
+
+def _job(title: str, description: str = "", company: str = "Acme GmbH") -> dict[str, object]:
+    return {
+        "slug": title.lower().replace(" ", "-"),
+        "title": title,
+        "company_name": company,
+        "description": description,
+        "location": "Rostock",
+        "remote": False,
+        "url": f"https://arbeitnow.com/{title.lower().replace(' ', '-')}",
+        "created_at": 1757000000,
+        "tags": [],
+    }
+
+
+def test_single_letter_query_token_no_longer_matches_everything() -> None:
+    """"Fahrer Klasse B" совпадал по букве "b" — в поиск водителя лез Steuerberater.
+
+    В реальном прогоне (Росток, 2026-09-13) Arbeitnow дал 48 из 83 сырых записей и
+    ровно одну карточку: остальное было Corporate Law, SCADA и налоговые консультанты.
+    """
+    assert _matches_query(_job("Steuerberater (m/w/d) in Schulzendorf"), "Fahrer Klasse B") is False
+    assert _matches_query(_job("Principal Corporate Law & Corporate Financing"), "Fahrer Klasse B") is False
+    assert _matches_query(_job("SCADA Engineering Manager (m/f/d)"), "Fahrer Klasse B") is False
+
+
+def test_real_driver_vacancy_still_matches() -> None:
+    assert _matches_query(
+        _job("Fahrer (m/w/d) Klasse B", description="Auslieferung mit dem Sprinter."),
+        "Fahrer Klasse B",
+    ) is True
+    assert _matches_query(_job("Lagerarbeiter (m/w/d)"), "Lagerarbeiter") is True
+
+
+def test_all_significant_words_must_be_present() -> None:
+    assert _matches_query(_job("Fahrer (m/w/d)"), "Fahrer Klasse B") is False
+    assert _matches_query(
+        _job("Fahrer (m/w/d)", description="Führerschein Klasse B erforderlich."),
+        "Fahrer Klasse B",
+    ) is True
+
+
+def test_exact_phrase_match_wins_even_with_short_words() -> None:
+    assert _matches_query(_job("Helfer im Lager (m/w/d)"), "im Lager") is True
+
+
+def test_query_made_only_of_non_selective_words_falls_back_to_phrase_match() -> None:
+    assert _matches_query(_job("Fahrer der Klasse"), "der") is True
+    assert _matches_query(_job("Lagerarbeiter"), "der") is False
+
+
+def test_empty_query_matches_everything() -> None:
+    assert _matches_query(_job("Anything"), "") is True
