@@ -12,13 +12,19 @@ from app.services.relevance_memory_service import (
 )
 from app.services.search_models import (
     FilterResult,
+    HiddenFilteredItem,
+    RuleHit,
     ScoreResult,
     SearchProfileContext,
     SearchResultItem,
     SearchRunResult,
     VacancySignalSnapshot,
 )
-from app.services.search_service import SearchService, _result_sort_key
+from app.services.search_service import (
+    SearchService,
+    _merge_search_results_for_worldwide,
+    _result_sort_key,
+)
 from app.services.source_adapters.base import BaseSourceAdapter
 from app.services.source_adapters.errors import AdapterRequestError
 from app.services.source_adapters.models import AdapterSearchResponse, SourceRecordPreview, SourceSearchInput
@@ -994,3 +1000,53 @@ def test_nearby_results_are_not_repeated_in_the_countrywide_lists() -> None:
     assert result.maybe_results_beyond_commute == ()
     shown = result.nearby_results + result.hot_results_beyond_commute + result.maybe_results_beyond_commute
     assert len(shown) == len({id(item) for item in shown}) == 3
+
+
+def test_merge_never_shows_a_vacancy_that_another_attempt_hard_rejected() -> None:
+    """Одна вакансия не может быть одновременно карточкой и «скрыта фильтром».
+
+    В реальной выгрузке (поиск «Доставка», Росток) canonical_key 592b32c0 лежал сразу
+    и в vacancies как maybe/63, и в hidden_filtered с german_required_mismatch: попытки
+    собрали группу из разных записей, и в одном тексте требование немецкого было, а в
+    другом — нет. Побеждает найденное требование.
+    """
+    shown = _make_result_item(distance_km=42.0, bucket="maybe")
+    canonical_key = shown.canonical_group.canonical_key
+    profile = SearchProfileContext(profile_label="Доставка", profile_source="saved")
+
+    allowed_attempt = SearchRunResult(
+        profile=profile, source_states=(), results=(shown,), maybe_results=(shown,)
+    )
+    rejecting_attempt = SearchRunResult(
+        profile=profile,
+        source_states=(),
+        results=(),
+        hidden_filtered_items=(
+            HiddenFilteredItem(
+                canonical_key=canonical_key,
+                title="Postbote für Pakete und Briefe (m/w/d)",
+                rejection_reasons=(RuleHit(code="german_required_mismatch", label_ru="требуется немецкий"),),
+            ),
+        ),
+    )
+
+    merged = _merge_search_results_for_worldwide([allowed_attempt, rejecting_attempt])
+
+    shown_keys = {item.canonical_group.canonical_key for item in merged.results}
+    hidden_keys = {item.canonical_key for item in merged.hidden_filtered_items}
+    assert canonical_key in hidden_keys
+    assert canonical_key not in shown_keys
+    assert shown_keys & hidden_keys == set()
+
+
+def test_merge_keeps_vacancies_that_no_attempt_rejected() -> None:
+    kept = _make_result_item(distance_km=20.0, bucket="hot")
+    profile = SearchProfileContext(profile_label="Доставка", profile_source="saved")
+    first = SearchRunResult(profile=profile, source_states=(), results=(kept,), hot_results=(kept,))
+    second = SearchRunResult(profile=profile, source_states=(), results=())
+
+    merged = _merge_search_results_for_worldwide([first, second])
+
+    assert {item.canonical_group.canonical_key for item in merged.results} == {
+        kept.canonical_group.canonical_key
+    }

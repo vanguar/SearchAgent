@@ -1151,6 +1151,14 @@ def _merge_search_results_for_worldwide(results: list[SearchRunResult]) -> Searc
         for item in result.hidden_filtered_items:
             hidden_by_key.setdefault(item.canonical_key, item)
 
+    # Одна вакансия не может быть одновременно карточкой и жёстко скрытой. Попытки
+    # собирают канонические группы из разных наборов записей, поэтому у одной и той же
+    # вакансии текст в двух попытках разный: в одной требование нашлось, в другой нет.
+    # Побеждает НАЙДЕННОЕ — по тому же принципу, по которому отсутствие требования
+    # нельзя утверждать по вырезке, а его наличие можно (см. _has_analyzable_body).
+    for canonical_key in hidden_by_key:
+        result_by_key.pop(canonical_key, None)
+
     preview_by_key: dict[str, DedupPreviewItem] = {}
     for result in results:
         for item in result.deduped_preview_items:
