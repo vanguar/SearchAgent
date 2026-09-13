@@ -10,6 +10,10 @@ from sqlalchemy.orm import Session
 from app.core.logging import logger
 from app.db.models.profiles import SearchProfile, UserProfile
 from app.db.session import SessionLocal
+from app.services.profile_role_sanitizer import (
+    drop_excluded_roles_contradicting_desired,
+    sanitize_role_list,
+)
 from app.services.search_models import SearchProfileContext, normalize_profile_text
 
 _CANONICAL_SECTION24_VALUES = frozenset({"section_24", "section24", "section-24"})
@@ -96,6 +100,18 @@ class DatabaseSearchProfileResolver:
             legal_status = interpret_legal_status(user_profile.legal_status)
             work_authorized = bool(user_profile.work_authorized or legal_status.work_authorized)
 
+            # Список исключений чистится и на чтении, а не только при разборе профиля:
+            # в базе уже лежат профили, сохранённые до появления санитайзера, и мусор
+            # в них работает как жёсткий фильтр. Операция идемпотентна — чистый список
+            # проходит без изменений.
+            desired_roles = tuple(search_profile.desired_roles or ())
+            excluded_roles = tuple(
+                drop_excluded_roles_contradicting_desired(
+                    desired_roles=desired_roles,
+                    excluded_roles=sanitize_role_list(search_profile.excluded_roles or ()),
+                )
+            )
+
             profile_context = SearchProfileContext(
                 profile_label=search_profile.name or user_profile.display_name,
                 profile_source="saved",
@@ -104,8 +120,8 @@ class DatabaseSearchProfileResolver:
                 work_authorized=work_authorized,
                 german_level=user_profile.german_level,
                 english_level=user_profile.english_level,
-                desired_roles=tuple(search_profile.desired_roles or ()),
-                excluded_roles=tuple(search_profile.excluded_roles or ()),
+                desired_roles=desired_roles,
+                excluded_roles=excluded_roles,
                 preferred_locations=tuple(search_profile.preferred_locations or ()),
                 relocation_ready=search_profile.relocation_ready,
                 shift_ok=search_profile.shift_ok,

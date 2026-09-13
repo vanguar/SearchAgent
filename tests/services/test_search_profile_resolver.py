@@ -236,3 +236,94 @@ def test_database_search_profile_resolver_explicit_profile_id_not_found_returns_
     )
     result = resolver.resolve(profile_id=999)
     assert result.profile_source == "fallback"
+
+
+def test_resolver_cleans_excluded_roles_already_stored_in_the_database() -> None:
+    """Профили, сохранённые до появления санитайзера, чистятся при чтении.
+
+    Профиль «Доставка / Курьер» лежит в базе с обрывками фразы в excluded_roles, а этот
+    список работает как жёсткий фильтр. Санитайзер на входе новые профили защищает, но
+    уже сохранённые — нет, поэтому чистка нужна и здесь.
+    """
+    search_profile = SimpleNamespace(
+        id=4,
+        user_profile_id=1,
+        name="Доставка / Курьер",
+        desired_roles=["Доставка", "Курьер", "Водитель", "доставка воды"],
+        excluded_roles=[
+            "амазон",
+            "хермес",
+            "также в доставку воды",
+            "но без знания немецкого",
+            "английского",
+            "Amazon",
+            "Hermes",
+        ],
+        preferred_locations=["Rostock"],
+        relocation_ready=True,
+        shift_ok=True,
+        physical_work_ok=True,
+        housing_needed=False,
+        start_availability_text=None,
+        driver_license="B",
+        no_german_required=False,
+        search_query_terms=None,
+    )
+    user_profile = SimpleNamespace(
+        id=1,
+        display_name="Профиль",
+        city="Tribsees",
+        legal_status="section_24",
+        work_authorized=True,
+        german_level="basic",
+        english_level=None,
+    )
+    resolver = DatabaseSearchProfileResolver(
+        session_factory=lambda: _FakeSession(search_profile=search_profile, user_profile=user_profile)
+    )
+
+    result = resolver.resolve()
+
+    assert result.excluded_roles == ("амазон", "хермес", "Amazon", "Hermes")
+
+
+def test_resolver_leaves_a_clean_exclusion_list_untouched() -> None:
+    """Профиль водителя исключает реальные роли — их трогать нельзя."""
+    stored = [
+        "Paketzustellung",
+        "Paketbote",
+        "Postzustellung",
+        "Briefzustellung",
+        "Schülerverkehr",
+        "Schulbus",
+    ]
+    search_profile = SimpleNamespace(
+        id=7,
+        user_profile_id=1,
+        name="Driver b – fernverkehr",
+        desired_roles=["Driver B – Fernverkehr"],
+        excluded_roles=list(stored),
+        preferred_locations=["Deutschland"],
+        relocation_ready=True,
+        shift_ok=True,
+        physical_work_ok=True,
+        housing_needed=False,
+        start_availability_text=None,
+        driver_license="B",
+        no_german_required=False,
+        search_query_terms=None,
+    )
+    user_profile = SimpleNamespace(
+        id=1,
+        display_name="Профиль",
+        city="Tribsees",
+        legal_status="section_24",
+        work_authorized=True,
+        german_level="basic",
+        english_level=None,
+    )
+    resolver = DatabaseSearchProfileResolver(
+        session_factory=lambda: _FakeSession(search_profile=search_profile, user_profile=user_profile)
+    )
+
+    assert resolver.resolve().excluded_roles == tuple(stored)

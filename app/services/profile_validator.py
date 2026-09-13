@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from app.services.intake_models import IntakeProfileDraft, IntakeValidationResult
 from app.services.profile_location_sanitizer import sanitize_preferred_locations
+from app.services.profile_role_sanitizer import (
+    drop_excluded_roles_contradicting_desired,
+    sanitize_role_list,
+)
 from app.services.profile_role_taxonomy import classify_roles, is_it_profile, requires_shift_question
 
 CRITICAL_FIELDS: tuple[str, ...] = (
@@ -36,7 +40,7 @@ class ProfileValidator:
             german_level=self._normalize_language_level(draft.german_level),
             english_level=self._normalize_language_level(draft.english_level),
             desired_roles=self._normalize_list(draft.desired_roles),
-            excluded_roles=self._normalize_list(draft.excluded_roles),
+            excluded_roles=sanitize_role_list(draft.excluded_roles),
             preferred_regions=sanitize_preferred_locations(draft.preferred_regions),
             remote_allowed=draft.remote_allowed,
             international_remote_allowed=draft.international_remote_allowed,
@@ -49,6 +53,14 @@ class ProfileValidator:
             driving_license=self._normalize_driving_license(draft.driving_license),
             has_car=draft.has_car,
             search_query_terms=list(draft.search_query_terms),
+        )
+
+        # Исключение сильнее желания — но только когда пользователь действительно
+        # исключил другое. Обрывок "также в доставку воды" рядом с желаемой ролью
+        # "доставка воды" означает неверно разрезанную фразу, а не запрет.
+        normalized.excluded_roles = drop_excluded_roles_contradicting_desired(
+            desired_roles=normalized.desired_roles,
+            excluded_roles=normalized.excluded_roles,
         )
 
         if normalized.legal_status == "section_24":
