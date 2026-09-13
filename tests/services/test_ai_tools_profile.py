@@ -113,7 +113,12 @@ def test_profile_identity_is_field_based_and_does_not_capture_existing_python_pr
 def test_english_source_text_without_requirement_is_not_rejected_and_is_high() -> None:
     canonical = _canonical(
         title="AI Automation Specialist",
-        body="Build n8n workflows using GPT and Claude. No formal software engineering background required.",
+        body=(
+            "Build n8n workflows using GPT and Claude for our internal operations team. "
+            "You will connect existing SaaS tools, design prompt chains and keep the "
+            "automations running day to day. No formal software engineering background "
+            "required, and we do not ask for any specific language certificate."
+        ),
         source_id="remotive",
     )
 
@@ -342,3 +347,75 @@ def test_ai_tools_profile_preview_and_creation_preserve_existing_profile(db_sess
     duplicate = service.create_from_preview(db_session, preview=preview)
     assert duplicate.created is False
     assert db_session.query(SearchProfile).filter(SearchProfile.name == AI_TOOLS_PROFILE_NAME).count() == 1
+
+
+def test_short_excerpt_does_not_earn_the_language_fit_bonus() -> None:
+    """По вырезке нельзя утверждать, что язык не требуется.
+
+    Careerjet отдаёт фрагмент вокруг поискового слова, Adzuna режет описание на 500
+    символах. Раньше такое описание давало бонус "английский и немецкий не указаны
+    как обязательные" просто потому, что требование не поместилось в кусок текста.
+    """
+    canonical = _canonical(
+        title="AI Automation Specialist",
+        body="Build n8n workflows using GPT.",
+        source_id="careerjet",
+    )
+
+    signals, filter_result, score_result, _ = _evaluate(canonical)
+
+    assert signals.english_requirement_unknown is True
+    assert signals.ai_tools_language_fit_signal is False
+    assert filter_result.hard_reject is False
+    assert not any(hit.code == "ai_tools_language_fit_signal" for hit in score_result.positive_hits)
+
+
+def test_english_mentioned_only_as_a_perk_is_not_a_requirement() -> None:
+    """"English courses" в блоке бонусов — соцпакет, а не языковой барьер."""
+    canonical = _canonical(
+        title="AI Automation Specialist",
+        body=(
+            "Build AI automations with n8n and LLM agents for our operations team. "
+            "What we offer: medical insurance, corporate events, english courses with "
+            "a native speaker, flexible working hours and a yearly education budget."
+        ),
+    )
+
+    signals, filter_result, _, _ = _evaluate(canonical)
+
+    assert signals.english_required_signal is False
+    assert signals.english_requirement_unknown is False
+    assert filter_result.hard_reject is False
+
+
+def test_cefr_and_worded_english_levels_are_read_as_requirements() -> None:
+    """Реальные формулировки уровня из IT-объявлений, а не только "english required"."""
+    for body in (
+        "You will own the backend. Requirements: upper intermediate english level, "
+        "both verbal and written, for daily communication with the customer team.",
+        "Requirements: strong python skills and english b2 for comfortable verbal "
+        "team communication across our distributed engineering group.",
+        "Soft skills: good written and spoken english, ownership over micromanagement, "
+        "and the ability to work independently in a remote environment.",
+    ):
+        canonical = _canonical(title="AI Automation Specialist", body=body)
+        signals, filter_result, _, _ = _evaluate(canonical)
+        assert signals.english_required_signal is True, body
+        assert filter_result.hard_reject is True, body
+
+
+def test_english_level_softened_by_nice_to_have_is_not_a_requirement() -> None:
+    """"english b1 nice to have" — пожелание, а не барьер."""
+    canonical = _canonical(
+        title="AI Automation Specialist",
+        body=(
+            "You direct AI agents while keeping control of the code and shipping "
+            "automations weekly. English b1 nice to have, healthcare domain experience "
+            "is also welcome but not mandatory for this position."
+        ),
+    )
+
+    signals, filter_result, _, _ = _evaluate(canonical)
+
+    assert signals.english_required_signal is False
+    assert filter_result.hard_reject is False

@@ -7,6 +7,11 @@ from app.services.ai_tools_profile import is_ai_tools_profile
 from app.services.driver_license_signal_extractor import extract_driver_license_requirements
 from app.services.geo_distance import distance_km, resolve_point
 from app.services.hashers import normalize_text_for_fingerprint
+from app.services.language_signal_extractor import (
+    ENGLISH_BENEFIT_PATTERNS,
+    ENGLISH_PREFERRED_PATTERNS,
+    ENGLISH_REQUIRED_PATTERNS,
+)
 from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.role_family import (
     RoleFamily,
@@ -237,21 +242,17 @@ GERMAN_ANY_REQUIRED_RULE = TextRule(
 ENGLISH_REQUIRED_RULE = TextRule(
     code="english_required_signal",
     label_ru="английский явно обязателен",
-    patterns=(
-        r"\benglish\b.{0,50}\b(?:required|mandatory|essential|must have)\b",
-        r"\b(?:fluent|business|professional|advanced|excellent) english\b.{0,40}"
-        r"\b(?:required|mandatory|essential|must)\b",
-        r"\b(?:english\s+(?:b2|c1|c2)|(?:b2|c1|c2)\s+english)\b",
-        r"\bmust\b.{0,40}\b(?:speak|write|communicate in) english\b",
-    ),
+    patterns=ENGLISH_REQUIRED_PATTERNS,
 )
 ENGLISH_PREFERRED_RULE = TextRule(
     code="english_preferred_signal",
     label_ru="английский указан как пожелание",
-    patterns=(
-        r"\benglish\b.{0,30}\b(?:preferred|a plus|an asset|nice to have|desirable|advantage)\b",
-        r"\b(?:preferred|desirable)\b.{0,20}\benglish\b",
-    ),
+    patterns=ENGLISH_PREFERRED_PATTERNS,
+)
+ENGLISH_BENEFIT_RULE = TextRule(
+    code="english_benefit_signal",
+    label_ru="английский упомянут как соцпакет",
+    patterns=ENGLISH_BENEFIT_PATTERNS,
 )
 LOW_LANGUAGE_RULE = TextRule(
     code="low_language_signal",
@@ -420,6 +421,49 @@ def _german_requirement_is_softened_everywhere(text: str) -> bool:
         )
         for match in mentions
     )
+
+
+_ENGLISH_MENTION_RE = re.compile(r"\benglish\b")
+
+
+def _english_requirement_is_softened_everywhere(text: str) -> bool:
+    """Все упоминания английского поданы как пожелание или как соцпакет.
+
+    Нужна отдельно от _requirement_is_mandatory по той же причине, что и немецкий
+    аналог: часть сигнала приходит готовым флагом из language_signal_extractor, где
+    позиция совпадения уже потеряна. Дополнительно к обычному смягчению здесь
+    учитывается benefit-контекст: "english courses with a native speaker" — это
+    корпоративная плюшка, а не языковой барьер.
+    """
+    mentions = list(_ENGLISH_MENTION_RE.finditer(text))
+    if not mentions:
+        return False
+    return all(
+        _english_mention_is_soft(
+            text[max(0, match.start() - _QUALIFICATION_OPTIONALITY_WINDOW) : match.end() + _QUALIFICATION_OPTIONALITY_WINDOW]
+        )
+        for match in mentions
+    )
+
+
+def _english_mention_is_soft(window: str) -> bool:
+    return _window_softens_requirement(window) or _matches_rule(window, ENGLISH_BENEFIT_RULE)
+
+
+def _english_requirement_is_mandatory(text: str) -> bool:
+    """Требование по английскому найдено и хотя бы одно упоминание не смягчено.
+
+    Отличается от общего _requirement_is_mandatory тем, что окно проверяется ещё и
+    на benefit-контекст: без этого "english courses" в блоке бонусов читалось бы как
+    обязательный язык.
+    """
+    for pattern in ENGLISH_REQUIRED_RULE.patterns:
+        for match in re.finditer(pattern, text):
+            start = max(0, match.start() - _QUALIFICATION_OPTIONALITY_WINDOW)
+            window = text[start : match.end() + _QUALIFICATION_OPTIONALITY_WINDOW]
+            if not _english_mention_is_soft(window):
+                return True
+    return False
 
 
 def _requirement_is_mandatory(text: str, rule: TextRule) -> bool:
@@ -652,21 +696,34 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         not strong_german_required and _matches_rule(combined_text, GERMAN_NOT_REQUIRED_RULE)
     )
     basic_german_signal = not strong_german_required and _matches_rule(combined_text, BASIC_GERMAN_RULE)
-    english_required_signal = canonical.language_signals.english_required or _matches_rule(
-        combined_text,
-        ENGLISH_REQUIRED_RULE,
+    analyzable_body = _has_analyzable_body(canonical)
+    english_required_signal = _english_requirement_is_mandatory(combined_text) or (
+        canonical.language_signals.english_required
+        and not _english_requirement_is_softened_everywhere(combined_text)
     )
     english_preferred_signal = (
         not english_required_signal
         and (canonical.language_signals.english_preferred or _matches_rule(combined_text, ENGLISH_PREFERRED_RULE))
     )
+    # Требование не найдено И судить об его отсутствии не по чему: описание слишком
+    # короткое или это вырезка. Careerjet отдаёт фрагмент вокруг поискового слова,
+    # Adzuna режет на 500 символах — там "не сказано про английский" ничего не значит.
+    english_requirement_unknown = (
+        not english_required_signal and not english_preferred_signal and not analyzable_body
+    )
     ai_tools_language_fit_signal = (
         is_ai_tools_profile(profile)
         and not english_required_signal
+        # Английский "желателен" — это уже языковая нагрузка, бонуса за её отсутствие
+        # быть не должно: иначе упоминание английского поднимало бы вакансию выше той,
+        # где английский не упомянут вовсе.
+        and not english_preferred_signal
+        # Бонус за "язык не требуется" можно давать только по цельному описанию:
+        # по вырезке отсутствие требования не доказано.
+        and not english_requirement_unknown
         and (not german_any_required or basic_german_signal)
         and not strong_german_required
     )
-
     return VacancySignalSnapshot(
         combined_text=combined_text,
         positive_role_hits=positive_role_hits,
@@ -695,10 +752,11 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         no_mandatory_german_mentioned=(
             not strong_german_required
             and not german_any_required
-            and _has_analyzable_body(canonical)
+            and analyzable_body
         ),
         english_required_signal=english_required_signal,
         english_preferred_signal=english_preferred_signal,
+        english_requirement_unknown=english_requirement_unknown,
         ai_tools_language_fit_signal=ai_tools_language_fit_signal,
         ukrainian_welcome_signal=_matches_rule(combined_text, UKRAINIAN_WELCOME_RULE),
         shift_signal=canonical.language_signals.shift_signal or _matches_rule(combined_text, SHIFT_RULE),

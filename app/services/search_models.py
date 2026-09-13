@@ -121,6 +121,16 @@ class SearchProfileContext:
         return is_low_german_level(self.german_level)
 
     @property
+    def no_usable_english(self) -> bool:
+        """У профиля нет рабочего английского.
+
+        Незаполненный уровень считается отсутствием: утверждать, что английский есть,
+        не на чем. Свойство используется только для мягких сигналов (риск, понижение
+        в maybe), но никогда для жёсткого отклонения.
+        """
+        return not self.english_level or is_low_german_level(self.english_level)
+
+    @property
     def accepts_shifts(self) -> bool:
         return self.shift_ok is not False
 
@@ -159,6 +169,9 @@ class VacancySignalSnapshot:
     no_mandatory_german_mentioned: bool = False
     english_required_signal: bool = False
     english_preferred_signal: bool = False
+    # Требование по английскому не найдено И судить об его отсутствии не по чему:
+    # описание слишком короткое или это вырезка. "Не видно" != "не требуется".
+    english_requirement_unknown: bool = False
     ai_tools_language_fit_signal: bool = False
     ukrainian_welcome_signal: bool = False
     shift_signal: bool = False

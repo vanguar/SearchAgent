@@ -1394,3 +1394,52 @@ def test_qualification_hidden_behind_a_specialty_word_still_rejects() -> None:
     result = engine.evaluate(canonical, profile)
 
     assert any(hit.code == "vocational_mismatch" for hit in result.rejection_hits)
+
+
+def test_english_requirement_surfaces_as_risk_for_profile_without_english() -> None:
+    """Требование английского не должно молча исчезать для профиля без английского.
+
+    Жёстко прятать такую вакансию нельзя — решает человек, — но и показывать её как
+    полностью подходящую тоже: раньше требование просто не доходило до карточки.
+    """
+    canonical = _build_canonical(
+        title="Python Developer",
+        body=(
+            "You will build backend services in Python and FastAPI for our platform. "
+            "Requirements: upper intermediate english level for daily communication "
+            "with the distributed engineering team and written status reports."
+        ),
+    )
+    profile = _build_profile(desired_roles=("Python Developer",), english_level=None)
+
+    result = FilterEngine().evaluate(canonical, profile, search_mode="remote_worldwide")
+
+    assert result.hard_reject is False
+    assert result.review_required is True
+    assert any(hit.code == "english_required_review" for hit in result.review_hits)
+
+
+def test_english_requirement_is_not_flagged_for_profile_that_has_english() -> None:
+    canonical = _build_canonical(
+        title="Python Developer",
+        body=(
+            "You will build backend services in Python and FastAPI for our platform. "
+            "Requirements: upper intermediate english level for daily communication "
+            "with the distributed engineering team and written status reports."
+        ),
+    )
+    profile = _build_profile(desired_roles=("Python Developer",), english_level="B2")
+
+    result = FilterEngine().evaluate(canonical, profile, search_mode="remote_worldwide")
+
+    assert not any(hit.code.startswith("english_") for hit in result.review_hits)
+
+
+def test_unknown_english_is_not_flagged_on_a_german_local_search() -> None:
+    """В поиске по Германии английский к делу не относится — риска быть не должно."""
+    canonical = _build_canonical(title="Lagerarbeiter (m/w/d)", body="Kommissionierung im Lager.")
+    profile = _build_profile(desired_roles=("Lagerarbeiter",), english_level=None)
+
+    result = FilterEngine().evaluate(canonical, profile, search_mode="germany_local")
+
+    assert not any(hit.code == "english_requirement_unknown" for hit in result.review_hits)

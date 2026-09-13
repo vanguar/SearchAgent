@@ -29,15 +29,47 @@ _LOW_LANGUAGE_PATTERNS = (
     r"\bbasic german\b",
     r"\benglish only\b",
 )
-_ENGLISH_REQUIRED_PATTERNS = (
-    r"\benglish\b.{0,50}\b(?:required|mandatory|essential|must have)\b",
-    r"\b(?:fluent|business|professional|advanced|excellent) english\b.{0,40}\b(?:required|mandatory|essential|must)\b",
-    r"\b(?:english\s+(?:b2|c1|c2)|(?:b2|c1|c2)\s+english)\b",
+# Как требование по английскому пишут на самом деле. Набор проверен на 100 реальных
+# объявлениях Djinni: прежние четыре паттерна находили 9 требований на 43 упоминания —
+# они знали только "b2/c1/c2" и связку "english ... required". В IT-объявлениях уровень
+# пишут словами ("upper intermediate"), а обязательность не пишут вовсе: "good written
+# and spoken English" в разделе требований и есть требование.
+#
+# Паттерны общие для LanguageSignalExtractor и rule_catalog.ENGLISH_REQUIRED_RULE:
+# объявлены здесь один раз и импортируются, раньше существовали в двух копиях.
+ENGLISH_REQUIRED_PATTERNS: tuple[str, ...] = (
+    r"\benglish\b.{0,50}\b(?:required|mandatory|essential|must have|hard requirement)\b",
+    r"\b(?:fluent|business|professional|advanced|excellent|strong|solid|confident)\s+english\b",
+    r"\benglish\s+(?:proficiency|fluency)\b",
+    r"\b(?:proficiency|fluency|command)\s+(?:in|of)\s+english\b",
+    # Уровень по CEFR: и "english b2", и "english level b2", и "english at b2 level".
+    r"\benglish\b.{0,25}\b(?:b1|b2|c1|c2)\b",
+    r"\b(?:b1|b2|c1|c2)\b.{0,25}\benglish\b",
+    # Уровень словами — в IT-объявлениях это основная форма записи.
+    r"\b(?:upper[\s-]?intermediate|pre[\s-]?intermediate|intermediate|advanced|proficient)\b.{0,25}\benglish\b",
+    r"\benglish\b.{0,25}\b(?:upper[\s-]?intermediate|pre[\s-]?intermediate|intermediate|advanced|proficient)\b",
+    # Требование без слова "required": названа сама рабочая функция на языке.
+    r"\b(?:written|spoken|verbal|oral)\b.{0,45}\benglish\b",
+    r"\benglish\b.{0,45}\b(?:communication skills|written and spoken|written and verbal)\b",
     r"\bmust\b.{0,40}\b(?:speak|write|communicate in) english\b",
 )
-_ENGLISH_PREFERRED_PATTERNS = (
+_ENGLISH_REQUIRED_PATTERNS = ENGLISH_REQUIRED_PATTERNS
+
+ENGLISH_PREFERRED_PATTERNS: tuple[str, ...] = (
     r"\benglish\b.{0,30}\b(?:preferred|a plus|an asset|nice to have|desirable|advantage)\b",
     r"\b(?:preferred|desirable)\b.{0,20}\benglish\b",
+)
+_ENGLISH_PREFERRED_PATTERNS = ENGLISH_PREFERRED_PATTERNS
+
+# Английский как СОЦПАКЕТ, а не требование: "english courses with a native speaker",
+# "english classes and educational events", "speaking clubs to maintain your english".
+# Без этой проверки корпоративные плюшки читались бы как языковой барьер.
+ENGLISH_BENEFIT_PATTERNS: tuple[str, ...] = (
+    r"\benglish\s+(?:courses?|classes|lessons?|clubs?|school|training|tutor\w*)\b",
+    r"\b(?:courses?|classes|lessons?|clubs?)\b.{0,30}\benglish\b",
+    r"\b(?:maintain|improve|develop|practice|practise)\b.{0,25}\benglish\b",
+    r"\benglish\b.{0,30}\bnative speaker\b",
+    r"\b(?:compensation|reimbursement|coverage)\b.{0,30}\benglish\b",
 )
 _SHIFT_PATTERNS = (
     r"\bschicht",

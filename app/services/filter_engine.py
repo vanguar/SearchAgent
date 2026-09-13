@@ -99,6 +99,14 @@ class FilterEngine:
     ) -> FilterResult:
         resolved_signals = signals or inspect_vacancy(canonical, profile)
 
+        # Признан ли прогон всемирно-удалённым. Нужен и географии, и языковым правилам:
+        # рабочий язык по умолчанию английский именно в этом лейне, а в поиске по
+        # Германии английский к делу не относится.
+        worldwide_search = (
+            search_mode == "remote_worldwide"
+            or is_remote_worldwide_location(profile.preferred_locations)
+        )
+
         positive_hits = list(_collect_positive_hits(resolved_signals, profile))
         rejection_hits: list[RuleHit] = []
         review_hits: list[RuleHit] = []
@@ -155,6 +163,30 @@ class FilterEngine:
                     label_ru="английский явно указан как обязательный",
                 )
             )
+        elif resolved_signals.english_required_signal and profile.no_usable_english:
+            # Для остальных профилей это не повод прятать вакансию: человек может
+            # решить сам. Но молчать нельзя — раньше требование английского просто
+            # не доходило до карточки, и вакансия выглядела достижимой.
+            review_hits.append(
+                RuleHit(
+                    code="english_required_review",
+                    label_ru="требуется английский, а в профиле его нет",
+                )
+            )
+        elif (
+            resolved_signals.english_requirement_unknown
+            and profile.no_usable_english
+            and worldwide_search
+            and _vacancy_is_it_family(canonical)
+        ):
+            # IT-объявление, где требование по языку не поместилось в вырезку. Молчание
+            # здесь читается как "языка не требуется", а это ничем не подтверждено.
+            review_hits.append(
+                RuleHit(
+                    code="english_requirement_unknown",
+                    label_ru="требование по английскому не удалось проверить по описанию",
+                )
+            )
 
         if (
             is_ai_tools_profile(profile)
@@ -181,12 +213,7 @@ class FilterEngine:
             target.append(RuleHit(code="experience_mismatch", label_ru="просят заметный профильный опыт"))
 
         # A worldwide-remote run must never hard-reject on geography: the user explicitly
-        # opted out of a local filter. Treat the run as worldwide either when the search mode
-        # says so or when the profile's preferred locations describe a global/remote search.
-        worldwide_search = (
-            search_mode == "remote_worldwide"
-            or is_remote_worldwide_location(profile.preferred_locations)
-        )
+        # opted out of a local filter (see worldwide_search above).
         if (
             profile.preferred_locations
             and profile.relocation_ready is False
@@ -502,6 +529,7 @@ def explain_filter_decision(canonical: CanonicalVacancyGroup, profile: SearchPro
             "low_language_signal": signals.low_language_signal,
             "english_required_signal": signals.english_required_signal,
             "english_preferred_signal": signals.english_preferred_signal,
+            "english_requirement_unknown": signals.english_requirement_unknown,
         },
         "role_family_reason": {
             "detected_role_family": role_family.value,
@@ -511,3 +539,13 @@ def explain_filter_decision(canonical: CanonicalVacancyGroup, profile: SearchPro
             "review_hits": tuple(hit.code for hit in filter_result.review_hits),
         },
     }
+
+
+def _vacancy_is_it_family(canonical: CanonicalVacancyGroup) -> bool:
+    """IT-вакансия по заголовку.
+
+    Нужна, чтобы «не видно требования по английскому» не превращалось в риск на
+    немецких складских объявлениях, где английский вообще ни при чём.
+    """
+    normalized_title = normalize_text_for_fingerprint(canonical.normalized_title or "")
+    return classify_vacancy_de(normalized_title) is RoleFamily.IT
