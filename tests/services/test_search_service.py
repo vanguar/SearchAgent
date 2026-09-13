@@ -1050,3 +1050,113 @@ def test_merge_keeps_vacancies_that_no_attempt_rejected() -> None:
     assert {item.canonical_group.canonical_key for item in merged.results} == {
         kept.canonical_group.canonical_key
     }
+
+
+class _FingerprintedAdapter(BaseSourceAdapter):
+    """Источник, который сводит любой запрос к одному и тому же обращению."""
+
+    source_id = "fixed"
+    display_name = "Fixed Feed"
+
+    def __init__(self) -> None:
+        self.queries: list[str] = []
+
+    def is_enabled(self) -> bool:
+        return True
+
+    def request_fingerprint(self, search_input: SourceSearchInput) -> str:
+        return "fixed:always-the-same"
+
+    def search(self, search_input: SourceSearchInput) -> AdapterSearchResponse:
+        self.queries.append(search_input.query)
+        return AdapterSearchResponse(
+            source_id=self.source_id,
+            source_name=self.display_name,
+            records=(
+                SourceRecordPreview(
+                    source_id=self.source_id,
+                    source_name=self.display_name,
+                    external_id="fixed-1",
+                    source_reference="fixed-1",
+                    title="Lagerhelfer (m/w/d)",
+                    company="Nord GmbH",
+                    location="Rostock",
+                    posted_at="2026-09-01",
+                    detail_url="https://example.org/fixed-1",
+                    raw_payload={"description": "Kommissionierung im Lager."},
+                ),
+            ),
+            total_count=1,
+            page=1,
+            page_size=8,
+            raw_payload={},
+        )
+
+
+class _PerQueryAdapter(BaseSourceAdapter):
+    """Источник без отпечатка: у него своя выдача на каждое слово."""
+
+    source_id = "per_query"
+    display_name = "Per Query"
+
+    def __init__(self) -> None:
+        self.queries: list[str] = []
+
+    def is_enabled(self) -> bool:
+        return True
+
+    def search(self, search_input: SourceSearchInput) -> AdapterSearchResponse:
+        self.queries.append(search_input.query)
+        return AdapterSearchResponse(
+            source_id=self.source_id,
+            source_name=self.display_name,
+            records=(),
+            total_count=0,
+            page=1,
+            page_size=8,
+            raw_payload={},
+        )
+
+
+def test_a_source_is_asked_once_per_distinct_request_in_one_run() -> None:
+    """Источник, сводящий все слова к одному запросу, опрашивается один раз за прогон.
+
+    У AI-профиля 16 поисковых терминов дают у Djinni одну пару рубрик: без этой
+    памяти конвейер разбирал один и тот же фид шестнадцать раз.
+    """
+    fixed = _FingerprintedAdapter()
+    per_query = _PerQueryAdapter()
+    service = SearchService(registry=SourceAdapterRegistry(adapters=(fixed, per_query)))
+    service.get_profile_context = lambda **_: SearchProfileContext(  # type: ignore[method-assign]
+        profile_label="Склад",
+        profile_source="saved",
+        german_level="basic",
+        desired_roles=("Lagerarbeiter",),
+        preferred_locations=("Rostock",),
+        home_city="Rostock",
+    )
+
+    result = service.orchestrated_search(
+        search_input=SourceSearchInput(
+            query="Lagerarbeiter", location="Rostock", search_mode="germany_local", page=1, page_size=8
+        ),
+        source_ids=("fixed", "per_query"),
+    )
+
+    assert len(fixed.queries) == 1, fixed.queries
+    # Источник без отпечатка должен по-прежнему получать каждую попытку.
+    assert len(per_query.queries) > 1
+    # И найденная вакансия не должна пропасть из-за пропущенных повторов.
+    assert len(result.results) == 1
+
+
+def test_search_without_run_memory_still_asks_every_time() -> None:
+    """Одиночный search() вне оркестратора ведёт себя как раньше."""
+    fixed = _FingerprintedAdapter()
+    service = SearchService(registry=SourceAdapterRegistry(adapters=(fixed,)))
+    search_input = SourceSearchInput(query="Lagerarbeiter", location="Rostock", page=1, page_size=8)
+
+    service.search(search_input=search_input, source_ids=("fixed",))
+    service.search(search_input=search_input, source_ids=("fixed",))
+
+    assert len(fixed.queries) == 2

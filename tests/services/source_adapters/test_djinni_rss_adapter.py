@@ -101,3 +101,21 @@ def test_djinni_rubric_aliases_point_at_real_rubrics() -> None:
     ):
         for keyword in keywords:
             assert keyword in DJINNI_PRIMARY_KEYWORDS
+
+
+def test_djinni_fingerprint_collapses_terms_that_share_a_rubric() -> None:
+    """Разные слова, ведущие в одну рубрику, — это один и тот же запрос к Djinni."""
+    adapter = DjinniRssAdapter(settings=Settings())
+    ai_terms = ("AI Automation Specialist", "Prompt Engineer", "Claude Code", "n8n AI Automation")
+    fingerprints = {adapter.request_fingerprint(SourceSearchInput(query=term)) for term in ai_terms}
+
+    assert len(fingerprints) == 1
+    assert adapter.request_fingerprint(SourceSearchInput(query="Python Developer")) != fingerprints.pop()
+
+
+def test_djinni_fingerprint_separates_unfiltered_feed_from_skipped_query() -> None:
+    adapter = DjinniRssAdapter(settings=Settings())
+    unfiltered = adapter.request_fingerprint(SourceSearchInput(query=""))
+    no_rubric = adapter.request_fingerprint(SourceSearchInput(query="Lagerarbeiter"))
+
+    assert unfiltered != no_rubric

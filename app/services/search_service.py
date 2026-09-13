@@ -127,6 +127,7 @@ class SearchService:
         stop_event: threading.Event | None = None,
         feedback_memory: ProfileFeedbackMemory | None = None,
         enrich_with_llm: bool = True,
+        served_requests: set[str] | None = None,
     ) -> SearchRunResult:
         resolved_profile = _with_run_geography(
             profile or self.get_profile_context(profile_id=profile_id), search_input
@@ -145,6 +146,12 @@ class SearchService:
             for source_id in resolved_source_ids
             if not (stop_event is not None and stop_event.is_set())
         ]
+        if served_requests is not None:
+            active_source_ids, repeated_source_ids = self._drop_already_served_sources(
+                active_source_ids, search_input, served_requests
+            )
+        else:
+            repeated_source_ids = ()
         outcomes: dict[str, tuple[AdapterSearchResponse | None, SearchSourceState | None]] = {}
         if active_source_ids:
             max_workers = min(len(active_source_ids), _MAX_FETCH_WORKERS)
@@ -169,6 +176,17 @@ class SearchService:
                 fetched_records.extend(response.records)
             elif failed is not None:
                 failed_states.append(failed)
+
+        if not successful_responses and not failed_states and repeated_source_ids:
+            # Каждый источник этой попытки уже отвечал на такой же запрос: его записи
+            # лежат в общем котле с прошлой попытки. Пустое состояние источников —
+            # чтобы попытка ничего не добавила и ничего не испортила при слиянии.
+            return SearchRunResult(
+                profile=resolved_profile,
+                source_states=(),
+                results=(),
+                query_result_groups=(SearchQueryResultGroup(query=search_input.query),),
+            )
 
         if not successful_responses:
             source_states = tuple(
@@ -345,6 +363,12 @@ class SearchService:
                     light_vehicle_only=light_vehicle_only,
                 )
 
+        # Общая на весь прогон память о том, какие запросы источники уже обслужили.
+        # Разные ключевые слова часто сводятся источником к одному запросу (у Djinni
+        # 16 терминов AI-профиля дают одну пару рубрик), и без этой памяти конвейер
+        # разбирал бы один и тот же фид на каждой попытке.
+        served_requests: set[str] = set()
+
         def _run(query: str) -> SearchRunResult:
             if progress_callback is not None:
                 progress_callback("attempt", 0, None, query)
@@ -358,6 +382,7 @@ class SearchService:
                 stop_event=stop_event,
                 feedback_memory=feedback_memory,
                 enrich_with_llm=False,
+                served_requests=served_requests,
             )
 
         def _non_rejected(r: SearchRunResult) -> int:
@@ -714,6 +739,43 @@ class SearchService:
             translated_title_ru=translated_title_ru,
             summary_ru=summary_ru,
         )
+
+    def _drop_already_served_sources(
+        self,
+        source_ids: list[str],
+        search_input: SourceSearchInput,
+        served_requests: set[str],
+    ) -> tuple[list[str], tuple[str, ...]]:
+        """Отсеять источники, которые в этом прогоне уже отвечали на такой же запрос.
+
+        Считается ДО отправки в пул потоков, последовательно в вызывающем потоке,
+        поэтому общее множество не нуждается в блокировке.
+        """
+        keep: list[str] = []
+        repeated: list[str] = []
+        for source_id in source_ids:
+            try:
+                fingerprint = self.registry.get(source_id).request_fingerprint(search_input)
+            except SourceAdapterError:
+                # Источник не отдал отпечаток (например выключен) — пусть решает
+                # обычный путь запроса, он умеет сообщать об ошибке.
+                keep.append(source_id)
+                continue
+            if fingerprint is None:
+                keep.append(source_id)
+                continue
+            if fingerprint in served_requests:
+                repeated.append(source_id)
+                logger.info(
+                    "source_request_already_served source_id=%s query=%r fingerprint=%r",
+                    source_id,
+                    search_input.query,
+                    fingerprint,
+                )
+                continue
+            served_requests.add(fingerprint)
+            keep.append(source_id)
+        return keep, tuple(repeated)
 
     def _fetch_source(
         self,

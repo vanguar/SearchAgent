@@ -197,6 +197,20 @@ class DjinniRssAdapter(BaseSourceAdapter):
             global_remote=True,
         )
 
+    def request_fingerprint(self, search_input: SourceSearchInput) -> str:
+        """Djinni отличает запросы только рубрикой, а не словами.
+
+        У AI-профиля все 16 поисковых терминов сводятся к одной паре рубрик, то
+        есть 15 попыток из 16 приносили ровно тот же фид. HTTP-кэш экономил сеть,
+        но разбор, фильтрация и скоринг повторялись на каждой попытке.
+        """
+        keywords = resolve_djinni_primary_keywords(search_input.query)
+        if search_input.query and not keywords:
+            return f"{self.source_id}:no-rubric"
+        if not keywords:
+            return f"{self.source_id}:unfiltered"
+        return f"{self.source_id}:" + "|".join(keywords)
+
     def search(self, search_input: SourceSearchInput) -> AdapterSearchResponse:
         self.ensure_enabled()
 
