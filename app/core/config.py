@@ -84,6 +84,14 @@ class Settings:
     source_careerjet_fragment_size: int = field(
         default_factory=lambda: _env_int("SOURCE_CAREERJET_FRAGMENT_SIZE", 500)
     )
+    # Языковые индексы Careerjet для всемирно-удалённого поиска (по одному запросу на
+    # локаль, результаты объединяются). uk_UA даёт украиноязычный индекс — он нужен
+    # профилю без английского и без немецкого. Поиск по Германии всегда идёт в de_DE.
+    source_careerjet_remote_locales: str = field(
+        default_factory=lambda: os.getenv(
+            "SOURCE_CAREERJET_REMOTE_LOCALES", "en_GB:Remote,uk_UA:Ukraine"
+        )
+    )
 
     # --- EURES ---
     source_eures_enabled: bool = field(default_factory=lambda: _env_bool("SOURCE_EURES_ENABLED", False))

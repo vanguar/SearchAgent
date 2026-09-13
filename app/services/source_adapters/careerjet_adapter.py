@@ -48,6 +48,10 @@ _LOCAL_FALLBACK_USER_IP = "127.0.0.1"
 
 # Значение location для поиска по всей стране (и запасной вариант, когда город не распознан).
 _COUNTRY_WIDE_LOCATION = "Deutschland"
+# Поиск по Германии всегда идёт в немецкий индекс: чужая локаль вернула бы вакансии
+# другой страны, а не перевод немецких.
+_GERMANY_LOCALE = "de_DE"
+_DEFAULT_REMOTE_TARGET = ("en_GB", "Remote")
 
 
 class CareerjetAdapter(BaseSourceAdapter):
@@ -107,14 +111,18 @@ class CareerjetAdapter(BaseSourceAdapter):
                 ),
             )
 
-        remote_mode = search_input.search_mode == "remote_worldwide"
-        requested_location = _resolve_location(search_input, remote_mode=remote_mode)
+        if search_input.search_mode == "remote_worldwide":
+            return self._search_remote(search_input)
+        return self._search_germany(search_input)
+
+    def _search_germany(self, search_input: SourceSearchInput) -> AdapterSearchResponse:
+        requested_location = _resolve_location(search_input, remote_mode=False)
         warnings_out: list[str] = []
 
-        payload = self._query(requested_location, search_input, remote_mode=remote_mode)
+        payload = self._query(requested_location, search_input, locale_code=_GERMANY_LOCALE)
         response_type = _to_text(payload.get("type"))
 
-        if response_type == "LOCATIONS" and not remote_mode and requested_location != _COUNTRY_WIDE_LOCATION:
+        if response_type == "LOCATIONS" and requested_location != _COUNTRY_WIDE_LOCATION:
             # Careerjet не распознал локацию. Пустой ответ здесь неотличим от "ничего не
             # нашлось", поэтому вместо тихого нуля повторяем поиск по всей Германии
             # и говорим об этом явно.
@@ -123,64 +131,110 @@ class CareerjetAdapter(BaseSourceAdapter):
                 "поиск выполнен по всей Германии."
             )
             payload = self._query(
-                _COUNTRY_WIDE_LOCATION, search_input, remote_mode=remote_mode, with_radius=False
-            )
-            response_type = _to_text(payload.get("type"))
-
-        if response_type == "ERROR":
-            # Careerjet умеет отвечать 200 с телом {"type":"ERROR","error":"..."}.
-            raise AdapterRequestError(
-                source_id=self.source_id,
-                source_name=self.display_name,
-                message=f"Careerjet отклонил запрос: {_to_text(payload.get('error')) or 'без деталей'}.",
-            )
-        if response_type == "LOCATIONS":
-            message = _to_text(payload.get("message")) or "location mode"
-            return AdapterSearchResponse(
-                source_id=self.source_id,
-                source_name=self.display_name,
-                records=(),
-                total_count=0,
-                page=search_input.page,
-                page_size=search_input.page_size,
-                raw_payload=dict(payload),
-                warnings=(*warnings_out, f"Careerjet: режим локации — {message}."),
+                _COUNTRY_WIDE_LOCATION,
+                search_input,
+                locale_code=_GERMANY_LOCALE,
+                with_radius=False,
             )
 
-        raw_jobs = payload.get("jobs", [])
-        if not isinstance(raw_jobs, list):
-            raise AdapterResponseError(
-                source_id=self.source_id,
-                source_name=self.display_name,
-                message="Careerjet ответ не содержит список jobs.",
-            )
+        return self._build_response(
+            search_input,
+            payloads=((payload, _GERMANY_LOCALE),),
+            warnings_out=warnings_out,
+        )
 
+    def _search_remote(self, search_input: SourceSearchInput) -> AdapterSearchResponse:
+        """Всемирно-удалённый поиск: по одному запросу на языковой индекс.
+
+        У каждой локали своя область поиска, потому что "Remote" — это для Careerjet
+        НАЗВАНИЕ МЕСТА, а не признак удалённой работы. Замеры одного и того же запроса
+        "Python Developer": en_GB+Remote — 1 вакансия, uk_UA+Remote — 1, uk_UA+Ukraine —
+        51, пустая локация — 693, но почти сплошь офисные вакансии в Британии. Поэтому
+        область задаётся явно рядом с локалью: SOURCE_CAREERJET_REMOTE_LOCALES.
+        """
+        payloads: list[tuple[Mapping[str, Any], str]] = []
+        for locale_code, location in _remote_targets(self.settings.source_careerjet_remote_locales):
+            payload = self._query(
+                location, search_input, locale_code=locale_code, with_radius=False
+            )
+            payloads.append((payload, locale_code))
+
+        return self._build_response(search_input, payloads=tuple(payloads), warnings_out=[])
+
+    def _build_response(
+        self,
+        search_input: SourceSearchInput,
+        *,
+        payloads: tuple[tuple[Mapping[str, Any], str], ...],
+        warnings_out: list[str],
+    ) -> AdapterSearchResponse:
         records: list[SourceRecordPreview] = []
+        seen_ids: set[str] = set()
         skipped = 0
+        # None означает "источник не сообщил число", а не "ноль" — контракт
+        # AdapterSearchResponse.total_count это различает, и различие сохраняем.
+        total_hits: int | None = None
 
-        for raw_job in raw_jobs:
-            if not isinstance(raw_job, Mapping):
-                skipped += 1
+        for payload, locale_code in payloads:
+            response_type = _to_text(payload.get("type"))
+            if response_type == "ERROR":
+                # Careerjet умеет отвечать 200 с телом {"type":"ERROR","error":"..."}.
+                raise AdapterRequestError(
+                    source_id=self.source_id,
+                    source_name=self.display_name,
+                    message=f"Careerjet отклонил запрос: {_to_text(payload.get('error')) or 'без деталей'}.",
+                )
+            if response_type == "LOCATIONS":
+                message = _to_text(payload.get("message")) or "location mode"
+                warnings_out.append(f"Careerjet ({locale_code}): режим локации — {message}.")
                 continue
-            record = _parse_record(self.source_id, self.display_name, raw_job)
-            if record is None:
-                skipped += 1
-                continue
-            records.append(record)
+
+            raw_jobs = payload.get("jobs", [])
+            if not isinstance(raw_jobs, list):
+                raise AdapterResponseError(
+                    source_id=self.source_id,
+                    source_name=self.display_name,
+                    message="Careerjet ответ не содержит список jobs.",
+                )
+
+            reported_hits = _to_int(payload.get("hits"))
+            if reported_hits is not None:
+                total_hits = reported_hits if total_hits is None else total_hits + reported_hits
+            for raw_job in raw_jobs:
+                if not isinstance(raw_job, Mapping):
+                    skipped += 1
+                    continue
+                record = _parse_record(self.source_id, self.display_name, raw_job)
+                if record is None:
+                    skipped += 1
+                    continue
+                if record.external_id in seen_ids:
+                    continue
+                seen_ids.add(record.external_id)
+                records.append(record)
 
         if skipped:
             warnings_out.append(f"Careerjet: пропущено {skipped} записей без стабильного ID.")
-        warnings = tuple(warnings_out)
+
+        if len(payloads) == 1:
+            raw_payload: dict[str, Any] = dict(payloads[0][0])
+        else:
+            raw_payload = {
+                "locales": tuple(locale for _, locale in payloads),
+                "payloads": tuple(dict(payload) for payload, _ in payloads),
+            }
 
         return AdapterSearchResponse(
             source_id=self.source_id,
             source_name=self.display_name,
             records=tuple(records),
-            total_count=_to_int(payload.get("hits")),
+            # Ни одна локаль не сообщила hits (например режим LOCATIONS) — тогда
+            # честное число это то, что реально разобрано, как было и до локалей.
+            total_count=total_hits if total_hits is not None else len(records),
             page=search_input.page,
             page_size=search_input.page_size,
-            raw_payload=dict(payload),
-            warnings=warnings,
+            raw_payload=raw_payload,
+            warnings=tuple(warnings_out),
         )
 
     def _query(
@@ -188,14 +242,14 @@ class CareerjetAdapter(BaseSourceAdapter):
         location: str,
         search_input: SourceSearchInput,
         *,
-        remote_mode: bool,
+        locale_code: str,
         with_radius: bool = True,
     ) -> Mapping[str, Any]:
         params: dict[str, Any] = {
             "affid": self.settings.source_careerjet_api_key,
             "keywords": search_input.query or None,
             "location": location,
-            "locale_code": "en_GB" if remote_mode else "de_DE",
+            "locale_code": locale_code,
             "page": search_input.page,
             # Публичный эндпоинт ждёт `pagesize` (v4 использовал `page_size`).
             "pagesize": min(search_input.page_size, 100),
@@ -206,7 +260,11 @@ class CareerjetAdapter(BaseSourceAdapter):
             "user_ip": search_input.user_ip or _LOCAL_FALLBACK_USER_IP,
         }
         # Радиус имеет смысл только вокруг конкретного города, не вокруг страны.
-        if with_radius and search_input.radius_km is not None and location != _COUNTRY_WIDE_LOCATION:
+        if (
+            with_radius
+            and search_input.radius_km is not None
+            and location != _COUNTRY_WIDE_LOCATION
+        ):
             params["radius"] = search_input.radius_km
 
         try:
@@ -239,6 +297,27 @@ class CareerjetAdapter(BaseSourceAdapter):
                 message="Careerjet ответ имеет неожиданный формат верхнего уровня.",
             )
         return payload
+
+
+
+def _remote_targets(raw_value: str) -> tuple[tuple[str, str], ...]:
+    """Пары "языковой индекс — область поиска" для всемирно-удалённого поиска.
+
+    Формат записи: ``locale`` или ``locale:location``. Без явной области берётся
+    "Remote" — так вёл себя адаптер до появления настройки.
+    """
+    targets: list[tuple[str, str]] = []
+    for part in raw_value.split(","):
+        entry = part.strip()
+        if not entry:
+            continue
+        locale_code, separator, location = entry.partition(":")
+        locale_code = locale_code.strip()
+        if not locale_code:
+            continue
+        resolved_location = location.strip() if separator else _DEFAULT_REMOTE_TARGET[1]
+        targets.append((locale_code, resolved_location))
+    return tuple(dict.fromkeys(targets)) or (_DEFAULT_REMOTE_TARGET,)
 
 
 def _resolve_location(search_input: SourceSearchInput, *, remote_mode: bool) -> str:

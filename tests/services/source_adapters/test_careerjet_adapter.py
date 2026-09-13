@@ -1,5 +1,6 @@
 import hashlib
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -168,15 +169,87 @@ def test_careerjet_adapter_does_not_retry_when_countrywide_itself_returns_locati
     assert response.records == ()
 
 
-def test_careerjet_adapter_remote_worldwide_uses_remote_location() -> None:
+def test_careerjet_adapter_remote_default_keeps_the_previous_english_lane() -> None:
+    """Прежнее поведение (en_GB + Remote) не должно меняться от появления настройки."""
     transport = GetFixtureTransport({"type": "JOBS", "hits": 0, "jobs": []})
-    adapter = CareerjetAdapter(settings=_ENABLED_SETTINGS, http_transport=transport)
+    settings = replace(_ENABLED_SETTINGS, source_careerjet_remote_locales="en_GB")
+    adapter = CareerjetAdapter(settings=settings, http_transport=transport)
 
     adapter.search(SourceSearchInput(query="python", location="remote", search_mode="remote_worldwide"))
 
     params = transport.calls[0]["params"]
     assert params["location"] == "Remote"
     assert params["locale_code"] == "en_GB"
+    assert "radius" not in params
+
+
+def test_careerjet_adapter_queries_each_locale_with_its_own_scope() -> None:
+    """uk_UA даёт украиноязычный индекс — он нужен профилю без английского.
+
+    Область поиска задаётся рядом с локалью, потому что "Remote" для Careerjet —
+    название места: uk_UA+Remote даёт 1 вакансию, uk_UA+Ukraine — 51.
+    """
+    transport = GetFixtureTransport({"type": "JOBS", "hits": 0, "jobs": []})
+    settings = replace(
+        _ENABLED_SETTINGS, source_careerjet_remote_locales="en_GB:Remote,uk_UA:Ukraine"
+    )
+    adapter = CareerjetAdapter(settings=settings, http_transport=transport)
+
+    adapter.search(SourceSearchInput(query="python", location="remote", search_mode="remote_worldwide"))
+
+    assert [
+        (call["params"]["locale_code"], call["params"]["location"]) for call in transport.calls
+    ] == [("en_GB", "Remote"), ("uk_UA", "Ukraine")]
+
+
+def test_careerjet_adapter_merges_locales_and_drops_duplicate_vacancies() -> None:
+    """Одна вакансия, попавшая в два языковых индекса, должна дать одну запись."""
+    payload = {
+        "type": "JOBS",
+        "hits": 1,
+        "jobs": [
+            {
+                "title": "Python Developer",
+                "url": "https://example.org/jobs/1",
+                "company": "Acme",
+                "locations": "Kyiv",
+                "date": "2026-09-10",
+                "description": "Backend work.",
+            }
+        ],
+    }
+    transport = GetFixtureTransport(payload)
+    settings = replace(_ENABLED_SETTINGS, source_careerjet_remote_locales="en_GB:Remote,uk_UA:Ukraine")
+    adapter = CareerjetAdapter(settings=settings, http_transport=transport)
+
+    response = adapter.search(
+        SourceSearchInput(query="python", location="remote", search_mode="remote_worldwide")
+    )
+
+    assert len(transport.calls) == 2
+    assert len(response.records) == 1
+
+
+def test_careerjet_adapter_germany_search_stays_in_the_german_index() -> None:
+    """Локали для удалёнки не должны протекать в поиск по Германии."""
+    transport = GetFixtureTransport({"type": "JOBS", "hits": 0, "jobs": []})
+    settings = replace(_ENABLED_SETTINGS, source_careerjet_remote_locales="en_GB:Remote,uk_UA:Ukraine")
+    adapter = CareerjetAdapter(settings=settings, http_transport=transport)
+
+    adapter.search(SourceSearchInput(query="lager", location="Rostock", search_mode="germany_local"))
+
+    assert len(transport.calls) == 1
+    assert transport.calls[0]["params"]["locale_code"] == "de_DE"
+
+
+def test_careerjet_remote_locales_falls_back_when_setting_is_blank() -> None:
+    transport = GetFixtureTransport({"type": "JOBS", "hits": 0, "jobs": []})
+    settings = replace(_ENABLED_SETTINGS, source_careerjet_remote_locales="   ")
+    adapter = CareerjetAdapter(settings=settings, http_transport=transport)
+
+    adapter.search(SourceSearchInput(query="python", location="remote", search_mode="remote_worldwide"))
+
+    assert [call["params"]["locale_code"] for call in transport.calls] == ["en_GB"]
 
 
 def test_careerjet_adapter_does_not_send_radius_when_not_provided() -> None:
