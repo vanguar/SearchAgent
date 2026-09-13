@@ -60,7 +60,11 @@ class EURESAdapter(BaseSourceAdapter):
                 enabled=True,
                 status_label="Не работает",
                 status_kind="error",
-                status_detail="Нет SOURCE_EURES_API_KEY.",
+                status_detail=(
+                    "Нет SOURCE_EURES_API_KEY. Ключ бесплатный: "
+                    "https://eures.europa.eu/eures-and-you/employers/eures-job-search-api_en — "
+                    "официальный портал ЕС, все страны Союза, без России и Беларуси."
+                ),
                 global_remote=True,
             )
         return SourceAdapterDescriptor(

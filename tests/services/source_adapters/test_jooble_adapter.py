@@ -75,3 +75,45 @@ def test_jooble_descriptor_is_error_without_api_key() -> None:
     assert descriptor.source_id == "jooble"
     assert descriptor.status_kind == "error"
     assert descriptor.enabled is True
+
+
+def test_jooble_empty_answer_is_reported_instead_of_looking_like_no_results() -> None:
+    """Ключ, выданный под другую страну, даёт 200 и пустое тело на ЛЮБОЙ запрос.
+
+    В реальных прогонах (Росток, 2026-09-13) Jooble во всех трёх поисках показывал
+    «Нет результатов» — неотличимо от честного пустого поиска.
+    """
+    transport = FixtureTransport({"totalCount": 0, "jobs": []})
+    adapter = JoobleAdapter(settings=_settings(), http_transport=transport)  # type: ignore[arg-type]
+
+    response = adapter.search(SourceSearchInput(query="Lagerarbeiter", location="Rostock"))
+
+    assert response.records == ()
+    assert response.warnings
+    assert "не вернул ни одной вакансии" in response.warnings[0]
+    assert "SOURCE_JOOBLE_BASE_URL" in response.warnings[0]
+
+
+def test_jooble_does_not_warn_when_it_actually_returns_vacancies() -> None:
+    transport = FixtureTransport(
+        {
+            "totalCount": 1,
+            "jobs": [
+                {
+                    "id": "j1",
+                    "title": "Lagerarbeiter",
+                    "company": "Acme",
+                    "location": "Rostock",
+                    "link": "https://jooble.org/job/j1",
+                    "snippet": "Kommissionierung",
+                    "updated": "2026-09-10T00:00:00",
+                }
+            ],
+        }
+    )
+    adapter = JoobleAdapter(settings=_settings(), http_transport=transport)  # type: ignore[arg-type]
+
+    response = adapter.search(SourceSearchInput(query="Lagerarbeiter", location="Rostock"))
+
+    assert len(response.records) == 1
+    assert response.warnings == ()
