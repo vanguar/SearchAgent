@@ -210,6 +210,12 @@ class ProfileCatalogService:
                 target.desired_roles = normalized_roles
                 # Пересчитываем нормализованный query при изменении ролей
                 target.search_query_de = normalize_query_from_roles(target.desired_roles)
+            # Готовность к переезду применяется раньше локаций не случайно: от неё
+            # зависит нормализация мест поиска, и при переезде человек меняет то и
+            # другое одной формой. Читать флаг до того, как он записан, значит
+            # считать новый город по старому ответу про переезд.
+            if relocation_ready is not None:
+                target.relocation_ready = relocation_ready
             if preferred_locations_text is not None:
                 locs = [loc.strip() for loc in preferred_locations_text.split(",") if loc.strip()]
                 target.preferred_locations = locs or None
@@ -218,8 +224,6 @@ class ProfileCatalogService:
                     target.preferred_locations,
                     relocation_ready=target.relocation_ready,
                 )
-            if relocation_ready is not None:
-                target.relocation_ready = relocation_ready
             if shift_ok is not None:
                 target.shift_ok = shift_ok
             if physical_work_ok is not None:

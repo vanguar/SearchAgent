@@ -299,3 +299,38 @@ def test_blank_home_city_clears_the_field(db_session: Session, user_profile: Use
     service.set_home_city(db_session, city="   ")
 
     assert service.get_home_city(db_session) is None
+
+
+def test_update_profile_normalizes_location_with_the_relocation_answer_just_given(
+    db_session: Session,
+    search_profile: SearchProfile,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Переезд меняет город и готовность к переезду одной формой.
+
+    Нормализация мест поиска смотрит на флаг переезда, поэтому читать его нужно
+    после записи нового ответа, а не до: иначе новый город считается по старому.
+    """
+    search_profile.relocation_ready = False
+    db_session.commit()
+
+    seen: list[bool | None] = []
+
+    def _spy(locations, *, relocation_ready=None):  # type: ignore[no-untyped-def]
+        seen.append(relocation_ready)
+        return "Rostock"
+
+    monkeypatch.setattr(
+        "app.services.profile_catalog_service.normalize_search_location_for_profile", _spy
+    )
+
+    updated = ProfileCatalogService().update_profile(
+        db_session,
+        profile_id=search_profile.id,
+        preferred_locations_text="Rostock",
+        relocation_ready=True,
+    )
+
+    assert updated is not None
+    assert updated.relocation_ready is True
+    assert seen == [True]
