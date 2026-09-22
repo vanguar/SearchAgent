@@ -47,16 +47,9 @@
   <section class="card search-panel">
     <div class="search-field search-field--mode">
       <span class="search-field__label">Режим</span>
-      <div class="seg-mode" id="jobs-search-mode" role="radiogroup" aria-label="Режим поиска">
-        <label class="seg-mode__opt">
-          <input type="radio" name="search_mode" value="germany_local" {% if form_values["search_mode"] != "remote_worldwide" %}checked{% endif %} />
-          <span>Германия</span>
-        </label>
-        <label class="seg-mode__opt">
-          <input type="radio" name="search_mode" value="remote_worldwide" {% if form_values["search_mode"] == "remote_worldwide" %}checked{% endif %} />
-          <span>Remote worldwide</span>
-        </label>
-      </div>
+      {% with mode_value = form_values["search_mode"], mode_oob = false %}
+        {% include "jobs/partials/search_mode_control.html" %}
+      {% endwith %}
     </div>
 
     <div class="search-grid">
@@ -149,12 +142,16 @@
     var form = document.getElementById('jobs-search-form');
     var buttons = Array.prototype.slice.call(form ? form.querySelectorAll('.search-btn') : []);
     if (!form || !buttons.length) return;
-    var modeRadios = Array.prototype.slice.call(form.querySelectorAll('input[name="search_mode"]'));
-    var loc = document.getElementById('jobs-location');
+    // Переключатель режима приходит заново при подстановке профиля, поэтому
+    // спрашиваем кнопки у формы каждый раз, а не держим ссылки на старые узлы.
+    function modeRadios() {
+      return Array.prototype.slice.call(form.querySelectorAll('input[name="search_mode"]'));
+    }
 
     function currentMode() {
-      for (var i = 0; i < modeRadios.length; i++) {
-        if (modeRadios[i].checked) return modeRadios[i].value;
+      var radios = modeRadios();
+      for (var i = 0; i < radios.length; i++) {
+        if (radios[i].checked) return radios[i].value;
       }
       return 'germany_local';
     }
@@ -220,27 +217,35 @@
 
     window.addEventListener('beforeunload', disconnectObserver);
 
-    if (modeRadios.length && loc) {
-      updateSourceApplicability();
-      modeRadios.forEach(function (radio) {
-        radio.addEventListener('change', function () {
-          var mode = currentMode();
-          if (mode === 'remote_worldwide' && !loc.value.trim()) {
-            loc.value = 'remote';
-          } else if (mode === 'germany_local') {
-            var currentLocation = loc.value.trim().toLowerCase();
-            if (['remote', 'worldwide remote', 'remote worldwide', 'global remote'].indexOf(currentLocation) !== -1) {
-              loc.value = 'Deutschland';
-            }
+    updateSourceApplicability();
+
+    form.addEventListener('change', function (event) {
+      var target = event.target;
+      if (!target || target.name !== 'search_mode') return;
+      var mode = currentMode();
+      var locationField = document.getElementById('jobs-location');
+      if (locationField) {
+        if (mode === 'remote_worldwide' && !locationField.value.trim()) {
+          locationField.value = 'remote';
+        } else if (mode === 'germany_local') {
+          var currentLocation = locationField.value.trim().toLowerCase();
+          if (['remote', 'worldwide remote', 'remote worldwide', 'global remote'].indexOf(currentLocation) !== -1) {
+            locationField.value = 'Deutschland';
           }
-          updateSourceApplicability();
-        });
-      });
-    }
+        }
+      }
+      updateSourceApplicability();
+    });
+
+    // Подстановка профиля меняет режим без участия пользователя — подписи
+    // источников должны догнать новый выбор.
+    document.body.addEventListener('htmx:afterSettle', function () {
+      updateSourceApplicability();
+    });
 
     function updateSourceApplicability() {
       var sourceStatusRows = Array.prototype.slice.call(document.querySelectorAll('[data-source-status-row]'));
-      if (!modeRadios.length || !sourceStatusRows.length) return;
+      if (!modeRadios().length || !sourceStatusRows.length) return;
       var mode = currentMode();
       sourceStatusRows.forEach(function (row) {
         var target = row.querySelector('[data-source-applicability]');

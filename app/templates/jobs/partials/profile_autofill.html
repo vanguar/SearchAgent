@@ -1,9 +1,8 @@
 {% include "jobs/partials/profile_context.html" %}
 
-<select id="jobs-search-mode" name="search_mode" hx-swap-oob="true">
-  <option value="remote_worldwide" {% if search_mode_prefill == "remote_worldwide" %}selected{% endif %}>Remote worldwide</option>
-  <option value="germany_local" {% if search_mode_prefill == "germany_local" %}selected{% endif %}>Germany / local</option>
-</select>
+{% with mode_value = search_mode_prefill, mode_oob = true %}
+  {% include "jobs/partials/search_mode_control.html" %}
+{% endwith %}
 
 <input
   id="jobs-query"

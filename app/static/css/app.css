@@ -2555,9 +2555,32 @@ body {
   color: #fff;
 }
 
+.seg-mode__opt input:hover:not(:checked) + span {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-main);
+}
+
 .seg-mode__opt input:focus-visible + span {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+}
+
+/* На узком экране сегменты делят строку поровну вместо переноса в столбик. */
+@media (max-width: 560px) {
+  .seg-mode {
+    display: flex;
+    width: 100%;
+  }
+
+  .seg-mode__opt {
+    flex: 1 1 0;
+  }
+
+  .seg-mode__opt span {
+    flex: 1 1 auto;
+    justify-content: center;
+    padding: 7px 10px;
+  }
 }
 
 .search-grid {
