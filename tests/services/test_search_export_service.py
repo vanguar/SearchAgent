@@ -212,14 +212,17 @@ def test_export_records_search_input_and_totals() -> None:
         _result(),
         task_id="abc123",
         generated_at=GENERATED_AT,
-        search_input=SourceSearchInput(query="склад", location="Berlin", radius_km=50, page_size=20),
+        search_input=SourceSearchInput(
+            query="склад", location="Berlin, Росток", radius_km=0, page_size=20
+        ),
         source_ids_requested=("ba", "careerjet"),
     )
 
     run = export["run"]
     assert run["query_submitted"] == "склад"
-    assert run["location"] == "Berlin"
-    assert run["radius_km"] == 50
+    assert run["location"] == "Berlin, Росток"
+    # Города, по которым реально спрашивали источники, — по одному за запрос.
+    assert run["cities"] == ["Berlin", "Rostock"]
     assert run["search_mode"] == "germany_local"
     assert run["source_ids_requested"] == ["ba", "careerjet"]
     assert run["totals"]["raw_records"] == 20

@@ -1278,71 +1278,100 @@ def test_weak_heavy_signal_does_not_apply_to_a_profile_without_b_only_licence() 
     assert not any(hit.code == "heavy_vehicle_mismatch" for hit in result.rejection_hits)
 
 
-def test_vacancy_outside_the_typed_search_radius_is_rejected() -> None:
-    """Поиск "Росток, 25 км" возвращал Мюнхен, Берлин и Дармштадт.
+def _courier_vacancy(location: str) -> object:
+    return _build_canonical(
+        title="Auslieferungsfahrer (m/w/d)",
+        body="Belieferung von Kunden.",
+        location=location,
+    )
 
-    Радиус уходил только в те адаптеры, которые его поддерживают, и нигде не
-    проверялся после: Arbeitnow фильтрует на своей стороне без радиуса.
+
+def test_vacancy_in_a_city_that_was_not_asked_for_is_rejected() -> None:
+    """Поиск по Ростоку возвращал Мюнхен, Берлин и Дармштадт.
+
+    Источники фильтруют по-разному: Arbeitnow отбирает на своей стороне без
+    географии вообще, Careerjet на строке с двумя городами теряет фильтр. Кто
+    бы что ни прислал, показываем только заказанные города.
     """
     profile = _build_profile(
         desired_roles=("Курьер",),
         home_city="Tribsees",
         search_location="Rostock",
-        search_radius_km=25,
-    )
-    canonical = _build_canonical(
-        title="Auslieferungsfahrer (m/w/d)",
-        body="Belieferung von Kunden.",
-        location="München, Deutschland",
+        search_cities=("Rostock",),
     )
 
-    result = FilterEngine().evaluate(canonical, profile)
+    result = FilterEngine().evaluate(_courier_vacancy("München, Deutschland"), profile)
 
     assert result.hard_reject
-    assert any(hit.code == "outside_search_radius" for hit in result.rejection_hits)
+    assert any(hit.code == "outside_requested_cities" for hit in result.rejection_hits)
 
 
-def test_vacancy_inside_the_typed_search_radius_is_kept() -> None:
-    profile = _build_profile(
-        desired_roles=("Курьер",),
-        home_city="Tribsees",
-        search_location="Rostock",
-        search_radius_km=25,
-    )
-    canonical = _build_canonical(
-        title="Auslieferungsfahrer (m/w/d)",
-        body="Belieferung von Kunden.",
-        location="Bad Doberan, Deutschland",
-    )
+def test_vacancy_in_the_second_requested_city_is_kept() -> None:
+    """Веер спрашивает города по очереди, а проверка знает весь заказ.
 
-    result = FilterEngine().evaluate(canonical, profile)
-
-    assert not any(hit.code == "outside_search_radius" for hit in result.rejection_hits)
-
-
-def test_radius_is_ignored_without_a_resolvable_location() -> None:
-    """Неизвестное расстояние трактуется как неизвестное, а не как «далеко»."""
+    Иначе берлинская вакансия, которую источник отдал на запрос Ростока, была
+    бы отклонена ростокской веткой и потеряна при слиянии.
+    """
     profile = _build_profile(
         desired_roles=("Курьер",),
         search_location="Rostock",
-        search_radius_km=25,
-    )
-    canonical = _build_canonical(
-        title="Auslieferungsfahrer (m/w/d)",
-        body="Belieferung von Kunden.",
-        location="Zzz Unbekannt",
+        search_cities=("Rostock", "Berlin"),
     )
 
-    result = FilterEngine().evaluate(canonical, profile)
+    result = FilterEngine().evaluate(_courier_vacancy("10178 Berlin, Deutschland"), profile)
 
-    assert not any(hit.code == "outside_search_radius" for hit in result.rejection_hits)
+    assert not any(hit.code == "outside_requested_cities" for hit in result.rejection_hits)
 
 
-def test_remote_worldwide_run_ignores_the_radius_entirely() -> None:
+def test_city_district_counts_as_the_city_itself() -> None:
+    """Brinckmansdorf — это Росток, и вакансия там заказ выполняет."""
+    profile = _build_profile(
+        desired_roles=("Курьер",),
+        search_location="Rostock",
+        search_cities=("Rostock",),
+    )
+
+    result = FilterEngine().evaluate(_courier_vacancy("Brinckmansdorf"), profile)
+
+    assert not any(hit.code == "outside_requested_cities" for hit in result.rejection_hits)
+
+
+def test_neighbouring_town_is_not_the_requested_city() -> None:
+    """Названный город — это сам город, а не округа.
+
+    Бад-Доберан в двадцати километрах от Ростока раньше проходил по радиусу;
+    теперь человек просит Росток и получает Росток.
+    """
+    profile = _build_profile(
+        desired_roles=("Курьер",),
+        search_location="Rostock",
+        search_cities=("Rostock",),
+    )
+
+    result = FilterEngine().evaluate(_courier_vacancy("Bad Doberan, Deutschland"), profile)
+
+    assert result.hard_reject
+    assert any(hit.code == "outside_requested_cities" for hit in result.rejection_hits)
+
+
+def test_unrecognized_location_is_kept() -> None:
+    """Неизвестный город трактуется как неизвестный, а не как чужой."""
+    profile = _build_profile(
+        desired_roles=("Курьер",),
+        search_location="Rostock",
+        search_cities=("Rostock",),
+    )
+
+    result = FilterEngine().evaluate(_courier_vacancy("Zzz Unbekannt"), profile)
+
+    assert not any(hit.code == "outside_requested_cities" for hit in result.rejection_hits)
+
+
+def test_remote_worldwide_run_ignores_the_city_filter_entirely() -> None:
     profile = _build_profile(
         desired_roles=("Python Developer",),
         search_location="Rostock",
-        search_radius_km=25,
+        search_cities=("Rostock",),
     )
     canonical = _build_canonical(
         title="Python Developer (m/w/d)",
@@ -1352,7 +1381,7 @@ def test_remote_worldwide_run_ignores_the_radius_entirely() -> None:
 
     result = FilterEngine().evaluate(canonical, profile, search_mode="remote_worldwide")
 
-    assert not any(hit.code == "outside_search_radius" for hit in result.rejection_hits)
+    assert not any(hit.code == "outside_requested_cities" for hit in result.rejection_hits)
 
 
 def test_qualification_named_as_an_advantage_does_not_reject() -> None:

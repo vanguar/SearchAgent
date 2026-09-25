@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from app.services.ai_tools_profile import is_ai_tools_profile
 from app.services.driver_license_signal_extractor import extract_driver_license_requirements
-from app.services.geo_distance import distance_km, resolve_point
+from app.services.geo_distance import GeoPoint, distance_km, location_matches_city, resolve_point
 from app.services.hashers import normalize_text_for_fingerprint
 from app.services.language_signal_extractor import (
     ENGLISH_BENEFIT_PATTERNS,
@@ -682,7 +682,8 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
     driver_license_requirement = extract_driver_license_requirements(build_driver_license_text(canonical))
     vehicle_class_signals = extract_vehicle_class_signals(build_vehicle_class_text(canonical))
     location_match, location_hits = _match_profile_locations(canonical, profile)
-    distance_from_home, distance_from_search = _measure_distances(canonical, profile)
+    distance_from_home = _measure_home_distance(canonical, profile)
+    matched_search_city, outside_requested_cities = _match_requested_cities(canonical, profile)
 
     # Немецкий проверяется так же, как квалификация: важно не наличие слова, а
     # есть ли рядом смягчение. Без этого "Deutsch B1 wünschenswert" читалось как
@@ -737,7 +738,8 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         optional_driver_license_categories=driver_license_requirement.optional,
         mentioned_driver_license_categories=driver_license_requirement.mentioned,
         distance_from_home_km=distance_from_home,
-        distance_from_search_location_km=distance_from_search,
+        matched_search_city=matched_search_city,
+        outside_requested_cities=outside_requested_cities,
         light_commercial_vehicle_signals=vehicle_class_signals.light_commercial,
         heavy_vehicle_signals=vehicle_class_signals.heavy_vehicle,
         heavy_vehicle_context_signals=vehicle_class_signals.heavy_vehicle_context,
@@ -952,40 +954,78 @@ def _looks_like_it_software_role(text: str) -> bool:
     )
 
 
-def _measure_distances(
+def _measure_home_distance(
     canonical: CanonicalVacancyGroup,
     profile: SearchProfileContext,
-) -> tuple[float | None, float | None]:
-    """Дорога до вакансии от дома и от города поиска, в километрах.
+) -> float | None:
+    """Дорога от места жительства до вакансии в километрах.
 
-    Два разных расстояния, потому что это два разных вопроса. От дома — сколько
-    реально ездить; это штраф в скоринге. От города поиска — попадает ли вакансия
-    в радиус, который пользователь явно задал в форме; это жёсткий фильтр.
+    Отвечает на вопрос "сколько реально ездить" и работает штрафом в скоринге.
+    Где именно искать, задаёт список городов, а не расстояние, — см.
+    _match_requested_cities.
     """
     if is_remote_worldwide_location(profile.preferred_locations):
-        return None, None
+        return None
+    if not profile.home_city:
+        return None
 
+    vacancy_point = _resolve_vacancy_point(canonical)
+    if vacancy_point is None:
+        return None
+    return distance_km(resolve_point(city=profile.home_city), vacancy_point)
+
+
+def _resolve_vacancy_point(canonical: CanonicalVacancyGroup) -> GeoPoint | None:
     vacancy_point = resolve_point(
         city=canonical.city,
         location_text=canonical.location_text,
     )
-    if vacancy_point is None:
-        # Каноническая запись хранит уже урезанную локацию; исходная строка
-        # источника часто богаче ("Brinckmansdorf, Rostock" против "Brinckmansdorf").
-        for record in canonical.source_records:
-            vacancy_point = resolve_point(
-                city=record.normalized_location.city,
-                postal_code=record.normalized_location.postal_code,
-                location_text=record.normalized_location.raw_text or record.original_location,
-            )
-            if vacancy_point is not None:
-                break
-    if vacancy_point is None:
-        return None, None
+    if vacancy_point is not None:
+        return vacancy_point
+    # Каноническая запись хранит уже урезанную локацию; исходная строка
+    # источника часто богаче ("Brinckmansdorf, Rostock" против "Brinckmansdorf").
+    for record in canonical.source_records:
+        vacancy_point = resolve_point(
+            city=record.normalized_location.city,
+            postal_code=record.normalized_location.postal_code,
+            location_text=record.normalized_location.raw_text or record.original_location,
+        )
+        if vacancy_point is not None:
+            return vacancy_point
+    return None
 
-    home_point = resolve_point(city=profile.home_city) if profile.home_city else None
-    search_point = resolve_point(city=profile.search_location) if profile.search_location else None
-    return distance_km(home_point, vacancy_point), distance_km(search_point, vacancy_point)
+
+def _match_requested_cities(
+    canonical: CanonicalVacancyGroup,
+    profile: SearchProfileContext,
+) -> tuple[str | None, bool]:
+    """Который из заказанных городов — город этой вакансии.
+
+    Возвращает (город, "точно не наш"). Третье состояние — (None, False) —
+    означает "по локации не понять": работодатель не назвал место или назвал
+    его так, чего нет в справочнике. Молчание не приравнивается к чужому
+    городу: источник вернул вакансию по запросу конкретного города, и
+    выбрасывать её только за неуказанный адрес значит терять живые вакансии.
+    """
+    if not profile.search_cities:
+        return None, False
+
+    location_texts = [canonical.location_text, canonical.city]
+    location_texts.extend(
+        text
+        for record in canonical.source_records
+        for text in (record.normalized_location.raw_text, record.original_location)
+    )
+
+    recognized_elsewhere = False
+    for city in profile.search_cities:
+        for text in location_texts:
+            verdict = location_matches_city(text, city)
+            if verdict:
+                return city, False
+            if verdict is False:
+                recognized_elsewhere = True
+    return None, recognized_elsewhere
 
 
 def _match_profile_locations(

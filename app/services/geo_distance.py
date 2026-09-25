@@ -282,6 +282,45 @@ def is_known_place(name: str | None) -> bool:
     return normalized in place_table
 
 
+def place_weight(name: str | None) -> int:
+    """Сколько почтовых индексов приходится на название — грубая мера размера.
+
+    Нужна там, где из нескольких подходящих написаний надо выбрать одно:
+    у города индексов десятки, у одноимённого хутора один.
+    """
+    normalized = canonical_city(name)
+    if not normalized:
+        return 0
+    _, place_table, _ = _geo_tables()
+    places = place_table.get(normalized)
+    return sum(place.weight for place in places) if places else 0
+
+
+def location_matches_city(location_text: str | None, city: str | None) -> bool | None:
+    """В этом ли городе вакансия. None означает «по локации не понять».
+
+    Источники пишут место по-разному: "18055 Rostock, Mecklenburg-Vorpommern"
+    у BA, "Gehlsdorf, Rostock" у Adzuna, просто "Berlin" у Arbeitnow. Поэтому
+    сравнивается каждый сегмент отдельно, а районы сводятся к своему городу.
+
+    Пустое "нет" и "не знаю" здесь разные ответы: вакансию без распознанной
+    локации нельзя объявить чужой — источник вернул её по запросу этого города,
+    и выбрасывать её означало бы наказывать за молчание работодателя.
+    """
+    target = canonical_city(city)
+    if not target:
+        return None
+
+    any_known_segment = False
+    for segment in (location_text, *_location_segments(location_text)):
+        for candidate in _city_candidates(segment):
+            if candidate == target:
+                return True
+            if is_known_place(candidate):
+                any_known_segment = True
+    return False if any_known_segment else None
+
+
 def resolve_point(
     *,
     city: str | None = None,

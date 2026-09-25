@@ -10,6 +10,7 @@ from app.services.search_models import (
     FilterResult,
     RuleHit,
     ScoreResult,
+    SearchCityResultGroup,
     SearchProfileContext,
     SearchQueryResultGroup,
     SearchResultItem,
@@ -419,6 +420,108 @@ class RemoteProfileCatalogService:
         return self.profile if profile_id == 77 else None
 
 
+def test_search_results_are_rendered_city_by_city() -> None:
+    """Разделы идут в порядке из формы, и пустой город тоже виден.
+
+    Раньше вакансии шли одним списком по баллу, и что по второму городу не
+    нашлось ничего, из выдачи понять было нельзя.
+    """
+    base = _build_result()
+    items = base.hot_results
+    result = dataclasses.replace(
+        base,
+        city_result_groups=(
+            SearchCityResultGroup(city="Berlin", hot_results=items[:2]),
+            SearchCityResultGroup(city="Rostock", hot_results=items[2:]),
+            SearchCityResultGroup(city="Stralsund"),
+        ),
+    )
+    service = FakeSearchService(search_result=result)
+    app = create_app()
+    app.dependency_overrides[get_search_service] = lambda: service
+    app.dependency_overrides[get_profile_catalog_service] = lambda: FakeProfileCatalogService()
+    app.dependency_overrides[get_search_history_service] = lambda: FakeSearchHistoryService()
+    client = TestClient(app)
+
+    response = client.post(
+        "/jobs/search-results",
+        data={"source": "ba", "query": "lager", "location": "Berlin, Rostock, Stralsund"},
+    )
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert "Вакансии по городам" in response.text
+    assert response.text.index("Berlin") < response.text.index("Rostock") < response.text.index("Stralsund")
+    assert "В этом городе после фильтров ничего не осталось." in response.text
+
+
+class MultiCityProfileCatalogService:
+    """Профиль с тремя городами — ровно тот случай, который терялся."""
+
+    def __init__(self) -> None:
+        self.profile = type(
+            "Profile",
+            (),
+            {
+                "id": 4,
+                "name": "Доставка / Курьер",
+                "desired_roles": ["Курьер"],
+                "preferred_locations": ["Rostock", "Stralsund", "Greifswald"],
+                "search_query_de": "kurier",
+                "search_location_de": "Rostock, Stralsund, Greifswald",
+            },
+        )()
+
+    def list_profiles(self, db: object) -> list:
+        return [_ProfileEntry(self.profile)]
+
+    def resolve_default_profile_id(self, db: object) -> int | None:
+        return 4
+
+    def backfill_search_fields(self, db: object) -> int:
+        return 0
+
+    def get_profile(self, db: object, *, profile_id: int) -> object | None:
+        return self.profile if profile_id == 4 else None
+
+
+def test_jobs_page_prefills_every_city_of_the_profile() -> None:
+    """Профиль «Росток, Штральзунд, Грайфсвальд» подставлял один Росток.
+
+    Два города молча пропадали ещё до поиска: в форму уходил только первый.
+    """
+    service = FakeSearchService(raise_on_profile_context=True)
+    catalog = MultiCityProfileCatalogService()
+    app = create_app()
+    app.dependency_overrides[get_search_service] = lambda: service
+    app.dependency_overrides[get_profile_catalog_service] = lambda: catalog
+    client = TestClient(app)
+
+    response = client.get("/jobs")
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert 'value="Rostock, Stralsund, Greifswald"' in response.text
+
+
+def test_jobs_page_has_no_radius_field() -> None:
+    """Радиуса в форме больше нет: заказ — это города, а не круг вокруг них."""
+    app = create_app()
+    app.dependency_overrides[get_search_service] = lambda: FakeSearchService()
+    app.dependency_overrides[get_profile_catalog_service] = lambda: FakeProfileCatalogService()
+    client = TestClient(app)
+
+    response = client.get("/jobs")
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert 'name="radius_km"' not in response.text
+    assert 'id="jobs-location"' in response.text
+
+
 class RouteDeliveryProfileResolver:
     def resolve(self, *, profile_id: int | None = None) -> SearchProfileContext:
         return SearchProfileContext(
@@ -613,7 +716,8 @@ def test_jobs_search_results_route_renders_phase7_partial() -> None:
     assert service.last_search_input.query == "lager"
     assert service.last_search_input.location == "Berlin"
     assert service.last_search_input.search_mode == "germany_local"
-    assert service.last_search_input.radius_km == 25
+    # Ноль километров = "строго названный город": радиуса в форме больше нет.
+    assert service.last_search_input.radius_km == 0
     assert service.last_search_input.page_size == 8
     assert history_service.calls == 1
 

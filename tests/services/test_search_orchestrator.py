@@ -15,6 +15,7 @@ from app.services.search_fallback import (
 from app.services.search_models import (
     SearchAttemptSummary,
     SearchProfileContext,
+    SearchResultItem,
     SearchRunResult,
     SearchSourceState,
 )
@@ -37,11 +38,40 @@ def _make_profile(**kwargs) -> SearchProfileContext:
     return SearchProfileContext(**defaults)
 
 
+def _make_item(bucket: str, index: str = "0") -> SearchResultItem:
+    """Карточка-заглушка: содержимое неважно, важен только bucket.
+
+    Это настоящий SearchResultItem, а не MagicMock: оркестратор помечает
+    вакансии городом через dataclasses.replace, и подделка, не являющаяся
+    датаклассом, ломалась бы не на том, что проверяет тест.
+
+    Канонический ключ обязателен: по нему слияние попыток схлопывает одну и ту
+    же вакансию, найденную дважды. Без ключа заглушки считались бы разными
+    вакансиями, и тест мерил бы не поведение поиска, а свои подделки.
+    """
+    return SearchResultItem(
+        canonical_group=MagicMock(canonical_key=f"{bucket}-{index}"),
+        primary_record=MagicMock(),
+        signals=MagicMock(matched_search_city=None),
+        filter_result=MagicMock(),
+        score_result=MagicMock(),
+        bucket=bucket,  # type: ignore[arg-type]
+        explanation_ru="",
+    )
+
+
+# Каждый вызов _make_result описывает СВОИ вакансии. Общий счётчик разводит их
+# канонические ключи, чтобы слияние попыток складывало разные наборы и схлопывало
+# один и тот же набор, возвращённый источником дважды.
+_fake_result_counter = itertools.count()
+
+
 def _make_result(hot: int = 0, maybe: int = 0, rejected: int = 0) -> SearchRunResult:
     """Build a minimal SearchRunResult with specified bucket counts."""
-    hot_items = tuple(MagicMock(bucket="hot") for _ in range(hot))
-    maybe_items = tuple(MagicMock(bucket="maybe") for _ in range(maybe))
-    rejected_items = tuple(MagicMock(bucket="rejected") for _ in range(rejected))
+    batch = next(_fake_result_counter)
+    hot_items = tuple(_make_item("hot", f"{batch}-{index}") for index in range(hot))
+    maybe_items = tuple(_make_item("maybe", f"{batch}-{index}") for index in range(maybe))
+    rejected_items = tuple(_make_item("rejected", f"{batch}-{index}") for index in range(rejected))
     return SearchRunResult(
         profile=_make_profile(),
         source_states=(SearchSourceState(source_id="ba", source_name="BA", status_label="ok"),),
@@ -1017,3 +1047,95 @@ def test_germany_run_still_translates_the_typed_query() -> None:
     )
 
     assert result.attempt_summary.attempts[0].query_used == "lagermitarbeiter"
+
+
+# ---------------------------------------------------------------------------
+# Веер по городам
+# ---------------------------------------------------------------------------
+
+def _city_input(location: str) -> SourceSearchInput:
+    return SourceSearchInput(query="lager", location=location, page=1, page_size=8)
+
+
+def test_each_city_is_asked_separately() -> None:
+    """Источники понимают в поле одно место, а не список.
+
+    BA на строке "Berlin, Rostock" молча возвращал один Берлин, Careerjet терял
+    географию целиком. Поэтому города спрашиваются по одному.
+    """
+    svc = _make_service([_make_result(hot=1)])
+
+    svc.orchestrated_search(search_input=_city_input("Берлин, Росток"))
+
+    locations = [call.kwargs["search_input"].location for call in svc.search.call_args_list]
+    assert locations[:2] == ["Berlin", "Rostock"]
+    assert set(locations) == {"Berlin", "Rostock"}
+
+
+def test_cities_are_asked_in_the_order_the_user_typed_them() -> None:
+    svc = _make_service([_make_result(hot=1)])
+
+    svc.orchestrated_search(search_input=_city_input("Росток, Берлин"))
+
+    locations = [call.kwargs["search_input"].location for call in svc.search.call_args_list]
+    assert locations[:2] == ["Rostock", "Berlin"]
+
+
+def test_city_search_asks_sources_for_the_city_itself() -> None:
+    """Ноль километров — это "строго названный город", а не "без ограничений"."""
+    svc = _make_service([_make_result(hot=1)])
+
+    svc.orchestrated_search(search_input=_city_input("Berlin"))
+
+    assert {call.kwargs["search_input"].radius_km for call in svc.search.call_args_list} == {0}
+
+
+def test_every_leg_knows_the_whole_order_of_cities() -> None:
+    """Вакансия из Ростока, найденная по запросу Берлина, не должна пропасть.
+
+    Ветка веера спрашивает один город, но проверку города проходит по всему
+    заказу — иначе берлинская ветка отклонила бы ростокскую вакансию, а
+    слияние уже не вернуло бы её обратно.
+    """
+    svc = _make_service([_make_result(hot=1)])
+
+    svc.orchestrated_search(search_input=_city_input("Берлин, Росток"))
+
+    for call in svc.search.call_args_list:
+        assert call.kwargs["profile"].search_cities == ("Berlin", "Rostock")
+
+
+def test_results_are_grouped_by_city_in_the_typed_order() -> None:
+    """Выдача идёт разделами: сначала весь первый город, потом второй."""
+    svc = _make_service([_make_result(hot=1, maybe=1)])
+
+    result = svc.orchestrated_search(search_input=_city_input("Берлин, Росток"))
+
+    assert [group.city for group in result.city_result_groups] == ["Berlin", "Rostock"]
+
+
+def test_a_city_without_results_still_gets_its_section() -> None:
+    """Пустой город — это тоже ответ, и его надо показать, а не умолчать."""
+    svc = _make_service([_make_result()])
+
+    result = svc.orchestrated_search(search_input=_city_input("Берлин, Росток"))
+
+    assert [group.visible_count for group in result.city_result_groups] == [0, 0]
+
+
+def test_country_wide_search_has_no_city_sections() -> None:
+    svc = _make_service([_make_result(hot=1)])
+
+    result = svc.orchestrated_search(search_input=_city_input("Deutschland"))
+
+    assert result.city_result_groups == ()
+    assert svc.search.call_args_list[0].kwargs["search_input"].location == "Deutschland"
+
+
+def test_unrecognized_city_is_reported_instead_of_silently_failing() -> None:
+    """Источники ищут по немецким названиям; непонятое слово вернёт пустоту."""
+    svc = _make_service([_make_result()])
+
+    result = svc.orchestrated_search(search_input=_city_input("Берлин, Тюмень"))
+
+    assert result.unresolved_cities == ("Тюмень",)

@@ -1,7 +1,13 @@
 """Тесты офлайн-геодистанции: координаты, районы, неизвестные места."""
 from __future__ import annotations
 
-from app.services.geo_distance import canonical_city, distance_km, resolve_point
+import pytest
+from app.services.geo_distance import (
+    canonical_city,
+    distance_km,
+    location_matches_city,
+    resolve_point,
+)
 
 
 def _km(origin: str, destination: str) -> float | None:
@@ -109,3 +115,35 @@ def test_federal_state_gives_a_rough_point_rather_than_nothing() -> None:
 def test_country_name_is_not_a_place() -> None:
     """Поиск «по Германии» не должен получить точку и включить радиус."""
     assert resolve_point(city="Deutschland") is None
+
+
+# ---------------------------------------------------------------------------
+# Город вакансии против заказанного города
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize(
+    ("location", "city", "expected"),
+    [
+        # Каждый источник пишет место по-своему — узнаём все написания.
+        ("18055 Rostock, Mecklenburg Vorpommern, Deutschland", "Rostock", True),
+        ("Gehlsdorf, Rostock", "Rostock", True),
+        ("Brinckmansdorf", "Rostock", True),          # район города — это город
+        ("Charlottenburg", "Berlin", True),
+        ("Potsdam", "Berlin", False),                 # сосед — не Берлин
+        ("Roggentin bei Rostock", "Rostock", False),  # отдельная община
+        ("10178 Berlin, Berlin, Deutschland", "Rostock", False),
+    ],
+)
+def test_location_matches_city(location: str, city: str, expected: bool) -> None:
+    assert location_matches_city(location, city) is expected
+
+
+@pytest.mark.parametrize("location", ["", "Deutschland", "Remote", "Mecklenburg-Vorpommern"])
+def test_unrecognized_location_answers_unknown_not_no(location: str) -> None:
+    """«Не знаю» — не то же самое, что «не тот город».
+
+    Вакансию без распознанного адреса нельзя объявить чужой: источник вернул её
+    по запросу конкретного города, и молчание работодателя о месте — не повод
+    её выбрасывать.
+    """
+    assert location_matches_city(location, "Berlin") is None

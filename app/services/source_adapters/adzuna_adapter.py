@@ -100,7 +100,10 @@ class AdzunaAdapter(BaseSourceAdapter):
         if search_input.query:
             params["what"] = search_input.query
         locations = _effective_locations(search_input)
-        if search_input.radius_km is not None:
+        # Ноль километров означает "строго этот город". У Adzuna такого значения
+        # нет — distance=0 возвращает HTTP 400, — поэтому параметр просто не
+        # отправляется, а город вакансии проверяется уже на нашей стороне.
+        if search_input.radius_km:
             params["distance"] = search_input.radius_km
 
         logger.info(

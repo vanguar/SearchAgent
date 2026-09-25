@@ -329,7 +329,8 @@ def test_ai_tools_profile_preview_and_creation_preserve_existing_profile(db_sess
     assert preview.spec.name == AI_TOOLS_PROFILE_NAME
     assert preview.spec.preferred_locations == ("Rostock", "Stralsund", "Greifswald")
     assert preview.spec.no_german_required is True
-    assert preview.spec.search_location_de == "Rostock"
+    # Все города профиля, а не первый: поиск идёт по каждому из них.
+    assert preview.spec.search_location_de == "Rostock, Stralsund, Greifswald"
     assert preview.search_modes == ("germany_local", "remote_worldwide")
     assert preview.source_scopes == ("western", "russian")
 

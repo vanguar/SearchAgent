@@ -78,11 +78,13 @@ class SearchProfileContext:
     # Город проживания из профиля пользователя. От него считается дорога на
     # работу; при переезде меняется только это поле.
     home_city: str | None = None
-    # Геометрия конкретного запуска поиска: что пользователь ввёл в форме.
-    # Город поиска и радиус — это ограничение запроса, а не свойство профиля,
-    # поэтому проставляются на время прогона.
+    # География конкретного запуска поиска: что пользователь ввёл в форме.
+    # Города поиска — это ограничение запроса, а не свойство профиля, поэтому
+    # проставляются на время прогона. search_location — город текущей ветки
+    # веера (по одному запросу на город), search_cities — весь заказанный
+    # список: вакансия считается подходящей, если стоит в любом из них.
     search_location: str | None = None
-    search_radius_km: int | None = None
+    search_cities: tuple[str, ...] = ()
 
     @classmethod
     def fallback(cls, *, note_ru: str) -> SearchProfileContext:
@@ -186,10 +188,14 @@ class VacancySignalSnapshot:
     allowed_driver_license_categories: tuple[str, ...] = ()
     optional_driver_license_categories: tuple[str, ...] = ()
     mentioned_driver_license_categories: tuple[str, ...] = ()
-    # Дорога от места жительства до вакансии и от города поиска до вакансии.
-    # None означает "неизвестно" — вести себя как при нуле нельзя.
+    # Дорога от места жительства до вакансии. None означает "неизвестно" —
+    # вести себя как при нуле нельзя.
     distance_from_home_km: float | None = None
-    distance_from_search_location_km: float | None = None
+    # Заказанный город, в котором стоит вакансия, и признак того, что место
+    # вакансии распознано и это НЕ один из заказанных городов. Пустой город
+    # при outside_requested_cities=False означает "по локации не понять".
+    matched_search_city: str | None = None
+    outside_requested_cities: bool = False
     light_commercial_vehicle_signals: tuple[str, ...] = ()
     heavy_vehicle_signals: tuple[str, ...] = ()
     # Слабые признаки тяжёлого транспорта: отсекают только при отсутствии сигналов лёгкого.
@@ -258,6 +264,10 @@ class SearchResultItem:
     # Deterministic role family derived from canonical normalized title — used for feedback matching.
     role_family: str | None = None
     search_query: str | None = None
+    # Город, по запросу которого источник отдал эту вакансию. Нужен там, где
+    # работодатель не назвал место: выдачу всё равно надо положить в раздел
+    # того города, у которого её спросили.
+    search_city: str | None = None
 
     @property
     def distance_from_home_km(self) -> float | None:
@@ -353,6 +363,19 @@ class SearchQueryResultGroup:
 
 
 @dataclass(frozen=True, slots=True)
+class SearchCityResultGroup:
+    """Вакансии одного города. Порядок групп повторяет порядок в форме поиска."""
+
+    city: str
+    hot_results: tuple[SearchResultItem, ...] = ()
+    maybe_results: tuple[SearchResultItem, ...] = ()
+
+    @property
+    def visible_count(self) -> int:
+        return len(self.hot_results) + len(self.maybe_results)
+
+
+@dataclass(frozen=True, slots=True)
 class SearchRunResult:
     profile: SearchProfileContext
     source_states: tuple[SearchSourceState, ...]
@@ -367,6 +390,12 @@ class SearchRunResult:
     total_canonical_results: int = 0
     attempt_summary: SearchAttemptSummary | None = None
     query_result_groups: tuple[SearchQueryResultGroup, ...] = ()
+    # Разбивка по городам в порядке, в котором их перечислил человек. Пусто,
+    # когда города не заданы: удалёнка или поиск по всей стране.
+    city_result_groups: tuple[SearchCityResultGroup, ...] = ()
+    # Города, которые не удалось привести к немецкому написанию, — источники
+    # почти наверняка ответят по ним пустотой, и об этом надо сказать вслух.
+    unresolved_cities: tuple[str, ...] = ()
 
     @property
     def has_results(self) -> bool:
@@ -390,7 +419,7 @@ class SearchRunResult:
         тех, что за шестьсот километров; но если всё найденное одинаково далеко
         или одинаково близко, лишний заголовок только мешает.
         """
-        if not self.profile.home_city:
+        if not self.profile.home_city or self.city_result_groups:
             return False
         return bool(self.nearby_results) and bool(self.countrywide_results)
 

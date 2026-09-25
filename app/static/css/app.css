@@ -2585,7 +2585,8 @@ body {
 
 .search-grid {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) 120px minmax(0, 1fr);
+  /* Роли, города, источник. Колонки радиуса больше нет: город и есть заказ. */
+  grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr);
   gap: 14px 16px;
   align-items: end;
 }
@@ -3089,4 +3090,28 @@ body {
   .email-layout {
     grid-template-columns: 1fr;
   }
+}
+
+
+/* Разделы выдачи по городам — порядок такой же, как в поле поиска. */
+.jobs-city-groups-panel .jobs-city-group + .jobs-city-group {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.jobs-city-group__title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 10px;
+  font-size: 1rem;
+}
+
+.jobs-city-group__title strong {
+  padding: 1px 9px;
+  border-radius: 999px;
+  background: var(--bg-main);
+  color: var(--text-soft);
+  font-size: 0.78rem;
 }

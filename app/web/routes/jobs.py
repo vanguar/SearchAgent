@@ -26,10 +26,10 @@ from app.services.search_export_service import (
 from app.services.search_history_service import SearchHistoryService
 from app.services.search_models import DAILY_COMMUTE_LIMIT_KM, SearchRunResult
 from app.services.search_normalizer import (
-    is_country_wide_location,
     is_remote_worldwide_location,
-    normalize_location,
+    normalize_locations,
     normalize_query_from_roles,
+    parse_search_cities,
 )
 from app.services.search_service import SearchService
 from app.services.source_adapters.models import SourceAdapterDescriptor, SourceSearchInput
@@ -200,8 +200,11 @@ def _get_client_ip(request: Request) -> str | None:
     return None
 
 
-def _location_to_de(location: str) -> str:
-    return normalize_location(location) or location.strip()
+def _locations_to_de(locations: object) -> str:
+    """Города профиля в немецком написании, через запятую и в том же порядке."""
+    if not isinstance(locations, (list, tuple)):
+        return ""
+    return ", ".join(normalize_locations([str(location) for location in locations]))
 
 
 def _role_to_query(role: str) -> str:
@@ -222,12 +225,14 @@ def _profile_location_prefill(profile: object) -> str:
     preferred_locations = getattr(profile, "preferred_locations", None)
     if is_remote_worldwide_location(preferred_locations):
         return "remote"
+    # search_location_de — посчитанное поле профиля, и считается оно теперь по
+    # ВСЕМ городам сразу («Rostock, Stralsund, Greifswald»), а не по первому;
+    # backfill чинит и старые записи. Список городов — запасной путь для
+    # профилей, где это поле ещё не заполнено.
     search_location_de = getattr(profile, "search_location_de", None)
     if search_location_de:
         return search_location_de
-    if preferred_locations:
-        return _location_to_de(preferred_locations[0])
-    return ""
+    return _locations_to_de(preferred_locations)
 
 
 def _profile_search_mode_prefill(profile: object) -> str:
@@ -307,7 +312,6 @@ def _default_form_values() -> dict[str, str]:
         "source_scope": SOURCE_SCOPE_WESTERN,
         "query": "",
         "location": "",
-        "radius_km": "25",
     }
 
 
@@ -333,22 +337,16 @@ def _extract_form_values(form_data: Mapping[str, object]) -> dict[str, str]:
 
 
 def _radius_km_for_search(form_values: dict[str, str]) -> int | None:
-    """Радиус запроса или None, когда искать просят по всей стране."""
-    if is_country_wide_location(form_values.get("location")):
-        return None
-    return _parse_radius_km(form_values["radius_km"])
+    """Радиус у запроса с городами нулевой: ищем в самих городах.
 
+    Радиуса в форме больше нет. Названный город — это и есть заказ: «Росток»
+    означает Росток, а не Бад-Доберан в получасе от него. Ноль уходит тем
+    источникам, которые умеют искать строго по месту (BA — umkreis=0), а
+    остальных подстраховывает проверка города на нашей стороне.
 
-def _parse_radius_km(raw_value: str) -> int | None:
-    if not raw_value:
-        return None
-    try:
-        radius = int(raw_value)
-    except ValueError:
-        return None
-    if radius < 0:
-        return None
-    return radius
+    Без городов (удалёнка, вся страна) ограничивать нечем — радиуса нет.
+    """
+    return 0 if parse_search_cities(form_values.get("location")) else None
 
 
 def _resolve_source_ids(form_values: Mapping[str, str], search_service: SearchService) -> tuple[str, ...]:

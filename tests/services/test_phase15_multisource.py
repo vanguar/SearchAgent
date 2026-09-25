@@ -22,6 +22,7 @@ from app.db.models.profiles import SearchProfile, UserProfile
 from app.services.search_history_service import SearchHistoryService
 from app.services.search_models import (
     SearchProfileContext,
+    SearchResultItem,
     SearchRunResult,
     SearchSourceState,
 )
@@ -577,6 +578,22 @@ def test_ba_only_search_returns_correctly_bucketed_results() -> None:
 
 def test_progressive_fallback_still_works_multisource() -> None:
     """orchestrated_search запускает fallback-попытки при пустом primary — multi-source не сломал."""
+    # Настоящие SearchResultItem, а не MagicMock: оркестратор помечает вакансии
+    # городом через dataclasses.replace, а слияние попыток схлопывает их по
+    # каноническому ключу — подделке нужно и то и другое.
+    def _item(bucket: str, index: int) -> SearchResultItem:
+        return SearchResultItem(
+            canonical_group=MagicMock(canonical_key=f"{bucket}-{index}"),
+            primary_record=MagicMock(),
+            signals=MagicMock(matched_search_city=None),
+            filter_result=MagicMock(),
+            score_result=MagicMock(),
+            bucket=bucket,  # type: ignore[arg-type]
+            explanation_ru="",
+        )
+
+    hot_items = tuple(_item("hot", index) for index in range(2))
+    maybe_items = tuple(_item("maybe", index) for index in range(3))
     good = SearchRunResult(
         profile=SearchProfileContext(
             profile_label="Тест", profile_source="saved",
@@ -585,10 +602,9 @@ def test_progressive_fallback_still_works_multisource() -> None:
         source_states=(SearchSourceState(
             source_id="ba", source_name="BA", status_label="Успех", status_kind="success",
         ),),
-        results=tuple(MagicMock(bucket="hot") for _ in range(2))
-            + tuple(MagicMock(bucket="maybe") for _ in range(3)),
-        hot_results=tuple(MagicMock(bucket="hot") for _ in range(2)),
-        maybe_results=tuple(MagicMock(bucket="maybe") for _ in range(3)),
+        results=hot_items + maybe_items,
+        hot_results=hot_items,
+        maybe_results=maybe_items,
         rejected_results=(),
         total_raw_records=5,
         total_normalized_records=5,

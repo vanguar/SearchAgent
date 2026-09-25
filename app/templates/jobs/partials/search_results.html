@@ -372,7 +372,37 @@
 </article>
 {% endif %}
 
-{% if search_result.attempt_summary and search_result.attempt_summary.attempts and search_result.query_result_groups %}
+{#
+  Города человек перечислил по важности, и выдача идёт в том же порядке:
+  сначала весь первый город, потом весь второй. Раньше вакансии шли общим
+  списком, отсортированным по баллу, и понять, что по второму городу вообще
+  ничего не нашлось, было нельзя.
+#}
+{% if search_result.city_result_groups %}
+{% if search_result.unresolved_cities %}
+<div class="notice warning">
+  Не удалось распознать город: {{ search_result.unresolved_cities|join(", ") }}.
+  Напишите название по-немецки или по-английски — источники ищут по немецким названиям.
+</div>
+{% endif %}
+<article class="panel jobs-city-groups-panel">
+  <h3>Вакансии по городам</h3>
+  {% for group in search_result.city_result_groups %}
+  <section class="jobs-city-group">
+    <h4 class="jobs-city-group__title">
+      <span>{{ group.city }}</span>
+      <strong>{{ group.visible_count }}</strong>
+    </h4>
+    {% if group.visible_count %}
+      {{ render_bucket_body("Горячие вакансии", group.hot_results, profile_id) }}
+      {{ render_bucket_body("Можно проверить", group.maybe_results, profile_id) }}
+    {% else %}
+      <div class="notice info">В этом городе после фильтров ничего не осталось.</div>
+    {% endif %}
+  </section>
+  {% endfor %}
+</article>
+{% elif search_result.attempt_summary and search_result.attempt_summary.attempts and search_result.query_result_groups %}
 {% set tabs = namespace(count=0) %}
 <article class="panel jobs-query-tabs-panel" data-query-tabs>
   <h3>Вакансии по ключевикам</h3>

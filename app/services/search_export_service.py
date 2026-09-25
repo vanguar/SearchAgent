@@ -24,6 +24,7 @@ from app.services.search_models import (
     SearchSourceState,
     VacancySignalSnapshot,
 )
+from app.services.search_normalizer import parse_search_cities
 from app.services.source_adapters.models import SourceSearchInput
 
 EXPORT_SCHEMA_VERSION = 1
@@ -103,7 +104,9 @@ def _run_section(
     if search_input is not None:
         section["query_submitted"] = search_input.query
         section["location"] = search_input.location
-        section["radius_km"] = search_input.radius_km
+        # Города, по которым реально спрашивали источники: поле формы может
+        # содержать список, а запрос уходит по одному городу за раз.
+        section["cities"] = list(parse_search_cities(search_input.location))
         section["search_mode"] = search_input.search_mode
         section["page_size"] = search_input.page_size
     return section

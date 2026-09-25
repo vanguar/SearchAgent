@@ -46,6 +46,7 @@ from app.services.search_models import (
     SearchAttemptRecord,
     SearchAttemptSummary,
     SearchBucket,
+    SearchCityResultGroup,
     SearchProfileContext,
     SearchQueryResultGroup,
     SearchResultItem,
@@ -53,6 +54,7 @@ from app.services.search_models import (
     SearchSourceState,
     SourceStatusKind,
 )
+from app.services.search_normalizer import is_german_city_name, parse_search_cities
 from app.services.search_profile_resolver import DatabaseSearchProfileResolver
 from app.services.source_adapters.errors import SourceAdapterError
 from app.services.source_adapters.models import (
@@ -291,7 +293,13 @@ class SearchService:
         feedback_memory: ProfileFeedbackMemory | None = None,
     ) -> SearchRunResult:
         """Run search with staged keyword fallback. Returns the best result with attempt_summary attached."""
-        resolved_profile = _with_run_geography(self.get_profile_context(profile_id=profile_id), search_input)
+        # Города заказа: поле формы читается один раз, дальше и веер, и фильтр,
+        # и разбивка выдачи опираются на один и тот же разобранный список.
+        search_cities = parse_search_cities(search_input.location)
+        resolved_profile = dataclasses.replace(
+            _with_run_geography(self.get_profile_context(profile_id=profile_id), search_input),
+            search_cities=search_cities,
+        )
         resolved_source_ids = self._resolve_source_ids(source_ids)
         primary_query = search_input.query
         primary_role = resolved_profile.desired_roles[0] if resolved_profile.desired_roles else None
@@ -369,13 +377,18 @@ class SearchService:
         # разбирал бы один и тот же фид на каждой попытке.
         served_requests: set[str] = set()
 
-        def _run(query: str) -> SearchRunResult:
-            if progress_callback is not None:
-                progress_callback("attempt", 0, None, query)
+        def _run_one(query: str, location: str | None) -> SearchRunResult:
             # Attempts are scored deterministically (no LLM). LLM enrichment is applied once,
             # at the end, to the winning attempt's displayed results only — see _enrich_run_result.
             return self.search(
-                search_input=dataclasses.replace(search_input, query=query),
+                search_input=dataclasses.replace(
+                    search_input,
+                    query=query,
+                    location=location,
+                    # Ноль означает «строго этот город»: BA понимает umkreis=0,
+                    # остальные источники просто не получают радиуса.
+                    radius_km=0 if location else search_input.radius_km,
+                ),
                 source_ids=resolved_source_ids,
                 profile=resolved_profile,
                 progress_callback=progress_callback,
@@ -383,6 +396,28 @@ class SearchService:
                 feedback_memory=feedback_memory,
                 enrich_with_llm=False,
                 served_requests=served_requests,
+            )
+
+        def _run(query: str) -> SearchRunResult:
+            if progress_callback is not None:
+                progress_callback("attempt", 0, None, query)
+            if not search_cities:
+                return _run_one(query, search_input.location)
+
+            # Города спрашиваются по одному: job-API понимают одно место в поле,
+            # а строку "Berlin, Rostock" BA молча сводит к Берлину, Careerjet —
+            # к поиску по всей стране. Порядок запросов — порядок из формы.
+            city_results: list[SearchRunResult] = []
+            for city in search_cities:
+                if stop_event is not None and stop_event.is_set():
+                    break
+                city_results.append(_tag_results_with_city(_run_one(query, city), city))
+            if not city_results:
+                return _run_one(query, search_input.location)
+            return (
+                _merge_search_results_for_worldwide(city_results)
+                if len(city_results) > 1
+                else city_results[0]
             )
 
         def _non_rejected(r: SearchRunResult) -> int:
@@ -584,7 +619,12 @@ class SearchService:
                 )
             ),
         )
-        return dataclasses.replace(result_for_summary, attempt_summary=summary)
+        return dataclasses.replace(
+            result_for_summary,
+            attempt_summary=summary,
+            city_result_groups=_build_city_result_groups(result_for_summary, search_cities),
+            unresolved_cities=tuple(city for city in search_cities if not is_german_city_name(city)),
+        )
 
     def _llm_suggest_keywords(
         self,
@@ -1099,15 +1139,20 @@ def _with_run_geography(
     profile: SearchProfileContext,
     search_input: SourceSearchInput,
 ) -> SearchProfileContext:
-    """Перенести город и радиус ИЗ ФОРМЫ в контекст на время этого прогона.
+    """Перенести города ИЗ ФОРМЫ в контекст на время этого прогона.
 
-    Город поиска и радиус — свойство запроса, а не профиля: завтра тот же профиль
-    ищут по другому городу. Место жительства при этом остаётся профильным.
+    Города поиска — свойство запроса, а не профиля: завтра тот же профиль ищут
+    по другим городам. Место жительства при этом остаётся профильным.
+
+    Уже проставленный список городов не переписывается: веер запускает по
+    одному запросу на город, и каждой ветке нужен ВЕСЬ заказ целиком. Иначе
+    вакансия из Ростока, которую источник принёс на запрос Берлина, была бы
+    отклонена в берлинской ветке и потеряна при слиянии.
     """
     return dataclasses.replace(
         profile,
         search_location=search_input.location or None,
-        search_radius_km=search_input.radius_km,
+        search_cities=profile.search_cities or parse_search_cities(search_input.location),
     )
 
 
@@ -1193,6 +1238,85 @@ def _rejection_reason_counts(result: SearchRunResult) -> tuple[tuple[str, int], 
         else:
             counter["low_score"] += 1
     return tuple(sorted(counter.items()))
+
+
+def _tag_results_with_city(result: SearchRunResult, city: str) -> SearchRunResult:
+    """Пометить вакансии городом, по запросу которого их отдал источник.
+
+    Нужно там, где работодатель не назвал место: по тексту вакансии город не
+    восстановить, но спрашивали её у конкретного города — в его раздел она и
+    попадёт.
+    """
+
+    def tag(items: tuple[SearchResultItem, ...]) -> tuple[SearchResultItem, ...]:
+        return tuple(dataclasses.replace(item, search_city=city) for item in items)
+
+    return dataclasses.replace(
+        result,
+        results=tag(result.results),
+        hot_results=tag(result.hot_results),
+        maybe_results=tag(result.maybe_results),
+        rejected_results=tag(result.rejected_results),
+        query_result_groups=tuple(
+            dataclasses.replace(
+                group,
+                hot_results=tag(group.hot_results),
+                maybe_results=tag(group.maybe_results),
+            )
+            for group in result.query_result_groups
+        ),
+    )
+
+
+# Заголовок для вакансий, у которых работодатель не назвал город и по запросу
+# которых город тоже не восстановить.
+_CITY_UNKNOWN_LABEL = "Без указанного города"
+
+
+def _build_city_result_groups(
+    result: SearchRunResult,
+    cities: tuple[str, ...],
+) -> tuple[SearchCityResultGroup, ...]:
+    """Показываемые вакансии по городам, в порядке из формы поиска.
+
+    Человек перечисляет города по важности, а выдача раньше шла сплошным
+    списком вперемешку. Порядок групп — это порядок запроса, а не число
+    найденного: пустой первый город тоже ответ.
+    """
+    if not cities:
+        return ()
+
+    hot: dict[str, list[SearchResultItem]] = {city: [] for city in cities}
+    maybe: dict[str, list[SearchResultItem]] = {city: [] for city in cities}
+    hot[_CITY_UNKNOWN_LABEL] = []
+    maybe[_CITY_UNKNOWN_LABEL] = []
+
+    def city_of(item: SearchResultItem) -> str:
+        matched = item.signals.matched_search_city
+        if matched in hot:
+            return matched
+        if item.search_city in hot:
+            return item.search_city
+        return _CITY_UNKNOWN_LABEL
+
+    for item in result.hot_results:
+        hot[city_of(item)].append(item)
+    for item in result.maybe_results:
+        maybe[city_of(item)].append(item)
+
+    groups = [
+        SearchCityResultGroup(city=city, hot_results=tuple(hot[city]), maybe_results=tuple(maybe[city]))
+        for city in cities
+    ]
+    if hot[_CITY_UNKNOWN_LABEL] or maybe[_CITY_UNKNOWN_LABEL]:
+        groups.append(
+            SearchCityResultGroup(
+                city=_CITY_UNKNOWN_LABEL,
+                hot_results=tuple(hot[_CITY_UNKNOWN_LABEL]),
+                maybe_results=tuple(maybe[_CITY_UNKNOWN_LABEL]),
+            )
+        )
+    return tuple(groups)
 
 
 def _merge_search_results_for_worldwide(results: list[SearchRunResult]) -> SearchRunResult:
