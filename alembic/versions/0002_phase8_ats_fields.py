@@ -7,9 +7,8 @@ Create Date: 2026-04-17 16:20:00
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "0002_phase8_ats_fields"

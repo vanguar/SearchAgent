@@ -13,8 +13,8 @@ try:
 except ImportError:
     pass
 
-from app.db.base import Base
 import app.db.models  # noqa: F401
+from app.db.base import Base
 
 config = context.config
 
