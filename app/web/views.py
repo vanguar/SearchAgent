@@ -10,6 +10,7 @@ from app.core.config import Settings
 from app.core.constants import APP_SUBTITLE, APP_TITLE, NAV_ITEMS
 from app.services.employment_signal_extractor import EMPLOYMENT_TYPE_LABELS_RU
 from app.services.llm_client import LLMStatus, get_runtime_status
+from app.web.search_presentation import search_overview
 
 
 def _employment_type_labels(codes: object) -> str:
@@ -27,6 +28,10 @@ templates.env.filters["unescape"] = html.unescape
 # Подписи форм занятости берутся из того же словаря, что и правила поиска, —
 # иначе на карточке и в фильтре одно и то же значение называлось бы по-разному.
 templates.env.globals["employment_type_labels"] = _employment_type_labels
+# Страница результатов спрашивает у слоя отображения человеческую сводку прогона,
+# а не пересказывает счётчики сама: сырые числа и тексты ошибок остаются в
+# `SearchRunResult`, в экспорте и в логах нетронутыми.
+templates.env.globals["search_overview"] = search_overview
 
 
 def _display_llm_status() -> str:

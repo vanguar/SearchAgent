@@ -896,22 +896,184 @@ body {
   text-decoration: none;
 }
 
-.jobs-summary-list {
+/* ── Итог прогона и источники ─────────────────────────────
+   Два вопроса человека — «сколько нашли?» и «поиск работает?» — стоят
+   первыми и крупно; вся диагностика прогона убрана под <details>. */
+.run-total {
+  margin: 0;
+  font-size: 1.12rem;
+  font-weight: 700;
+}
+
+.run-total__visible {
+  margin: 2px 0 16px;
+  color: var(--text-soft);
+  font-size: 0.94rem;
+}
+
+.search-sources {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #faf7f2;
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+}
+
+/* Упавший источник не красит блок в тревожный цвет, пока остальные принесли
+   вакансии: полоса слева меняется только когда показывать нечего. */
+.search-sources--warning {
+  border-left: 3px solid #f1cf74;
+}
+
+.search-sources__title {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-soft);
+}
+
+.search-sources__headline {
+  margin: 0;
+  font-weight: 650;
+  font-size: 0.98rem;
+}
+
+.search-sources__volume,
+.search-sources__note {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.88rem;
+}
+
+.search-sources__note {
+  color: #8a5a00;
+}
+
+.source-details {
+  margin-top: 8px;
+}
+
+.source-details__summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  margin-left: -8px;
+  border-radius: 8px;
+  cursor: pointer;
   list-style: none;
-  margin: 12px 0 18px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.source-details__summary::-webkit-details-marker {
+  display: none;
+}
+
+.source-details__summary:hover {
+  background: #f3ece3;
+  color: var(--accent-hover);
+}
+
+.source-details__summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.source-details__chevron {
+  border: solid currentColor;
+  border-width: 0 1.5px 1.5px 0;
+  padding: 2.5px;
+  transform: rotate(45deg) translateY(-1px);
+  transition: transform 120ms ease;
+}
+
+.source-details[open] > .source-details__summary .source-details__chevron {
+  transform: rotate(-135deg) translateY(1px);
+}
+
+.source-rows {
+  list-style: none;
+  margin: 10px 0 0;
   padding: 0;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 8px;
 }
 
-.jobs-summary-list li {
-  padding: 7px 10px;
+.source-row {
+  padding: 8px 10px;
   border: 1px solid #e3ded4;
+  border-left-width: 3px;
   border-radius: 8px;
-  background: #f9f6f1;
-  color: var(--text-soft);
+  background: var(--bg-card);
+}
+
+.source-row--ok { border-left-color: #addbbf; }
+.source-row--empty { border-left-color: #f1cf74; }
+.source-row--error { border-left-color: #efb2b2; }
+.source-row--off { border-left-color: #cfd6dd; }
+
+.source-row__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.source-row__name {
+  font-size: 0.92rem;
+}
+
+.source-row__detail {
+  margin: 4px 0 0;
   font-size: 0.88rem;
+  color: var(--text-soft);
+}
+
+.source-row__tech {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+  opacity: 0.8;
+  word-break: break-word;
+}
+
+.source-details__totals {
+  margin: 10px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+  opacity: 0.8;
+}
+
+.source-details__buckets {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
+
+.source-details__buckets li {
+  padding: 3px 8px;
+  border: 1px solid #e3ded4;
+  border-radius: 999px;
+  background: #f9f6f1;
+}
+
+@media (max-width: 560px) {
+  .source-row__head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
 }
 
 .jobs-results-section {

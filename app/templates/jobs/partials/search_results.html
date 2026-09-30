@@ -199,6 +199,8 @@
 </article>
 {% endif %}
 {% include "jobs/partials/applied_parameters.html" %}
+{# Счётчики прогона остаются как есть; сюда приходит только их русский пересказ. #}
+{% set overview = search_overview(search_result) %}
 <article class="panel jobs-summary-panel">
   <div class="jobs-summary-header">
     <h3>Сводка поиска</h3>
@@ -225,21 +227,13 @@
     </div>
     {% endif %}
   </div>
-  <p>
-    Сырых записей: {{ search_result.total_raw_records }}.
-    После нормализации: {{ search_result.total_normalized_records }}.
-    После дедупликации: {{ search_result.total_canonical_results }}.
-  </p>
-  {% set visible_count = search_result.hot_results|length + search_result.maybe_results|length %}
-  {% set hidden_count = search_result.hidden_filtered_items|length %}
-
-  <ul class="jobs-summary-list">
-    <li>Горячие: {{ search_result.hot_results|length }}</li>
-    <li>На проверку: {{ search_result.maybe_results|length }}</li>
-    <li>Отклонены: {{ search_result.rejected_results|length }}</li>
-    <li>Показано пользователю: {{ visible_count }}</li>
-    <li>Скрыто жёсткими фильтрами: {{ hidden_count if hidden_count > 0 else 0 }}</li>
-  </ul>
+  {#
+    Человек пришёл за двумя ответами: сколько вакансий нашли и стоит ли их
+    смотреть. Раньше на этом месте стояли raw/normalized/canonical и пять
+    счётчиков bucket-ов — они никуда не исчезли, но переехали в подробности.
+  #}
+  <p class="run-total">{{ overview.found_ru }}</p>
+  <p class="run-total__visible">{{ overview.visible_ru }}</p>
 
   {% if search_result.deduped_preview_items %}
   <details class="dedup-details top-gap">
@@ -317,40 +311,55 @@
   </details>
   {% endif %}
 
-  <h4>Источники в текущем запуске</h4>
-  <ul class="hint-list">
-    {% for source in search_result.source_states %}
-    <li class="source-state source-state--{{ source.status_kind }}">
-      <strong>{{ source.source_name }}</strong>
-      ·
-      {% if source.status_kind == "success" %}
-      <span class="badge-success">{{ source.status_label }}</span>
-      {% elif source.status_kind == "warning" %}
-      <span class="badge-warning">{{ source.status_label }}</span>
-      {% elif source.status_kind == "disabled" %}
-      <span class="badge-disabled">{{ source.status_label }}</span>
-      {% else %}
-      <span class="badge-error">{{ source.status_label }}</span>
-      {% endif %}
-      {% if source.error_message %}
-      <br />
-      <span class="muted">{{ source.error_message }}</span>
-      {% else %}
-      <br />
-      <span class="muted">
-        Сырых: {{ source.raw_count }}
-        {% if source.total_count is not none %} из {{ source.total_count }}{% endif %}
-        · Нормализовано: {{ source.normalized_count }}
-        · Дедублицировано: {{ source.canonical_count }}
-      </span>
-      {% if source.warnings %}
-      <br />
-      <span class="muted">{{ source.warnings|join(" · ") }}</span>
-      {% endif %}
-      {% endif %}
-    </li>
+  {#
+    Источники: сверху ответ на вопрос «поиск работает?», ниже — по кнопке —
+    та же диагностика, что была раньше. Текст ошибки источника сюда приходит
+    уже короткой фразой: тело HTTP-ответа в разметку страницы не попадает
+    ни в свёрнутом, ни в раскрытом виде (см. `app/web/search_presentation.py`).
+  #}
+  <section class="search-sources search-sources--{{ overview.tone }}">
+    <h4 class="search-sources__title">Источники поиска</h4>
+    <p class="search-sources__headline">{{ overview.sources_headline_ru }}</p>
+    {% if overview.volume_ru %}
+    <p class="search-sources__volume">{{ overview.volume_ru }}</p>
+    {% endif %}
+
+    {% for note in overview.error_notes_ru %}
+    <p class="search-sources__note">
+      {{ note }}
+      {%- if overview.others_kept_working %} Остальные источники продолжили поиск.{% endif %}
+    </p>
     {% endfor %}
-  </ul>
+
+    <details class="source-details">
+      <summary class="source-details__summary">
+        <span class="source-details__label">Подробнее об источниках</span>
+        <span class="source-details__chevron" aria-hidden="true"></span>
+      </summary>
+
+      <ul class="source-rows">
+        {% for row in overview.sources %}
+        <li class="source-row source-row--{{ row.outcome }}">
+          <div class="source-row__head">
+            <strong class="source-row__name">{{ row.source_name }}</strong>
+            <span class="{{ row.badge_class }}">{{ row.status_label_ru }}</span>
+          </div>
+          <p class="source-row__detail">{{ row.detail_ru }}</p>
+          {% if row.technical_ru %}
+          <p class="source-row__tech">{{ row.technical_ru }}</p>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+
+      <p class="source-details__totals">Итого по прогону: {{ overview.technical_totals_ru }}</p>
+      <ul class="source-details__buckets">
+        {% for line in overview.bucket_breakdown_ru %}
+        <li>{{ line }}</li>
+        {% endfor %}
+      </ul>
+    </details>
+  </section>
 </article>
 
 {% set visible_results = search_result.hot_results + search_result.maybe_results %}

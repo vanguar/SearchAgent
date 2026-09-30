@@ -723,7 +723,7 @@ def test_jobs_search_results_route_renders_phase7_partial() -> None:
     assert "Показать вакансии после дедупликации (3)" in response.text
     assert "до фильтров и bucket-ов" in response.text
     assert "Скрыто жёсткими фильтрами: 0" in response.text
-    assert "Источники в текущем запуске" in response.text
+    assert "Источники поиска" in response.text
     assert service.last_source_ids == ("ba",)
     assert service.last_search_input is not None
     assert service.last_search_input.query == "lager"
