@@ -12,15 +12,15 @@ from app.services.ai_tools_profile import (
     match_ai_tools_signals,
 )
 from app.services.employment_signal_extractor import EMPLOYMENT_TYPE_LABELS_RU
-from app.services.filter_engine import FilterEngine
+from app.services.filter_engine import FilterEngine, is_b_only_driving_profile
 from app.services.hashers import normalize_text_for_fingerprint
 from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.profile_parser import (
     DRIVER_B_FERNVERKEHR_ROLE,
     DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
 )
-from app.services.role_family import DRIVING_LIKE_FAMILIES, classify_vacancy_de
-from app.services.rule_catalog import BASE_SCORE, inspect_vacancy
+from app.services.role_family import DRIVING_LIKE_FAMILIES, RoleFamily, classify_vacancy_de
+from app.services.rule_catalog import BASE_SCORE, HOT_BUCKET_MIN_SCORE, inspect_vacancy
 from app.services.search_models import (
     DAILY_COMMUTE_LIMIT_KM,
     FilterResult,
@@ -768,6 +768,34 @@ class VacancyScorer:
                         weight=adj,
                     )
                 )
+
+        # A promising driving snippet is not proof that its critical requirements fit.
+        unknown_license = not (
+            resolved_signals.required_driver_license_categories
+            or resolved_signals.allowed_driver_license_categories
+        )
+        unknown_german = profile.low_german and not (
+            resolved_signals.german_any_required or resolved_signals.strong_german_required
+            or resolved_signals.basic_german_signal or resolved_signals.german_not_required_signal
+            or re.search(r"\bdeutsch\w*(?:\s+\w+){0,3}\s+(?:von vorteil|wunschenswert|optional)\b", resolved_signals.combined_text)
+        )
+        cap_reasons: list[tuple[str, str]] = []
+        unknown_contract = profile.self_employment_ok is False and not (
+            resolved_signals.employed_contract_signal or resolved_signals.employment_types
+            or resolved_signals.requires_self_employment
+        )
+        if (
+            resolved_signals.description_insufficient and is_b_only_driving_profile(profile)
+            and classify_vacancy_de(canonical.normalized_title) is RoleFamily.VEHICLE_LOGISTICS
+            and (unknown_license or unknown_german or unknown_contract)
+        ):
+            cap_reasons.append(("incomplete_requirements_review", "неполное описание: ключевые требования не подтверждены"))
+        if canonical.posted_date and ((today or utc_now().date()) - canonical.posted_date).days > 180:
+            cap_reasons.append(("stale_posting_review", "объявлению больше полугода: актуальность требует проверки"))
+        for code, label in cap_reasons:
+            capped = min(score, HOT_BUCKET_MIN_SCORE - 1)
+            negative_hits.append(RuleHit(code=code, label_ru=label, weight=capped - score))
+            score = capped
 
         # Defensive hard-reject cap for internal/test callers that invoke score() directly
         # without pre-filtering. In the live search path, hard-rejected items are excluded

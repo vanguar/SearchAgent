@@ -40,6 +40,9 @@ class SourceMergeService:
 
             if duplicate_candidate is None:
                 canonical_key = _build_canonical_key(record)
+                if canonical_key in groups_by_key:
+                    # Same title/company/city can still describe distinct employer job IDs.
+                    canonical_key = combine_hash_parts(canonical_key, record.content_fingerprint, record.source_record_key)
                 groups_by_key[canonical_key] = _MutableCanonicalGroup.from_record(record, canonical_key=canonical_key)
                 merge_decisions.append(
                     SourceMergeDecision(
@@ -159,6 +162,7 @@ class _MutableCanonicalGroup:
             title_tokens=self.title_tokens,
             content_tokens=self.content_tokens,
             posted_date=self.posted_date,
+            body_text=max((r.body_text or "" for r in self.source_records), key=len, default=""),
         )
 
     def to_canonical_group(self) -> CanonicalVacancyGroup:

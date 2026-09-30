@@ -19,6 +19,7 @@ from app.services.relevance_memory_service import FeedbackLabel, ProfileFeedback
 from app.services.role_family import (
     RoleFamily,
     classify_query_ru,
+    classify_role_families,
     classify_vacancy_de,
     families_are_compatible,
     is_specific_family,
@@ -27,10 +28,8 @@ from app.services.role_intent import normalize_role_intent
 from app.services.rule_catalog import HOT_BUCKET_MIN_SCORE, MAYBE_BUCKET_MIN_SCORE, inspect_vacancy
 from app.services.scorer import VacancyScorer
 from app.services.search_fallback import (
-    ENOUGH_HOT,
     ENOUGH_NON_REJECTED,
     LOW_LANGUAGE_FALLBACK,
-    MAX_DETERMINISTIC_STAGES,
     MAX_LLM_STAGES,
     get_fallback_keywords,
     get_intent_fallback_keywords,
@@ -67,6 +66,7 @@ from app.services.source_adapters.models import (
     SourceSearchInput,
 )
 from app.services.source_adapters.registry import SourceAdapterRegistry
+from app.services.source_merge import SourceMergeService
 from app.services.summary_service import SummaryService
 from app.services.translation_service import TranslationService
 from app.services.vacancy_processing import VacancyProcessingService
@@ -108,6 +108,13 @@ class _FetchBudget:
     def block(self, source_id: str) -> None:
         with self._lock:
             self._blocked.add(source_id)
+
+    def has_capacity(self, source_ids: Sequence[str]) -> bool:
+        with self._lock:
+            return self._total < 48 and any(
+                source_id not in self._blocked and self._counts[source_id] < 24
+                for source_id in source_ids
+            )
 
 
 class SearchService:
@@ -307,6 +314,7 @@ class SearchService:
             profile=resolved_profile,
             source_states=source_states,
             results=ordered_results,
+            normalized_records=processed.normalized_records,
             hot_results=tuple(result for result in ordered_results if result.bucket == "hot"),
             maybe_results=tuple(result for result in ordered_results if result.bucket == "maybe"),
             rejected_results=tuple(result for result in ordered_results if result.bucket == "rejected"),
@@ -335,7 +343,7 @@ class SearchService:
         stop_event: threading.Event | None = None,
         feedback_memory: ProfileFeedbackMemory | None = None,
     ) -> SearchRunResult:
-        """Run search with staged keyword fallback. Returns the best result with attempt_summary attached."""
+        """Run explicit terms and optional expansion; merge results with attempt metadata."""
         # Города заказа: поле формы читается один раз, дальше и веер, и фильтр,
         # и разбивка выдачи опираются на один и тот же разобранный список.
         search_cities = parse_search_cities(search_input.location)
@@ -421,9 +429,15 @@ class SearchService:
         served_requests: set[str] = set()
         fetch_budget = _FetchBudget()
 
+        def _merge_attempts(results: list[SearchRunResult]) -> SearchRunResult:
+            return self._merge_and_rescore_attempts(
+                results, profile=resolved_profile, search_mode=search_input.search_mode,
+                feedback_memory=feedback_memory,
+            )
+
         def _run_one(query: str, location: str | None) -> SearchRunResult:
             # Attempts are scored deterministically (no LLM). LLM enrichment is applied once,
-            # at the end, to the winning attempt's displayed results only — see _enrich_run_result.
+            # at the end, to the merged displayed results only — see _enrich_run_result.
             return self.search(
                 search_input=dataclasses.replace(
                     search_input,
@@ -462,7 +476,7 @@ class SearchService:
             if not city_results:
                 return _run_one(query, search_input.location)
             return (
-                _merge_search_results_for_worldwide(city_results)
+                _merge_attempts(city_results)
                 if len(city_results) > 1
                 else city_results[0]
             )
@@ -471,8 +485,7 @@ class SearchService:
             return len(r.hot_results) + len(r.maybe_results)
 
         def _is_enough(r: SearchRunResult) -> bool:
-            enough_non_rejected, enough_hot = _early_stop_thresholds(search_input.search_mode)
-            return _non_rejected(r) >= enough_non_rejected and len(r.hot_results) >= enough_hot
+            return _sufficient_canonical_count(r, resolved_profile) >= ENOUGH_NON_REJECTED
 
         def _is_better(a: SearchRunResult, b: SearchRunResult | None) -> bool:
             if b is None:
@@ -515,7 +528,7 @@ class SearchService:
             if partial_result_callback is None or not attempt_results:
                 return
             partial_result = (
-                _merge_search_results_for_worldwide(attempt_results)
+                _merge_attempts(attempt_results)
                 if len(attempt_results) > 1
                 else attempt_results[0]
             )
@@ -536,6 +549,7 @@ class SearchService:
         )
         r0 = _run(effective_primary_query)
         attempt_results.append(r0)
+        accumulated = r0
         primary_sufficient = _is_enough(r0)
         primary_rec = _record(
             r0, "primary", effective_primary_query, False,
@@ -547,7 +561,7 @@ class SearchService:
         _log_attempt_result(primary_rec, resolved_source_ids, profile_id)
         _publish_partial()
 
-        exhaustive_search = True
+        explicit_keywords = {term.strip().casefold() for term in profile_terms}
 
         best_result: SearchRunResult = r0
         # winning_query tracks the query that produced best_result — updated only when best_result is updated
@@ -555,14 +569,23 @@ class SearchService:
         winning_lang_relax = False
 
         # --- Deterministic fallback stages ---
-        deterministic_keywords = (
-            fallback_keywords
-            if exhaustive_search
-            else fallback_keywords[:MAX_DETERMINISTIC_STAGES]
-        )
+        deterministic_keywords = fallback_keywords
         for idx, kw in enumerate(deterministic_keywords, start=1):
             if stop_event is not None and stop_event.is_set():
                 break
+            # The user's complete plan runs first. Only generated expansion is
+            # optional, and sufficiency uses the accumulated deduplicated evidence.
+            if kw.strip().casefold() not in explicit_keywords and _is_enough(accumulated):
+                break
+            if not fetch_budget.has_capacity(resolved_source_ids):
+                break
+            attempt_records[-1] = dataclasses.replace(
+                attempt_records[-1], reason_continued=(
+                    "Выполняются явные поисковые термины профиля."
+                    if kw.strip().casefold() in explicit_keywords
+                    else "Недостаточно уникальных подходящих вакансий; автоматическое расширение."
+                ),
+            )
             stage = f"fallback_{idx}"
             lang_relax = low_language and kw in LOW_LANGUAGE_FALLBACK
             if lang_relax:
@@ -573,13 +596,10 @@ class SearchService:
             )
             r = _run(kw)
             attempt_results.append(r)
-            will_continue = not _is_enough(r) and (
-                idx < len(deterministic_keywords)
-                or (self._llm_client is not None and MAX_LLM_STAGES > 0)
-            )
+            accumulated = _merge_attempts(attempt_results)
             rec = _record(
                 r, stage, kw, lang_relax,
-                "Продолжается расширение поиска." if will_continue else None,
+                None,
                 attempt_num, primary_query,
             )
             attempt_records.append(rec)
@@ -590,12 +610,12 @@ class SearchService:
                 best_result = r
                 winning_query = kw
                 winning_lang_relax = lang_relax
-            if not exhaustive_search and search_input.search_mode != "remote_worldwide" and _is_enough(r):
-                break
 
         # --- LLM-assisted stage (last resort only) ---
         if (
-            (search_input.search_mode == "remote_worldwide" or not _is_enough(best_result))
+            not _is_enough(accumulated)
+            and not (stop_event is not None and stop_event.is_set())
+            and fetch_budget.has_capacity(resolved_source_ids)
             and self._llm_client is not None
             and MAX_LLM_STAGES > 0
             and is_specific_family(query_family)
@@ -612,6 +632,10 @@ class SearchService:
             for llm_kw in llm_kws[:MAX_LLM_STAGES]:
                 if stop_event is not None and stop_event.is_set():
                     break
+                attempt_records[-1] = dataclasses.replace(
+                    attempt_records[-1],
+                    reason_continued="Недостаточно уникальных подходящих вакансий; последний этап расширения.",
+                )
                 lang_relax = low_language
                 if lang_relax:
                     language_relaxation_used = True
@@ -621,6 +645,7 @@ class SearchService:
                 )
                 r = _run(llm_kw)
                 attempt_results.append(r)
+                accumulated = _merge_attempts(attempt_results)
                 rec = _record(r, "llm_1", llm_kw, lang_relax, None, attempt_num, primary_query)
                 attempt_records.append(rec)
                 attempt_num += 1
@@ -635,25 +660,33 @@ class SearchService:
         if winning_lang_relax:
             language_relaxation_used = True
         multiple_attempts = len(attempt_results) > 1
-        result_for_summary = (
-            _merge_search_results_for_worldwide(attempt_results)
-            if exhaustive_search and multiple_attempts
-            else best_result
-        )
-        # Enrich once: only the winning attempt's displayed (hot+maybe) results get LLM
+        result_for_summary = accumulated
+        # Enrich once: only the merged displayed (hot+maybe) results get LLM
         # translation/summaries. Everything above ran deterministically for speed.
         result_for_summary = self._enrich_run_result(result_for_summary)
-        exhaustive_query_label = "all profile queries" if profile_terms else "all planned queries"
+        executed_queries = {attempt.query_used.strip().casefold() for attempt in attempt_records}
+        query_label = (
+            "all profile queries" if profile_terms and explicit_keywords <= executed_queries
+            else "executed queries"
+        )
+        stop_reason = (
+            "cancelled" if stop_event is not None and stop_event.is_set()
+            else "source_budget_or_blocked" if not fetch_budget.has_capacity(resolved_source_ids)
+            else "sufficient_canonical_results" if _is_enough(accumulated) and explicit_keywords <= executed_queries
+            else "queries_exhausted"
+        )
+        attempt_records[-1] = dataclasses.replace(attempt_records[-1], reason_continued=None)
         summary = SearchAttemptSummary(
             primary_query=primary_query,
             final_query_used=(
-                exhaustive_query_label
-                if exhaustive_search and multiple_attempts
+                query_label
+                if multiple_attempts
                 else winning_query
             ),
             fallback_used=fallback_used,
             language_relaxation_used=language_relaxation_used,
             attempts=tuple(attempt_records),
+            stop_reason=stop_reason,
             user_message_ru=(
                 None
                 if primary_sufficient
@@ -671,6 +704,76 @@ class SearchService:
             attempt_summary=summary,
             city_result_groups=_build_city_result_groups(result_for_summary, search_cities),
             unresolved_cities=tuple(city for city in search_cities if not is_german_city_name(city)),
+        )
+
+    def _merge_and_rescore_attempts(
+        self,
+        results: list[SearchRunResult],
+        *,
+        profile: SearchProfileContext,
+        search_mode: str | None,
+        feedback_memory: ProfileFeedbackMemory | None = None,
+    ) -> SearchRunResult:
+        """Deduplicate source evidence across queries/cities before scoring it once."""
+        merged = _merge_search_results_for_worldwide(results)
+        if not all(result.normalized_records or result.total_normalized_records == 0 for result in results):
+            # Legacy callers may provide scored results without source evidence.
+            return merged
+        # Additional terms were explicitly selected too; rescoring must preserve
+        # their intent after the individual query context is no longer available.
+        profile = dataclasses.replace(profile, run_query_terms=tuple(dict.fromkeys(
+            (*profile.run_query_terms, *profile.additional_search_terms)
+        )))
+        records_by_key: dict[tuple[str, str], NormalizedVacancyRecord] = {}
+        for result in results:
+            for record in result.normalized_records:
+                # Different snippets of one source ID can expose different mandatory
+                # requirements. Keep both versions; length alone cannot discard evidence.
+                key = (record.source_record_key, record.content_fingerprint)
+                current = records_by_key.get(key)
+                if current is None or (record.description_complete is True, len(record.body_text or "")) > (
+                    current.description_complete is True, len(current.body_text or "")
+                ):
+                    records_by_key[key] = record
+        records = tuple(records_by_key.values())
+        groups = SourceMergeService().merge_records(records).canonical_groups
+        items: list[SearchResultItem] = []
+        hidden: list[HiddenFilteredItem] = []
+        for group in groups:
+            signals = inspect_vacancy(group, profile)
+            verdict = self.filter_engine.evaluate(group, profile, signals=signals, search_mode=search_mode)
+            if verdict.hard_reject:
+                hidden.append(self._build_hidden_filtered_item(canonical=group, filter_result=verdict))
+                continue
+            source_keys = {r.source_record_key for r in group.source_records}
+            origin = next((item for result in results for item in result.results
+                           if any(r.source_record_key in source_keys for r in item.canonical_group.source_records)), None)
+            item = self._build_result_item(
+                canonical=group, profile=profile, signals=signals, filter_result=verdict,
+                feedback_memory=feedback_memory, search_mode=search_mode, enrich_with_llm=False,
+                search_query=origin.search_query if origin else None,
+            )
+            if item is not None:
+                items.append(dataclasses.replace(item, search_city=origin.search_city if origin else None))
+        ordered = tuple(sorted(items, key=_result_sort_key))
+        query_groups: list[SearchQueryResultGroup] = []
+        for query_group in merged.query_result_groups:
+            source_keys = {r.source_record_key for item in (*query_group.hot_results, *query_group.maybe_results)
+                           for r in item.canonical_group.source_records}
+            members = tuple(item for item in ordered
+                            if any(r.source_record_key in source_keys for r in item.canonical_group.source_records))
+            query_groups.append(dataclasses.replace(
+                query_group, hot_results=tuple(i for i in members if i.bucket == "hot"),
+                maybe_results=tuple(i for i in members if i.bucket == "maybe"),
+            ))
+        return dataclasses.replace(
+            merged, profile=profile, normalized_records=records, results=ordered,
+            hot_results=tuple(i for i in ordered if i.bucket == "hot"),
+            maybe_results=tuple(i for i in ordered if i.bucket == "maybe"),
+            rejected_results=tuple(i for i in ordered if i.bucket == "rejected"),
+            hidden_filtered_items=tuple(hidden), total_canonical_results=len(groups),
+            deduped_preview_items=tuple(_build_dedup_preview_item(g) for g in groups),
+            query_result_groups=tuple(query_groups),
         )
 
     def _llm_suggest_keywords(
@@ -1686,8 +1789,24 @@ def _assign_bucket(*, filter_result: FilterResult, score: int) -> SearchBucket:
     return "rejected"
 
 
-def _early_stop_thresholds(search_mode: str | None) -> tuple[int, int]:
-    return ENOUGH_NON_REJECTED, ENOUGH_HOT
+def _sufficient_canonical_count(result: SearchRunResult, profile: SearchProfileContext) -> int:
+    """Count visible unique matches, never raw rows, hard rejects or contrary families."""
+    families = {family for family in classify_role_families((
+        *profile.desired_roles, *profile.search_query_terms,
+        *profile.additional_search_terms, *profile.run_query_terms,
+    )) if is_specific_family(family)}
+    eligible: set[str] = set()
+    for item in (*result.hot_results, *result.maybe_results):
+        if item.filter_result.hard_reject:
+            continue
+        family = RoleFamily(item.role_family) if item.role_family else RoleFamily.GENERIC
+        if families and is_specific_family(family):
+            if not any(families_are_compatible(wanted, family) for wanted in families):
+                continue
+        elif families and not (item.signals.positive_role_hits or item.signals.desired_role_hits):
+            continue
+        eligible.add(item.canonical_group.canonical_key)
+    return len(eligible)
 
 
 def _apply_explicit_feedback_to_score(

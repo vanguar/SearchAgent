@@ -23,6 +23,7 @@ from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.role_family import (
     RoleFamily,
     classify_role_families,
+    classify_vacancy_de,
     families_are_compatible,
     is_specific_family,
 )
@@ -125,8 +126,9 @@ POSITIVE_ROLE_FAMILIES: tuple[TextRule, ...] = (
         # голое "fahrzeug" стоит и в "Fahrzeugbau" (производство), и в
         # "Fahrzeugtechniker" (автомеханик) — это другая работа.
         patterns=(
-            r"\bfahrzeug(?:uberfuhr|verbring|ruckfuhr|umsetz|logistik|aufbereit|pfleg|rangier)\w*",
+            r"\bfahrzeug(?:uberfuhr|verbring|ruckfuhr|umsetz|logistik|rangier|transfer)\w*",
             r"\buberfuhrungsfahrer\w*",
+            r"\b(?:mietwagen)?uberfuhrer\w*",
             r"\bruckfuhrungsfahrer\w*",
             r"\bumsetzfahrer\w*",
             r"\brangierfahrer\w*",
@@ -137,7 +139,6 @@ POSITIVE_ROLE_FAMILIES: tuple[TextRule, ...] = (
             r"\bhol\s+und\s+bringfahrer\b",
             r"\bhol\s+und\s+bring\s+service\b",
             r"\bautologistik\w*",
-            r"\bautoaufbereit\w*",
             r"\b(?:fahrzeug|auto)transport\w*",
         ),
     ),
@@ -153,6 +154,7 @@ POSITIVE_ROLE_FAMILIES: tuple[TextRule, ...] = (
             r"\bkurier\w*",
             r"\blieferfahrer\w*",
             r"\bkraftfahrer\w*",
+            r"\bfahrzeugfuhrer\w*",
         ),
     ),
 )
@@ -622,7 +624,6 @@ _POSITIVE_ROLE_PROFILE_ALIASES: dict[str, tuple[TextRule, ...]] = {
         ("rangierer", "vehicle_logistics_family"),
         ("umsetzfahrer", "vehicle_logistics_family"),
         ("werkstattfahrer", "vehicle_logistics_family"),
-        ("fahrzeugaufbereit", "vehicle_logistics_family"),
     )
 }
 _NEGATIVE_ROLE_PROFILE_ALIASES: dict[str, tuple[TextRule, ...]] = {
@@ -696,8 +697,18 @@ def _has_analyzable_body(canonical: CanonicalVacancyGroup) -> bool:
 def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileContext) -> VacancySignalSnapshot:
     combined_text = build_combined_text(canonical)
     title_text = build_title_text(canonical)
+    # A specific contrary title outweighs incidental transfer vocabulary in the body.
+    # Mixed transfer/delivery titles still classify as vehicle logistics.
+    title_family = classify_vacancy_de(title_text)
+    role_text = combined_text
+    if (
+        classify_role_families(profile_role_texts(profile)) == frozenset({RoleFamily.VEHICLE_LOGISTICS})
+        and is_specific_family(title_family)
+        and title_family is not RoleFamily.VEHICLE_LOGISTICS
+    ):
+        role_text = title_text
     positive_role_hits = _keep_profile_relevant_role_hits(
-        _match_rules(combined_text, POSITIVE_ROLE_FAMILIES),
+        _match_rules(role_text, POSITIVE_ROLE_FAMILIES),
         profile,
     )
     positive_role_hits_in_title = _keep_profile_relevant_role_hits(
@@ -708,14 +719,14 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
 
     desired_role_hits = _dedupe_hits([
         *_match_profile_roles(
-            combined_text=combined_text,
+            combined_text=role_text,
             raw_roles=profile.desired_roles,
             alias_catalog=_POSITIVE_ROLE_PROFILE_ALIASES,
             fallback_code="desired_role_match",
             fallback_label="совпадает с профилем поиска",
         ),
         *_match_profile_roles(
-            combined_text=combined_text,
+            combined_text=role_text,
             raw_roles=profile.search_query_terms,
             alias_catalog={},
             fallback_code="search_query_term_match",
@@ -738,6 +749,10 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
             fallback_label="совпадает с поисковыми терминами профиля",
         ),
     ])
+    # Generic aliases such as "fahrer" inside "Überführungsfahrer" must not
+    # reintroduce the delivery family that the positive-role gate already removed.
+    desired_role_hits = _keep_profile_relevant_role_hits(desired_role_hits, profile)
+    desired_role_hits_in_title = _keep_profile_relevant_role_hits(desired_role_hits_in_title, profile)
     excluded_role_hits = _match_excluded_profile_roles(
         title_text=title_text,
         combined_text=combined_text,
@@ -820,6 +835,10 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         employment_types=employment_signals.employment_types,
         self_employment_signals=employment_signals.self_employment_signals,
         requires_self_employment=employment_signals.requires_self_employment,
+        employed_contract_signal=bool(employment_signals.employed_contract_signals) or any(
+            isinstance(record.raw_payload, dict) and record.raw_payload.get("contract_type") == "permanent"
+            for record in canonical.source_records
+        ),
         heavy_physical_signals=employment_signals.heavy_physical_signals,
         salary_mentioned=salary_signals.mentioned,
         salary_hourly_eur=salary_signals.hourly_eur,
@@ -910,21 +929,9 @@ def build_vehicle_class_text(canonical: CanonicalVacancyGroup) -> str:
         parts.extend((record.original_title, record.body_text or ""))
         if isinstance(record.raw_payload, dict):
             main_occupation = record.raw_payload.get("hauptberuf")
-            if isinstance(main_occupation, str) and _should_include_main_occupation(
-                main_occupation=main_occupation,
-                vacancy_text="\n".join(part for part in parts if part),
-            ):
+            if isinstance(main_occupation, str):
                 parts.append(main_occupation)
     return "\n".join(part for part in parts if part)
-
-
-def _should_include_main_occupation(*, main_occupation: str, vacancy_text: str) -> bool:
-    vacancy_signals = extract_vehicle_class_signals(vacancy_text)
-    if not vacancy_signals.light_commercial:
-        return True
-
-    occupation_signals = extract_vehicle_class_signals(main_occupation)
-    return occupation_signals.heavy_vehicle != ("Berufskraftfahrer",)
 
 
 def _keep_profile_relevant_role_hits(

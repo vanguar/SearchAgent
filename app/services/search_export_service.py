@@ -160,6 +160,7 @@ def _attempts_section(summary: SearchAttemptSummary | None) -> dict[str, Any] | 
         "fallback_used": summary.fallback_used,
         "language_relaxation_used": summary.language_relaxation_used,
         "user_message_ru": summary.user_message_ru,
+        "stop_reason": summary.stop_reason,
         "attempts": [
             {
                 "attempt_number": attempt.attempt_number,

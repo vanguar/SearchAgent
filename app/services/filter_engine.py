@@ -451,10 +451,6 @@ def _heavy_vehicle_mismatch_hit(
         return None
 
     detected = signals.heavy_vehicle_signals or signals.heavy_driver_qualification_signals
-    if not detected and not signals.light_commercial_vehicle_signals:
-        # Ни одного явного признака грузовика, но и ни одного упоминания лёгкого транспорта:
-        # в этой тишине формальное "Kraftfahrer" читается как грузовик, а не как Sprinter.
-        detected = signals.heavy_vehicle_context_signals
     if not detected:
         return None
 

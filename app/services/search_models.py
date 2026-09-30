@@ -248,6 +248,7 @@ class VacancySignalSnapshot:
     employment_types: tuple[str, ...] = ()
     self_employment_signals: tuple[str, ...] = ()
     requires_self_employment: bool = False
+    employed_contract_signal: bool = False
     heavy_physical_signals: tuple[str, ...] = ()
     salary_mentioned: bool = False
     # Ставка, приведённая к евро в час. None — сумму определить не удалось.
@@ -258,7 +259,7 @@ class VacancySignalSnapshot:
     salary_is_comparable: bool = False
     light_commercial_vehicle_signals: tuple[str, ...] = ()
     heavy_vehicle_signals: tuple[str, ...] = ()
-    # Слабые признаки тяжёлого транспорта: отсекают только при отсутствии сигналов лёгкого.
+    # Общие названия водителя: контекст, который сам по себе не доказывает тяжёлый транспорт.
     heavy_vehicle_context_signals: tuple[str, ...] = ()
     heavy_driver_qualification_signals: tuple[str, ...] = ()
 
@@ -409,6 +410,7 @@ class SearchAttemptSummary:
     language_relaxation_used: bool
     attempts: tuple[SearchAttemptRecord, ...]
     user_message_ru: str | None  # None = primary was sufficient, no explanation needed
+    stop_reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -440,6 +442,7 @@ class SearchRunResult:
     profile: SearchProfileContext
     source_states: tuple[SearchSourceState, ...]
     results: tuple[SearchResultItem, ...]
+    normalized_records: tuple[NormalizedVacancyRecord, ...] = ()
     hot_results: tuple[SearchResultItem, ...] = ()
     maybe_results: tuple[SearchResultItem, ...] = ()
     rejected_results: tuple[SearchResultItem, ...] = ()

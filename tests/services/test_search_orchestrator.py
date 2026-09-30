@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import itertools
+from dataclasses import replace
 from unittest.mock import MagicMock
 
 from app.services.profile_parser import DRIVER_B_FERNVERKEHR_SEARCH_TERMS
@@ -13,6 +14,7 @@ from app.services.search_fallback import (
     is_low_language_profile,
 )
 from app.services.search_models import (
+    FilterResult,
     SearchAttemptSummary,
     SearchProfileContext,
     SearchResultItem,
@@ -53,7 +55,7 @@ def _make_item(bucket: str, index: str = "0") -> SearchResultItem:
         canonical_group=MagicMock(canonical_key=f"{bucket}-{index}"),
         primary_record=MagicMock(),
         signals=MagicMock(matched_search_city=None),
-        filter_result=MagicMock(),
+        filter_result=FilterResult(decision="allow"),
         score_result=MagicMock(),
         bucket=bucket,  # type: ignore[arg-type]
         explanation_ru="",
@@ -231,20 +233,19 @@ def test_is_low_language_profile_one_intermediate() -> None:
 # orchestrated_search — stop conditions
 # ---------------------------------------------------------------------------
 
-def test_primary_sufficient_still_runs_full_planned_query_set() -> None:
-    """Primary success does not stop the full planned search."""
+def test_primary_sufficient_skips_automatic_query_expansion() -> None:
+    """Three or more unique visible matches make automatic expansion unnecessary."""
     good = _make_result(hot=2, maybe=3)
     svc = _make_service([good])
 
     result = svc.orchestrated_search(search_input=_make_search_input("lager"))
 
-    # >= 4: exact count depends on the (now broader) synonym pool; the invariant is that the
-    # full planned set runs (more than just the primary), not a specific number.
-    assert svc.search.call_count >= 4
+    assert svc.search.call_count == 1
     assert result.attempt_summary is not None
     summary: SearchAttemptSummary = result.attempt_summary
-    assert summary.fallback_used
-    assert len(summary.attempts) >= 4
+    assert not summary.fallback_used
+    assert len(summary.attempts) == 1
+    assert summary.stop_reason == "sufficient_canonical_results"
     assert summary.attempts[0].stage_name == "primary"
 
 
@@ -522,17 +523,17 @@ def test_zero_primary_triggers_fallback() -> None:
     assert "lager" in summary.user_message_ru
 
 
-def test_fallback_does_not_stop_when_enough_results() -> None:
-    """A good fallback does not stop the remaining planned queries."""
+def test_automatic_fallback_stops_when_accumulated_results_are_sufficient() -> None:
+    """A successful fallback stops the remaining automatically generated queries."""
     empty = _make_result()
     good = _make_result(hot=2, maybe=3)
     svc = _make_service([empty, good])
 
     result = svc.orchestrated_search(search_input=_make_search_input("lager"))
 
-    assert svc.search.call_count >= 4
+    assert svc.search.call_count == 2
     summary = result.attempt_summary
-    assert len(summary.attempts) >= 4
+    assert len(summary.attempts) == 2
     assert summary.attempts[1].stage_name == "fallback_1"
 
 
@@ -716,9 +717,9 @@ def test_earlier_fallback_wins_summary_reports_its_query() -> None:
     result = svc.orchestrated_search(search_input=_make_search_input("lager"))
 
     summary = result.attempt_summary
-    assert summary.final_query_used == "all planned queries"
+    assert summary.final_query_used == "executed queries"
     assert len(result.hot_results) == 2
-    assert len(result.maybe_results) == 4
+    assert len(result.maybe_results) == 3
 
 
 def test_llm_worse_than_deterministic_does_not_overwrite_summary() -> None:
@@ -734,9 +735,9 @@ def test_llm_worse_than_deterministic_does_not_overwrite_summary() -> None:
     result = svc.orchestrated_search(search_input=_make_search_input("lager"))
 
     summary = result.attempt_summary
-    assert summary.final_query_used == "all planned queries"
+    assert summary.final_query_used == "executed queries"
     assert len(result.hot_results) == 1
-    assert len(result.maybe_results) == 4
+    assert len(result.maybe_results) == 3
 
 
 def test_final_query_used_equals_primary_when_primary_best() -> None:
@@ -749,7 +750,7 @@ def test_final_query_used_equals_primary_when_primary_best() -> None:
     result = svc.orchestrated_search(search_input=_make_search_input("lager"))
 
     summary = result.attempt_summary
-    assert summary.final_query_used == "all planned queries"
+    assert summary.final_query_used == "executed queries"
     assert len(result.maybe_results) == 3
 
 
@@ -820,17 +821,110 @@ def test_review_count_and_rejected_count_match_bucket_counts() -> None:
     assert primary_rec.non_rejected_count == 5  # hot + review
 
 
-def test_primary_attempt_record_reason_none_when_sufficient() -> None:
-    """Primary attempt record has reason_continued=None when it was sufficient."""
+def test_sufficient_attempt_reports_why_explicit_profile_search_continues() -> None:
+    """Sufficient results never skip the user's explicit profile terms."""
     good = _make_result(hot=2, maybe=3)
     svc = _make_service([good])
+    svc.get_profile_context = MagicMock(return_value=_make_profile(search_query_terms=("lager", "lagermitarbeiter")))
 
     result = svc.orchestrated_search(search_input=_make_search_input("lager"))
 
     primary_rec = result.attempt_summary.attempts[0]
     assert primary_rec.stage_name == "primary"
     assert primary_rec.attempt_number == 0
-    assert primary_rec.reason_continued is None
+    assert primary_rec.reason_continued == "Выполняются явные поисковые термины профиля."
+    assert all(attempt.reason_continued for attempt in result.attempt_summary.attempts[:-1])
+    assert result.attempt_summary.attempts[-1].reason_continued is None
+
+
+def test_only_maybe_results_can_satisfy_automatic_expansion():
+    svc = _make_service([_make_result(maybe=3)])
+    result = svc.orchestrated_search(search_input=_make_search_input())
+    assert svc.search.call_count == 1
+    assert result.attempt_summary.stop_reason == "sufficient_canonical_results"
+
+
+def test_explicit_additional_terms_run_before_stopping_auto_tail():
+    svc = _make_service([_make_result(maybe=3)])
+    svc.get_profile_context = MagicMock(return_value=_make_profile(
+        search_query_terms=("lager", "lagermitarbeiter"), additional_search_terms=("kommissionierer",),
+    ))
+    result = svc.orchestrated_search(search_input=_make_search_input())
+    assert [attempt.query_used for attempt in result.attempt_summary.attempts] == [
+        "lager", "lagermitarbeiter", "kommissionierer",
+    ]
+    assert result.attempt_summary.stop_reason == "sufficient_canonical_results"
+
+
+def test_sufficiency_accumulates_canonical_uniques_across_attempts():
+    first = _make_result(maybe=2)
+    svc = _make_service([first, first, _make_result(maybe=1)])
+    result = svc.orchestrated_search(search_input=_make_search_input())
+    assert svc.search.call_count == 3
+    assert len(result.maybe_results) == 3
+    assert result.attempt_summary.stop_reason == "sufficient_canonical_results"
+
+
+def test_repeated_raw_duplicates_never_satisfy_fallback():
+    repeated = replace(_make_result(maybe=1, rejected=20), total_raw_records=1000)
+    svc = _make_service([repeated])
+    result = svc.orchestrated_search(search_input=_make_search_input())
+    assert svc.search.call_count > 3
+    assert len(result.maybe_results) == 1
+    assert result.attempt_summary.stop_reason == "queries_exhausted"
+
+
+def test_hard_rejected_or_other_family_items_do_not_satisfy_fallback():
+    from app.services.search_service import _sufficient_canonical_count
+
+    source = _make_result(maybe=4)
+    wrong_family = tuple(replace(item, role_family="it") for item in source.maybe_results)
+    hard_rejected = tuple(replace(item, filter_result=FilterResult(decision="reject")) for item in source.maybe_results)
+    for items in (wrong_family, hard_rejected):
+        assert _sufficient_canonical_count(replace(source, maybe_results=items), _make_profile()) == 0
+
+
+def test_exported_stop_and_continuation_reasons_match_actual_requests():
+    from app.services.search_export_service import _attempts_section
+
+    svc = _make_service([_make_result(maybe=1), _make_result(maybe=2)])
+    result = svc.orchestrated_search(search_input=_make_search_input())
+    exported = _attempts_section(result.attempt_summary)
+    assert exported["stop_reason"] == "sufficient_canonical_results"
+    assert len(exported["attempts"]) == svc.search.call_count == 2
+    assert "автоматическое расширение" in exported["attempts"][0]["reason_continued"]
+    assert exported["attempts"][-1]["reason_continued"] is None
+
+
+def test_exhausted_source_budget_stops_empty_query_tail_and_reports_it():
+    svc = _make_service([])
+
+    def exhausted(**kwargs):
+        budget = kwargs["fetch_budget"]
+        assert all(budget.consume("ba") for _ in range(24))
+        assert not budget.consume("ba")
+        return _make_result()
+
+    svc.search.side_effect = exhausted
+    result = svc.orchestrated_search(search_input=_make_search_input())
+    assert svc.search.call_count == 1
+    assert result.attempt_summary.stop_reason == "source_budget_or_blocked"
+    assert result.attempt_summary.attempts[-1].reason_continued is None
+
+
+def test_budget_capacity_preserves_overall_limit_and_source_blocking():
+    from app.services.search_service import _FetchBudget
+
+    budget = _FetchBudget()
+    assert all(budget.consume("ba") for _ in range(24))
+    assert not budget.has_capacity(("ba",))
+    assert budget.has_capacity(("ba", "adzuna"))
+    assert all(budget.consume("adzuna") for _ in range(24))
+    assert not budget.has_capacity(("careerjet",))
+    blocked = _FetchBudget()
+    blocked.block("ba")
+    assert not blocked.has_capacity(("ba",))
+    assert blocked.has_capacity(("ba", "adzuna"))
 
 
 def test_primary_attempt_record_reason_set_when_insufficient() -> None:

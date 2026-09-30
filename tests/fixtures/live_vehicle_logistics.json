@@ -1,0 +1,186 @@
+[
+  {
+    "source_id": "ba",
+    "source_name": "BA (Bundesagentur fur Arbeit)",
+    "external_id": "12016-10005467345-S",
+    "source_reference": null,
+    "title": "Kraftfahrzeugführer - Fahrzeugüberführung (m/w/d) 25,54 Euro",
+    "company": "PerZukunft Arbeitsvermittlung GmbH & Co. KG",
+    "location": "13187 Berlin, Deutschland",
+    "posted_at": "2026-09-30",
+    "detail_url": "https://example.org/ba/12016-10005467345-S",
+    "raw_payload": {
+      "hauptberuf": "Kraftfahrzeugführer/in von Baufahrzeugen"
+    },
+    "description_complete": false
+  },
+  {
+    "source_id": "careerjet",
+    "source_name": "Careerjet",
+    "external_id": "cj-f0c8caf613a29c78",
+    "source_reference": null,
+    "title": "Fahrzeugüberführer m/w/d hochwertigen Pkw`s",
+    "company": "perZukunft",
+    "location": "Berlin",
+    "posted_at": "2026-09-19",
+    "detail_url": "https://example.org/careerjet/cj-f0c8caf613a29c78",
+    "raw_payload": {
+      "description": "Ab [sofort] suchen wir für ein bekanntes Autounternehmen, einen qualifizierten <b>Fahrzeugüberführer</b> (m/w/d), der für die Überführung hochwertiger Autos zuständig ist. Sie werden die Autos von den jeweiligen Kunden zur geplanten Route überführen und sie anschließend vom Abholort wieder zum Kunden transportieren. Eingesetzt werden Sie im Raum Berlin und werden für Ihre Leistungen übertariflich entlohnt und erhalten auch Firmenrabatte vom (Unternehmen) ausgestellt.   Ihre Aufgaben als Fahrer (m/w/d):  Be- und Entladen der Ware  Reinigen und Wartung des Fahrzeuges  Überführen der Autos zur geplanten Route  Für eine schnelle und zuverlässige Überführung sorgen    Ihre Qualifikationen als Kraftfahrer (m/w/d):  Sie sind im Besitz der Führerscheinklasse B  Grundkenntnisse vorteilhaft  Schnelligkeit und präzise Arbeitsweise  Sie sind geschickt... im Umgang mit Autos    Referenznummer: 12016-10005358982-S   "
+    },
+    "description_complete": false
+  },
+  {
+    "source_id": "careerjet",
+    "source_name": "Careerjet",
+    "external_id": "cj-066e8bae0fe78f87",
+    "source_reference": null,
+    "title": "Fahrzeugführer - Elektrogeräte (m/w/d) Berlin",
+    "company": "perZukunft",
+    "location": "Berlin",
+    "posted_at": "2026-09-10",
+    "detail_url": "https://example.org/careerjet/cj-066e8bae0fe78f87",
+    "raw_payload": {
+      "description": "Gut, (besser,) PerZukunft! Wir suchen derzeit für ein bekanntes Elektrounternehmen einen <b>Fahrzeugüberführer</b> (m/w/d), der für die Auslieferung von verschiedenen Elektrogeräten zuständig ist wie z. B. Herde, Backöfen, Waschmaschinen und viele weitere Dinge.   Aufgaben:   Ausliefern der Produkte an verschiedene Kunden  Transport der Ware mit dem Firmenfahrzeug  Sie sind für eine zuverlässige Auslieferung zuständig  Pflegen und Reinigen des Fahrzeuges  Flexibilität, Schnelligkeit und Professionalität sprechen für PerZukunft. Bewerben Sie sich bei uns! Wir unterstützen Sie bei der Suche nach einer angemessenen Beschäftigung.    Ihr Anforderungsprofil:   Einen gültigen Führerschein der Klasse B  Grundkenntnisse gerne gesehen  Leistungsbereitschaft  Kommunikations- und Teamfähigkeit    Referenznummer: 12016-10005283829-S   Wir suchen..."
+    },
+    "description_complete": false
+  },
+  {
+    "source_id": "adzuna",
+    "source_name": "Adzuna",
+    "external_id": "5890228465",
+    "source_reference": null,
+    "title": "Fahrzeugüberführer m/w/d hochwertigen Pkw`s",
+    "company": "PerZukunft Arbeitsvermittlung GmbH&Co.KG",
+    "location": "Berlin, Deutschland",
+    "posted_at": "2026-09-19",
+    "detail_url": "https://example.org/adzuna/5890228465",
+    "raw_payload": {
+      "description": "Ab [sofort] suchen wir für ein bekanntes Autounternehmen, einen qualifizierten Fahrzeugüberführer (m/w/d), der für die Überführung hochwertiger Autos zuständig ist. Sie werden die Autos von den jeweiligen Kunden zur geplanten Route überführen und sie anschließend vom Abholort wieder zum Kunden transportieren. Eingesetzt werden Sie im Raum Berlin und werden für Ihre Leistungen übertariflich entlohnt und erhalten auch Firmenrabatte vom (Unternehmen) ausgestellt. ",
+      "contract_time": "full_time"
+    },
+    "description_complete": false
+  },
+  {
+    "source_id": "ba",
+    "source_name": "BA (Bundesagentur fur Arbeit)",
+    "external_id": "12016-10005152242-S",
+    "source_reference": null,
+    "title": "Überführungsfahrer - FS B (m/w/d)",
+    "company": "PerZukunft Arbeitsvermittlung GmbH & Co. KG",
+    "location": "13355 Berlin, Deutschland",
+    "posted_at": "2026-08-24",
+    "detail_url": "https://example.org/ba/12016-10005152242-S",
+    "raw_payload": {
+      "hauptberuf": "Auslieferungsfahrer/in (nicht Verkaufsfahrer/in)"
+    },
+    "description_complete": false
+  },
+  {
+    "source_id": "adzuna",
+    "source_name": "Adzuna",
+    "external_id": "5505362768",
+    "source_reference": null,
+    "title": "Fahrzeugaufbereiter (m/w/d) | Spandau",
+    "company": "Autohaus Dinnebier",
+    "location": "Spandau, Berlin",
+    "posted_at": "2025-11-20",
+    "detail_url": "https://example.org/adzuna/5505362768",
+    "raw_payload": {
+      "description": "Die Unternehmensgruppe Dinnebier sucht zur Festanstellung: Fahrzeugaufbereiter (m/w/d) Spandau Die Unternehmensgruppe DINNEBIER gehört zu den größten Autohandelsgruppen Deutschlands und ist seit über 30 Jahren erfolgreich am Automobilmarkt präsent. An insgesamt 25 Standorten sind wir mit den Marken Opel, Ford, Kia, Suzuki sowie den Premium Marken Land Rover und Jaguar in mehreren Bundesländern vertreten. Einen unbefristeten Arbeitsvertrag. Eine attraktive und leistungsgerechte Entlohnung. Profe…",
+      "contract_time": "full_time"
+    },
+    "description_complete": false
+  },
+  {
+    "source_id": "adzuna",
+    "source_name": "Adzuna",
+    "external_id": "5802957060",
+    "source_reference": null,
+    "title": "Werkstudent Überführungsfahrer (m/w/d)",
+    "company": "Logiston GmbH",
+    "location": "Mitte, Berlin",
+    "posted_at": "2026-07-16",
+    "detail_url": "https://example.org/adzuna/5802957060",
+    "raw_payload": {
+      "description": "Jobbeschreibung: Täg­lich wer­den in ganz Deutsch­land Fahr­zeu­ge über­führt. Grün­de gibt es hier­für ge­nü­gen­de. Zum ei­nen müs­sen Neu­wä­gen zu Ih­ren Be­sit­zern ge­bracht wer­den, bzw. das al­te Fahr­zeug muss zu­rück zum Au­to­händ­ler. Sie als Trans­fer­fah­rer über­neh­men da­bei ge­nau die­se Auf­ga­ben. Sie star­ten im Au­to­haus mit der Fahr­zeug­über­nah­me, schrei­ben ein Pro­to­koll und fah­ren die­ses Fahr­zeug im An­schluss (auf Eig­ner Ach­se) di­rekt zum Kun­den. Beim Kun­…"
+    },
+    "description_complete": false
+  },
+  {
+    "source_id": "adzuna",
+    "source_name": "Adzuna",
+    "external_id": "5752620136",
+    "source_reference": null,
+    "title": "Mitarbeiter/in Fahrzeuglogistik / Fahrzeugüberführung (m/w/d)",
+    "company": "Unique Personalservice GmbH",
+    "location": "Schwerin, Mecklenburg-Vorpommern",
+    "posted_at": "2026-06-05",
+    "detail_url": "https://example.org/adzuna/5752620136",
+    "raw_payload": {
+      "description": "Unser Angebot für dich als Mitarbeiter/in Fahrzeuglogistik / Fahrzeugüberführung (m/w/d) am Einsatzort Schwerin - Sicherheit von Anfang an: Unbefristeter Arbeitsvertrag mit attraktiver Übernahmeoption bei unserem Kunden. - Faire Vergütung: Attraktive und pünktliche Bezahlung, auf die du dich verlassen kannst. - Zusätzliche Leistungen: Urlaubs- und Weihnachtsgeld als wertvolle Extras. - Persönliche Betreuung: Ein fester Ansprechpartner begleitet dich vom ersten Tag an und steht dir jederzeit unt…"
+    },
+    "description_complete": false
+  },
+  {
+    "source_id": "adzuna",
+    "source_name": "Adzuna",
+    "external_id": "5662094411",
+    "source_reference": null,
+    "title": "Fahrer/in für Fahrzeugüberführungen",
+    "company": "Indie Campers",
+    "location": "Berlin, Deutschland",
+    "posted_at": "2026-03-11",
+    "detail_url": "https://example.org/adzuna/5662094411",
+    "raw_payload": {
+      "description": "ÜBER UNS Indie Campers, der führende Marktplatz für Campervans, hat es sich zur Aufgabe gemacht, Roadtrips für alle zugänglich zu machen. Dank seines digitalen Ansatzes und seiner starken Kundenorientierung hat Indie Campers ein überzeugendes Buchungserlebnis sowie hochwertige Roadtrips zu erschwinglichen Preisen entwickelt. Mit über einer Million gebuchten Nächten über unsere Reiseplattform haben wir mehr als 300.000 Reisende aus 169 Ländern willkommen geheißen. Wir bieten ein umfassendes und …",
+      "contract_time": "part_time"
+    },
+    "description_complete": false
+  },
+  {
+    "source_id": "adzuna",
+    "source_name": "Adzuna",
+    "external_id": "5414701817",
+    "source_reference": null,
+    "title": "Fahrzeugaufbereiter (m/w/d) | Wittenberge",
+    "company": "Autohaus Dinnebier",
+    "location": "Wittenberge, Prignitz (Kreis)",
+    "posted_at": "2025-09-26",
+    "detail_url": "https://example.org/adzuna/5414701817",
+    "raw_payload": {
+      "description": "Die Unternehmensgruppe Dinnebier sucht zur Festanstellung: Fahrzeugaufbereiter (m/w/d) Wittenberge Die Unternehmensgruppe DINNEBIER gehört zu den größten Autohandelsgruppen Deutschlands und ist seit über 30 Jahren erfolgreich am Automobilmarkt präsent. An insgesamt 25 Standorten sind wir mit den Marken Opel, Ford, Kia, Suzuki sowie den Premium Marken Land Rover und Jaguar in mehreren Bundesländern vertreten. Einen unbefristeten Arbeitsvertrag. Eine attraktive und leistungsgerechte Entlohnung. P…",
+      "contract_time": "full_time"
+    },
+    "description_complete": false
+  },
+  {
+    "source_id": "ba",
+    "source_name": "BA (Bundesagentur fur Arbeit)",
+    "external_id": "12913-7767db3af6b9a98f-S",
+    "source_reference": null,
+    "title": "Mitarbeiter/in Fahrzeuglogistik / Fahrzeugüberführung (m/w/d)",
+    "company": "Unique Personalservice GmbH NL Schwerin",
+    "location": "19063 Schwerin, Mecklenburg, Mecklenburg Vorpommern, Deutschland",
+    "posted_at": "2026-07-07",
+    "detail_url": "https://example.org/ba/12913-7767db3af6b9a98f-S",
+    "raw_payload": {
+      "hauptberuf": "Servicefahrer/in"
+    },
+    "description_complete": false
+  },
+  {
+    "source_id": "ba",
+    "source_name": "BA (Bundesagentur fur Arbeit)",
+    "external_id": "10000-1207518440-S",
+    "source_reference": null,
+    "title": "Hausmeister (m/w/d)",
+    "company": "Carsten Schürer Fahrservice",
+    "location": "16727 Oberkrämer, Brandenburg, Deutschland",
+    "posted_at": "2026-08-12",
+    "detail_url": "https://example.org/ba/10000-1207518440-S",
+    "raw_payload": {
+      "hauptberuf": "Hausmeister/in"
+    },
+    "description_complete": false
+  }
+]

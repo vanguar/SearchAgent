@@ -65,7 +65,7 @@ class JoobleAdapter(BaseSourceAdapter):
             status_kind="success",
             status_detail=(
                 "REST API Jooble; нужен API key. Ключ страновой: действует для одного "
-                "домена (de.jooble.org, ua.jooble.org), общий хост отдаёт ноль на любой запрос."
+                "домена (de.jooble.org, ua.jooble.org), jooble.org обслуживает рынок США."
             ),
         )
 
@@ -148,12 +148,12 @@ class JoobleAdapter(BaseSourceAdapter):
         if not records and _to_int(payload.get("totalCount")) == 0:
             # Jooble отвечает 200 и пустым телом и на «ничего не нашлось», и на ключ,
             # выданный под другую страну: его API страновой (de.jooble.org, ua.jooble.org),
-            # а общий хост отдаёт ноль на любой запрос. Молчаливый ноль неотличим от
+            # а jooble.org обслуживает рынок США. Молчаливый ноль неотличим от
             # честного пустого поиска, поэтому говорим об этом прямо.
             warnings_out.append(
                 "Jooble ответил без ошибки, но не вернул ни одной вакансии. "
                 f"API Jooble страновой, сейчас используется {self.settings.source_jooble_base_url}. "
-                "Если ноль приходит на любой запрос — ключ выдан под другой домен: "
+                "Для Германии нужны немецкий endpoint и ключ этого домена; "
                 "проверьте SOURCE_JOOBLE_BASE_URL (например https://de.jooble.org/api) и JOOBLE_API_KEY."
             )
         warnings = tuple(warnings_out)

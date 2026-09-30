@@ -85,6 +85,7 @@ class CanonicalVacancySnapshot:
     title_tokens: tuple[str, ...]
     content_tokens: tuple[str, ...]
     posted_date: date | None = None
+    body_text: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

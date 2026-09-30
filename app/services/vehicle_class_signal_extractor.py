@@ -12,8 +12,8 @@ class VehicleClassSignals:
     heavy_vehicle: tuple[str, ...] = ()
     heavy_qualification: tuple[str, ...] = ()
     # Признаки тяжёлого транспорта, которые НЕ являются доказательством сами по себе:
-    # объявление на Sprinter вполне может называть водителя "Kraftfahrer". Их перебивает
-    # любой явный сигнал лёгкого транспорта, поэтому они живут отдельно от heavy_vehicle.
+    # объявление на Sprinter вполне может называть водителя "Kraftfahrer". Сохраняем
+    # контекст, но он не доказывает ограничения C/CE даже при отсутствии слов PKW/B.
     heavy_vehicle_context: tuple[str, ...] = ()
 
 
@@ -31,7 +31,6 @@ _LIGHT_COMMERCIAL_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 )
 
 _HEAVY_VEHICLE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("Berufskraftfahrer", re.compile(r"\bberufskraftfahrer(?:in)?\b")),
     ("LKW", re.compile(r"\b(?:lkw|lastkraftwagen|truck(?:\s+driver)?|trucker)\b")),
     ("Sattelzug", re.compile(r"\bsattel(?:zug(?:maschine)?|auflieger)\w*\b")),
     ("Zugmaschine", re.compile(r"\bzugmaschine\w*\b")),
@@ -74,10 +73,9 @@ _HEAVY_TRUCK_BRAND_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("Renault Trucks", re.compile(r"\brenault\s+trucks?\b")),
 )
 
-# "Kraftfahrer" без приставки "Berufs-" — формальное немецкое название водителя грузовика,
-# но им изредка называют и водителя до 3,5 т. Поэтому сигнал слабый: он отсекает вакансию
-# только тогда, когда в тексте нет ни одного упоминания лёгкого транспорта.
+# Общие названия водителя, включая рубрики агентств и BA, не доказывают класс транспорта.
 _HEAVY_CONTEXT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("Berufskraftfahrer", re.compile(r"\bberufskraftfahrer(?:in)?\b")),
     ("Kraftfahrer", re.compile(r"\bkraftfahrer(?:in)?\b")),
 )
 

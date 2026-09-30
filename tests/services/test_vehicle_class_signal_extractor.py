@@ -4,7 +4,6 @@ from app.services.vehicle_class_signal_extractor import extract_vehicle_class_si
 def test_extracts_heavy_vehicle_signals() -> None:
     cases = (
         ("LKW Fahrer im Fernverkehr", "LKW"),
-        ("Berufskraftfahrer im Fernverkehr", "Berufskraftfahrer"),
         ("Fahrmischerfahrer", "Fahrmischer"),
         ("Fahrer Betonmischer", "Betonmischer"),
         ("Kipperfahrer", "Kipper"),
@@ -140,7 +139,8 @@ def test_light_commercial_evidence_coexists_with_the_weak_signal() -> None:
     assert "Sprinter" in result.light_commercial
 
 
-def test_berufskraftfahrer_stays_a_strong_heavy_signal() -> None:
+def test_berufskraftfahrer_is_context_without_proof_of_heavy_transport() -> None:
     result = extract_vehicle_class_signals("Berufskraftfahrer im Fernverkehr")
 
-    assert "Berufskraftfahrer" in result.heavy_vehicle
+    assert "Berufskraftfahrer" in result.heavy_vehicle_context
+    assert not result.heavy_vehicle

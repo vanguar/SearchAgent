@@ -31,12 +31,14 @@ EMPLOYMENT_FULL_TIME = "full_time"
 EMPLOYMENT_PART_TIME = "part_time"
 EMPLOYMENT_MINI_JOB = "mini_job"
 EMPLOYMENT_TEMPORARY = "temporary"
+EMPLOYMENT_WORKING_STUDENT = "working_student"
 
 EMPLOYMENT_TYPE_LABELS_RU: dict[str, str] = {
     EMPLOYMENT_FULL_TIME: "полная занятость",
     EMPLOYMENT_PART_TIME: "частичная занятость",
     EMPLOYMENT_MINI_JOB: "мини-джоб",
     EMPLOYMENT_TEMPORARY: "временная работа или Zeitarbeit",
+    EMPLOYMENT_WORKING_STUDENT: "работа для студентов (Werkstudent)",
 }
 EMPLOYMENT_TYPE_ORDER: tuple[str, ...] = (
     EMPLOYMENT_FULL_TIME,
@@ -46,6 +48,7 @@ EMPLOYMENT_TYPE_ORDER: tuple[str, ...] = (
 )
 
 _EMPLOYMENT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    (EMPLOYMENT_WORKING_STUDENT, re.compile(r"\bwerkstudent\w*\b|\bworking student\b")),
     (EMPLOYMENT_MINI_JOB, re.compile(r"\bminijob\w*\b|\bmini job\b|\bgeringfugige?\s+beschaftigung\b|\b538\s*euro\s*job\b")),
     (EMPLOYMENT_PART_TIME, re.compile(r"\bteilzeit\w*\b|\bpart time\b|\bstundenweise\b")),
     (EMPLOYMENT_FULL_TIME, re.compile(r"\bvollzeit\w*\b|\bfull time\b|\bganztags\b")),

@@ -145,7 +145,7 @@ class Settings:
     # --- Jooble ---
     source_jooble_enabled: bool = field(default_factory=lambda: _env_bool("SOURCE_JOOBLE_ENABLED", True))
     source_jooble_base_url: str = field(
-        default_factory=lambda: os.getenv("SOURCE_JOOBLE_BASE_URL", "https://jooble.org/api")
+        default_factory=lambda: os.getenv("SOURCE_JOOBLE_BASE_URL", "https://de.jooble.org/api")
     )
     jooble_api_key: str | None = field(default_factory=lambda: os.getenv("JOOBLE_API_KEY"))
 

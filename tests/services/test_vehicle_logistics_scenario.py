@@ -152,7 +152,7 @@ def test_fallback_keywords_stay_inside_vehicle_logistics() -> None:
         ("Fahrer Fahrzeuglogistik", RoleFamily.VEHICLE_LOGISTICS),
         ("PKW-Rangierer", RoleFamily.VEHICLE_LOGISTICS),
         ("Werkstattfahrer", RoleFamily.VEHICLE_LOGISTICS),
-        ("Fahrzeugaufbereiter", RoleFamily.VEHICLE_LOGISTICS),
+        ("Fahrzeugaufbereiter", RoleFamily.CLEANING),
         # Соседние профессии остаются собой: слово "Fahrzeug" само по себе ничего
         # не решает, иначе автомеханик и производство попали бы в перегон.
         ("Kfz-Mechatroniker", RoleFamily.GENERIC),

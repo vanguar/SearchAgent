@@ -845,7 +845,6 @@ def test_driver_b_profile_rejects_heavy_and_specialized_vehicles_without_license
     )
     vacancies = (
         "LKW Fahrer im Fernverkehr",
-        "Berufskraftfahrer im Fernverkehr",
         "Fahrmischerfahrer",
         "Fahrer Betonmischer",
         "Kipperfahrer",
@@ -975,7 +974,7 @@ def test_driver_b_profile_rejects_conflicting_light_and_heavy_vehicle_signals() 
     assert any(hit.code == "heavy_vehicle_mismatch" for hit in result.rejection_hits)
 
 
-def test_driver_b_profile_uses_ba_main_occupation_when_preview_title_is_generic() -> None:
+def test_generic_ba_occupation_does_not_prove_heavy_transport() -> None:
     profile = _build_profile(
         desired_roles=(DRIVER_B_FERNVERKEHR_ROLE,),
         search_query_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
@@ -994,8 +993,8 @@ def test_driver_b_profile_uses_ba_main_occupation_when_preview_title_is_generic(
 
     result = FilterEngine().evaluate(canonical, profile)
 
-    assert result.hard_reject is True
-    assert any(hit.code == "heavy_vehicle_mismatch" for hit in result.rejection_hits)
+    assert result.hard_reject is False
+    assert not any(hit.code == "heavy_vehicle_mismatch" for hit in result.rejection_hits)
 
 
 def test_driver_b_profile_does_not_let_generic_ba_occupation_override_explicit_light_vehicle() -> None:
@@ -1236,12 +1235,8 @@ def test_freelance_writer_is_rejected_for_python_backend_profile_even_with_api_w
     assert any(hit.code == "non_it_writing_title_mismatch" for hit in result.rejection_hits)
 
 
-def test_kraftfahrer_without_light_vehicle_evidence_is_rejected_for_b_only_profile() -> None:
-    """Реальный случай: объявление RW Transporte набирало 93/100 и вставало первым.
-
-    Слова "LKW" в нём нет — грузовик выдают только формальное "Kraftfahrer" и
-    отсутствие любых упоминаний лёгкого транспорта.
-    """
+def test_kraftfahrer_without_light_vehicle_evidence_does_not_prove_heavy_transport() -> None:
+    """Generic occupation and unspecified load do not prove a C/CE requirement."""
     profile = _build_profile(desired_roles=("Курьер", "Водитель"), driver_license="B")
     canonical = _build_canonical(
         title="Kraftfahrer (m/w/d) Fernverkehr Montag-Freitag",
@@ -1253,8 +1248,8 @@ def test_kraftfahrer_without_light_vehicle_evidence_is_rejected_for_b_only_profi
 
     result = FilterEngine().evaluate(canonical, profile)
 
-    assert result.hard_reject
-    assert any(hit.code == "heavy_vehicle_mismatch" for hit in result.rejection_hits)
+    assert not result.hard_reject
+    assert not any(hit.code == "heavy_vehicle_mismatch" for hit in result.rejection_hits)
 
 
 def test_kraftfahrer_with_sprinter_evidence_is_kept_for_b_only_profile() -> None:

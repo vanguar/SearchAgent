@@ -83,7 +83,7 @@ FAMILY_SYNONYMS: dict[RoleFamily, tuple[str, ...]] = {
         "Fahrzeugumsetzer", "Umsetzfahrer", "PKW-Rangierer", "Rangierfahrer",
         "Fahrzeuglogistik", "Mitarbeiter Fahrzeuglogistik", "Fahrer Fahrzeuglogistik",
         "Werkstattfahrer", "Fahrer Hol- und Bringservice", "Fahrzeugrückführung",
-        "Fahrer Autovermietung", "Fahrzeugaufbereiter",
+        "Fahrer Autovermietung",
     ),
     RoleFamily.CLEANING: (
         "reinigungskraft", "gebäudereiniger", "raumpfleger", "reinigung", "unterhaltsreinigung",
@@ -214,12 +214,11 @@ ROLE_SYNONYMS_DE: dict[str, tuple[str, ...]] = {
 # bounds runtime while still covering the realistic synonym space for a profession.
 _MAX_FALLBACK_KEYWORDS: int = 12
 
-MAX_DETERMINISTIC_STAGES: int = 2
 MAX_LLM_STAGES: int = 1
 
-# Stop condition: at least N non-rejected AND at least M hot
+# Stop condition: at least N unique, visible, relevant canonical vacancies.
+# A reviewable snippet need not be HOT to make automatic expansion unnecessary.
 ENOUGH_NON_REJECTED: int = 3
-ENOUGH_HOT: int = 1
 
 
 def get_fallback_keywords(

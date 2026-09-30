@@ -50,7 +50,7 @@ def test_freshness_penalty_grows_with_age() -> None:
 
     assert penalty(20) == -4
     assert penalty(45) == -8
-    assert penalty(120) == -12
+    assert penalty(120) == -18
     # Монотонность: чем старше, тем хуже, без провалов.
     assert penalty(20) > penalty(45) > penalty(120)
 
@@ -128,7 +128,7 @@ def test_band_is_skewed_downwards() -> None:
     best_total = sum(hit.weight for hit in best)
     worst_total = sum(hit.weight for hit in worst)
     assert best_total == 8
-    assert worst_total == -15
+    assert worst_total == -29
     # Вниз полоса должна тянуться заметно сильнее, чем вверх.
     assert abs(worst_total) > best_total
 

@@ -26,7 +26,7 @@ class RoleFamily(str, Enum):
     HEALTHCARE = "healthcare"
     DRIVING = "driving"
     # Автомобильная логистика: перегон и перестановка автомобилей, работа на
-    # площадке автологистического центра, подготовка машин. Отдельно от DRIVING,
+    # площадке автологистического центра. Отдельно от DRIVING,
     # потому что это НЕ дорожные перевозки груза: транспорт здесь — сам товар, а
     # не средство доставки, и требования к вакансии другие (категория B, а не C/CE).
     VEHICLE_LOGISTICS = "vehicle_logistics"
@@ -91,7 +91,7 @@ _QUERY_RU_TOKENS: list[tuple[RoleFamily, tuple[str, ...]]] = [
     )),
     (RoleFamily.HEALTHCARE, ("медсестра", "медицин", "санитар", "сиделк")),
     (RoleFamily.KITCHEN, ("повар", "кухн", "кухон", "официант", "гастроном", "ресторан")),
-    (RoleFamily.CLEANING, ("уборщик", "уборк", "клинер")),
+    (RoleFamily.CLEANING, ("уборщик", "уборк", "клинер", "подготовка автомобил", "предпродажная подготовка")),
     (RoleFamily.AGRICULTURE, ("сельск", "садовник", "агроном")),
     (RoleFamily.SECURITY, ("охранник", "секьюрити")),
     (RoleFamily.OFFICE, ("бухгалтер", "секретарь", "офис-менеджер", "делопроизводств")),
@@ -101,7 +101,6 @@ _QUERY_RU_TOKENS: list[tuple[RoleFamily, tuple[str, ...]]] = [
     (RoleFamily.VEHICLE_LOGISTICS, (
         "перегон", "перегонщик", "перегін", "переганя",
         "автологистик", "автологістик", "автовоз",
-        "подготовка автомобил", "предпродажная подготовка",
     )),
     (RoleFamily.DRIVING, ("водитель", "курьер", "доставк", "развоз")),
     (RoleFamily.CONSTRUCTION, (
@@ -155,14 +154,12 @@ _TITLE_DE_TOKENS: list[tuple[RoleFamily, tuple[str, ...]]] = [
         # Только в связке с ролью: голое "autovermietung" — это отрасль
         # работодателя, и "Sachbearbeiter Autovermietung" остаётся офисной работой.
         "fahrer autovermietung", "mitarbeiter autovermietung",
-        "fahrzeugaufbereiter", "fahrzeugaufbereitung", "fahrzeugpfleger", "fahrzeugpflege",
-        "autoaufbereiter", "autoaufbereitung",
-        "fahrzeugtransport", "autotransport", "fahrzeugzustellung",
+        "fahrzeugtransport", "autotransport", "fahrzeugzustellung", "fahrzeugtransfer", "uberfuhrer",
     )),
     (RoleFamily.DRIVING, (
         "kraftfahrer", "lieferfahrer", "zusteller", "kurier",
         "delivery driver", "truck driver", "van driver", "courier", "chauffeur",
-        "fahrpersonal", "fahrdienst", "auslieferung",
+        "fahrpersonal", "fahrdienst", "auslieferung", "fahrzeugfuhrer",
         "fahrer",  # short token after compound forms
         "driver",  # English counterpart of the short token above
     )),
@@ -176,6 +173,7 @@ _TITLE_DE_TOKENS: list[tuple[RoleFamily, tuple[str, ...]]] = [
         "koch",  # short token listed after compound forms
     )),
     (RoleFamily.CLEANING, (
+        "fahrzeugaufbereit", "fahrzeugpfleg", "autoaufbereit",
         "reinigungskraft", "hausreinigung", "reinigung", "housekeeping",
     )),
     (RoleFamily.AGRICULTURE, ("landwirtschaft", "gartner", "ernte", "garten")),

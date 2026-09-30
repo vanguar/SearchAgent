@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import re
 from datetime import date
 
 from app.services.geo_distance import canonical_city, is_known_place
-from app.services.hashers import token_similarity
+from app.services.hashers import normalize_text_for_fingerprint, token_similarity
 from app.services.normalization_models import (
     CanonicalVacancySnapshot,
     DuplicateCandidate,
@@ -62,9 +63,24 @@ class VacancyDeduper:
         # и в Муггенстурме (700 км) склеивались в одну карточку, и одна из двух
         # реальных вакансий просто исчезала из выдачи.
         locations_conflict = _locations_conflict(record, candidate)
+        left_refs = _employer_references(record.body_text)
+        right_refs = _employer_references(candidate.body_text)
+        references_conflict = bool(left_refs and right_refs and left_refs.isdisjoint(right_refs))
+        # A shortened agency name is safe only with independent textual evidence.
+        agency_duplicate = (
+            title_similarity >= 0.95 and location_match and posting_date_close
+            and _agency_names_match(record.normalized_company, candidate.normalized_company)
+            and (
+                bool(left_refs & right_refs)
+                or _matching_description_prefix(record.body_text, candidate.body_text)
+            )
+        )
+        if agency_duplicate:
+            reason_codes.append("agency_alias_with_content_evidence")
 
-        is_duplicate = not locations_conflict and (
-            (
+        is_duplicate = not locations_conflict and not references_conflict and (
+            agency_duplicate
+            or (
                 title_similarity >= 0.82
                 and company_match
                 and (location_match or content_similarity >= 0.58)
@@ -87,6 +103,34 @@ class VacancyDeduper:
             posting_date_close=posting_date_close,
             reason_codes=tuple(reason_codes or ("no_safe_duplicate_signal",)),
         )
+
+
+_REFERENCE_RE = re.compile(
+    r"\b(?:referenznummer|referenz\s*nr\.?|reference\s*(?:number|id)|job\s*id)\s*[:#]?\s*([a-z0-9][a-z0-9/-]{5,})",
+    re.IGNORECASE,
+)
+
+
+def _employer_references(body: str | None) -> set[str]:
+    return {match.casefold() for match in _REFERENCE_RE.findall(body or "")}
+
+
+def _agency_names_match(left: str | None, right: str | None) -> bool:
+    descriptors = {"arbeitsvermittlung", "personalvermittlung", "personaldienstleistungen"}
+    if not left or not right:
+        return False
+
+    def core(value: str) -> tuple[str, ...]:
+        return tuple(token for token in value.split() if token not in descriptors)
+
+    return core(left) == core(right) and bool(core(left))
+
+
+def _matching_description_prefix(left: str | None, right: str | None) -> bool:
+    short, long = sorted((normalize_text_for_fingerprint(left), normalize_text_for_fingerprint(right)), key=len)
+    # Ignore the final possibly truncated word, but require a substantial exact passage.
+    prefix = short.rsplit(" ", 1)[0]
+    return len(prefix) >= 200 and len(prefix.split()) >= 30 and long.startswith(prefix + " ")
 
 
 # Слова и обрывки, которые в заголовке вакансии никогда не описывают роль:

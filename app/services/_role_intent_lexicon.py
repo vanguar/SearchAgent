@@ -166,7 +166,7 @@ ROLE_INTENT_MAP: dict[str, RoleIntent] = {
         "vehicle logistics",
     ),
     "подготовка автомобилей": RoleIntent(
-        RoleFamily.VEHICLE_LOGISTICS, "Fahrzeugaufbereiter",
+        RoleFamily.CLEANING, "Fahrzeugaufbereiter",
         ("Fahrzeugaufbereitung", "Fahrzeugpfleger", "Autoaufbereiter"),
         "vehicle detailer",
     ),
@@ -241,11 +241,11 @@ ROLE_INTENT_MAP: dict[str, RoleIntent] = {
         ("Fahrzeugumsetzer", "Umsetzfahrer", "Fahrzeugaufbereiter"), "rental fleet driver",
     ),
     "fahrzeugaufbereiter": RoleIntent(
-        RoleFamily.VEHICLE_LOGISTICS, "Fahrzeugaufbereiter",
+        RoleFamily.CLEANING, "Fahrzeugaufbereiter",
         ("Fahrzeugaufbereitung", "Fahrzeugpfleger", "Autoaufbereiter"), "vehicle detailer",
     ),
     "fahrzeugpfleger": RoleIntent(
-        RoleFamily.VEHICLE_LOGISTICS, "Fahrzeugpfleger",
+        RoleFamily.CLEANING, "Fahrzeugpfleger",
         ("Fahrzeugaufbereiter", "Fahrzeugaufbereitung", "Autoaufbereiter"), "vehicle detailer",
     ),
 
