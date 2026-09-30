@@ -1,0 +1,16 @@
+{#
+  Кнопки формы профиля. Липнут к низу окна: форма длинная, и возвращаться за
+  кнопкой к её концу после правки одного поля незачем. Подпись главной кнопки
+  задаёт страница — создание и правка называются по-разному.
+#}
+{% macro form_actions(submit_label) %}
+<div class="pf-actions">
+  <div class="pf-actions__inner">
+    <p class="pf-actions__note">Любое поле можно оставить пустым.</p>
+    <div class="pf-actions__buttons">
+      <a class="btn btn--outline" href="/profile">Отмена</a>
+      <button type="submit" class="btn btn--dark">{{ submit_label }}</button>
+    </div>
+  </div>
+</div>
+{% endmacro %}

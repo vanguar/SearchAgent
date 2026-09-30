@@ -1,129 +1,196 @@
 {% extends "base.html" %}
 {% from "profile/partials/profile_card.html" import render_profile_card %}
+{% from "profile/partials/field_state.html" import filled_flag %}
 
 {% block content %}
-{% if profile_entries %}
-<div class="profiles-list">
-  {% for entry in profile_entries %}
-  {{ render_profile_card(entry) }}
-  {% endfor %}
-</div>
-{% else %}
-<div class="profiles-empty">
-  <p>Профилей пока нет. Создайте первый профиль, чтобы запускать поиск по своим ролям и регионам.</p>
-</div>
-{% endif %}
-
-<div class="pcard-new-row">
-  <a class="pcard-new" href="/profile/new">
-    <span class="pcard-new__plus" aria-hidden="true">+</span> Новый профиль поиска
-  </a>
-  {#
-    Два пути к одному результату: заполнить поля или рассказать свободным текстом.
-    Второй остаётся — он проще для тех, кто не хочет разбираться в полях.
-  #}
-  <a class="pcard-new pcard-new--muted" href="/profile/intake">
-    <span class="pcard-new__plus" aria-hidden="true">✎</span> Описать словами
-  </a>
-</div>
-
-<section class="profiles-home">
-  <div class="profiles-notify__head">
-    <h3>Язык и статус</h3>
-    <p class="muted">
-      Относится к вам, а не к отдельному поиску, поэтому задаётся один раз и
-      действует во всех профилях. Пустое поле означает «не указано»: поиск тогда
-      не утверждает ни что язык есть, ни что его нет.
-    </p>
+{#
+  Ширина рабочей области та же, что у формы профиля: страницы одного раздела не
+  должны расходиться по ширине строки.
+#}
+<div class="pf-page">
+  {% if profile_entries %}
+  <div class="profiles-list">
+    {% for entry in profile_entries %}
+    {{ render_profile_card(entry) }}
+    {% endfor %}
   </div>
-  <form method="post" action="/profile/languages" class="pform pform--inline">
-    {% set levels = ['', 'none', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'] %}
-    <div class="pform-field">
-      <label class="pform-label" for="up-german">Немецкий</label>
-      <select id="up-german" name="german_level">
-        {% for level in levels %}
-        <option value="{{ level }}"
-          {% if user_profile is not none and (user_profile.german_level or '') == level %}selected{% endif %}>
-          {% if level == '' %}Не указано{% elif level == 'none' %}Не знаю совсем{% else %}{{ level }}{% endif %}
-        </option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="pform-field">
-      <label class="pform-label" for="up-english">Английский</label>
-      <select id="up-english" name="english_level">
-        {% for level in levels %}
-        <option value="{{ level }}"
-          {% if user_profile is not none and (user_profile.english_level or '') == level %}selected{% endif %}>
-          {% if level == '' %}Не указано{% elif level == 'none' %}Не знаю совсем{% else %}{{ level }}{% endif %}
-        </option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="pform-field">
-      <label class="pform-label" for="up-legal">Правовой статус</label>
-      <input id="up-legal" name="legal_status" type="text"
-             value="{{ user_profile.legal_status if user_profile is not none and user_profile.legal_status else '' }}"
-             placeholder="Например: §24" />
-    </div>
-    <button type="submit" class="btn btn--outline">Сохранить</button>
-  </form>
-</section>
-
-<section class="profiles-home">
-  <div class="profiles-notify__head">
-    <h3>Место жительства</h3>
-    <p class="muted">
-      От этого города считается дорога до работы: вакансии ближе к дому получают
-      более высокий балл. Указывайте город или посёлок в Германии.
-    </p>
+  {% else %}
+  <div class="profiles-empty">
+    <p>Профилей пока нет. Создайте первый профиль, чтобы запускать поиск по своим ролям и регионам.</p>
   </div>
-  <form method="post" action="/profile/home-city" class="inline-form">
-    <input
-      type="text"
-      name="home_city"
-      value="{{ home_city or '' }}"
-      placeholder="например, Tribsees"
-      aria-label="Город проживания"
-    />
-    <button type="submit" class="btn btn--outline">Сохранить</button>
-  </form>
-  {% if not home_city %}
-  <p class="muted top-gap">
-    Пока город не указан, расстояние до вакансии не учитывается в баллах.
-  </p>
   {% endif %}
-</section>
 
-<section class="profiles-notify">
-  <div class="profiles-notify__head">
-    <h3>Уведомления</h3>
-    <p class="muted">Отправить дайджест по активному профилю вручную.</p>
+  <div class="pcard-new-row">
+    <a class="pcard-new" href="/profile/new">
+      <span class="pcard-new__plus" aria-hidden="true">+</span> Новый профиль поиска
+    </a>
+    {#
+      Два пути к одному результату: заполнить поля или рассказать свободным текстом.
+      Второй остаётся — он проще для тех, кто не хочет разбираться в полях.
+    #}
+    <a class="pcard-new pcard-new--muted" href="/profile/intake">
+      <span class="pcard-new__plus" aria-hidden="true">✎</span> Описать словами
+    </a>
   </div>
-  <div class="profiles-notify__actions">
-    <form
-      method="post"
-      action="/notifications/trigger/telegram"
-      hx-post="/notifications/trigger/telegram"
-      hx-target="#notif-feedback"
-      hx-swap="innerHTML"
-      class="inline-form"
-    >
-      <button type="submit" class="btn btn--outline">Отправить в Telegram</button>
-    </form>
-    <form
-      method="post"
-      action="/notifications/trigger/email"
-      hx-post="/notifications/trigger/email"
-      hx-target="#notif-feedback"
-      hx-swap="innerHTML"
-      class="inline-form"
-    >
-      <button type="submit" class="btn btn--outline">Отправить на Email</button>
-    </form>
-  </div>
-  <div id="notif-feedback" class="top-gap"></div>
-</section>
+
+  {#
+    Ниже — то, что относится к человеку, а не к отдельному поиску. Заголовок
+    группы говорит это один раз, поэтому в каждой карточке объяснение уже не
+    повторяется: подробность живёт маленькой подсказкой у своего поля.
+  #}
+  <section class="pf-shared" aria-labelledby="shared-settings-title">
+    <header class="pf-shared__head">
+      <h3 class="pf-shared__title" id="shared-settings-title">Общие данные</h3>
+      <p class="pf-shared__note">Используются во всех поисковых профилях.</p>
+    </header>
+
+    <div class="pf-shared__grid">
+      <article class="pf-card pf-card--wide">
+        <header class="pf-card__head">
+          <h4 class="pf-card__title">Язык и правовой статус</h4>
+          {% if saved_block == 'languages' %}
+          <p class="pf-saved" role="status">
+            <span aria-hidden="true">✓</span> Сохранено
+          </p>
+          {% endif %}
+        </header>
+        {#
+          Те же состояния полей, что и в форме профиля поиска: заданный уровень
+          языка видно, не вчитываясь в значение. Здесь живут единственные в этих
+          формах настоящие select, и они же — причина, по которой «не указано»
+          определяется только пустым value: `none` в списке уровней значит «не
+          знаю совсем», то есть сказанный человеком ответ, а не его отсутствие.
+        #}
+        <form method="post" action="/profile/languages" class="pf-form" data-pf-form>
+          <div class="pf-grid pf-grid--three">
+            {% set levels = ['', 'none', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'] %}
+            {% for field_id, field_name, field_label, current in [
+              ('up-german', 'german_level', 'Немецкий',
+               user_profile.german_level if user_profile is not none else none),
+              ('up-english', 'english_level', 'Английский',
+               user_profile.english_level if user_profile is not none else none),
+            ] %}
+            {% set filled = (current or '') != '' %}
+            <div class="pf-field{{ ' is-filled' if filled }}"
+                 data-pf-field data-pf-kind="select"
+                 data-pf-state="{{ 'filled' if filled else 'empty' }}">
+              <div class="pf-field__head">
+                <label class="pf-label" for="{{ field_id }}">{{ field_label }}</label>
+                {{ filled_flag() }}
+              </div>
+              <select class="pf-input pf-select" id="{{ field_id }}" name="{{ field_name }}">
+                {% for level in levels %}
+                <option value="{{ level }}" {% if (current or '') == level %}selected{% endif %}>
+                  {% if level == '' %}Не указано{% elif level == 'none' %}Не знаю совсем{% else %}{{ level }}{% endif %}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endfor %}
+
+            {#
+              Правовой статус хранится каноническим кодом (section_24 и подобные) —
+              его пишет разбор интейка, и на него смотрят правила поиска. В списке
+              стоят подписи, а отправляется тот же код: показывать человеку
+              «section_24» нельзя, а менять то, что лежит в базе, незачем.
+            #}
+            {% set legal = (user_profile.legal_status if user_profile is not none and user_profile.legal_status else '') %}
+            {% set legal_known = legal and legal|lower in legal_status_labels %}
+            <div class="pf-field{{ ' is-filled' if legal }}"
+                 data-pf-field data-pf-kind="select"
+                 data-pf-state="{{ 'filled' if legal else 'empty' }}">
+              <div class="pf-field__head">
+                <label class="pf-label" for="up-legal">Правовой статус</label>
+                {{ filled_flag() }}
+              </div>
+              <select class="pf-input pf-select" id="up-legal" name="legal_status">
+                <option value="" {% if not legal %}selected{% endif %}>Не указано</option>
+                {% if legal and not legal_known %}
+                {# Своими словами записанный статус остаётся как есть. #}
+                <option value="{{ legal }}" selected>{{ legal_status_label(legal) }}</option>
+                {% endif %}
+                {% for code, label in legal_status_labels.items() %}
+                <option value="{{ code }}" {% if legal|lower == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="pf-card__actions">
+            <p class="pf-hint">
+              Пустое поле — «не указано»: поиск тогда не утверждает ни что язык
+              есть, ни что его нет.
+            </p>
+            <button type="submit" class="btn btn--dark">Сохранить</button>
+          </div>
+        </form>
+      </article>
+
+      <article class="pf-card">
+        <header class="pf-card__head">
+          <h4 class="pf-card__title">Место жительства</h4>
+          {% if saved_block == 'home-city' %}
+          <p class="pf-saved" role="status">
+            <span aria-hidden="true">✓</span> Сохранено
+          </p>
+          {% endif %}
+        </header>
+        <form method="post" action="/profile/home-city" class="pf-form" data-pf-form>
+          <div class="pf-field{{ ' is-filled' if home_city }}"
+               data-pf-field data-pf-kind="text"
+               data-pf-state="{{ 'filled' if home_city else 'empty' }}">
+            <div class="pf-field__head">
+              <label class="pf-label" for="up-home-city">Город проживания</label>
+              {{ filled_flag() }}
+            </div>
+            <div class="pf-inline">
+              <input class="pf-input" id="up-home-city" name="home_city" type="text"
+                     value="{{ home_city or '' }}" placeholder="например, Tribsees" />
+              <button type="submit" class="btn btn--dark">Сохранить</button>
+            </div>
+            <p class="pf-hint">
+              {% if home_city %}
+              Отсюда считается дорога до работы во всех профилях.
+              {% else %}
+              Пока город не указан, расстояние до вакансии не учитывается в баллах.
+              {% endif %}
+            </p>
+          </div>
+        </form>
+      </article>
+
+      <article class="pf-card">
+        <header class="pf-card__head">
+          <h4 class="pf-card__title">Уведомления</h4>
+        </header>
+        <p class="pf-hint">Отправить дайджест по активному профилю вручную.</p>
+        <div class="pf-card__actions pf-card__actions--start">
+          <form
+            method="post"
+            action="/notifications/trigger/telegram"
+            hx-post="/notifications/trigger/telegram"
+            hx-target="#notif-feedback"
+            hx-swap="innerHTML"
+            class="inline-form"
+          >
+            <button type="submit" class="btn btn--outline">Telegram</button>
+          </form>
+          <form
+            method="post"
+            action="/notifications/trigger/email"
+            hx-post="/notifications/trigger/email"
+            hx-target="#notif-feedback"
+            hx-swap="innerHTML"
+            class="inline-form"
+          >
+            <button type="submit" class="btn btn--outline">Email</button>
+          </form>
+        </div>
+        <div id="notif-feedback"></div>
+      </article>
+    </div>
+  </section>
+</div>
 
 {% include "partials/section_hint_loader.html" %}
 {% endblock %}

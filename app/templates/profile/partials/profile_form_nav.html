@@ -1,0 +1,28 @@
+{#
+  Шапка формы профиля: сколько параметров задано и быстрый переход по разделам.
+
+  Счётчик спрятан атрибутом `hidden` и показывается скриптом: считать заполненное
+  он умеет только по уже расставленным классам `is-filled`, и показывать «0 из 0»
+  там, где скрипт не выполнился, — хуже, чем не показывать ничего. Сама форма от
+  счётчика не зависит: это обратная связь, а не шаг обязательного заполнения.
+#}
+<div class="pf-topbar">
+  <div class="pf-progress" data-pf-progress hidden>
+    <div class="pf-progress__track" aria-hidden="true">
+      <span class="pf-progress__fill" data-pf-progress-fill style="width: 0%"></span>
+    </div>
+    <p class="pf-progress__label" aria-live="polite">
+      <strong data-pf-progress-filled>0</strong> из <span data-pf-progress-total>0</span>
+      параметров указано
+    </p>
+  </div>
+
+  <nav class="pf-nav" aria-label="Разделы профиля">
+    <a class="pf-nav__link" href="#pf-sec-basic" data-pf-nav>Основное</a>
+    <a class="pf-nav__link" href="#pf-sec-roles" data-pf-nav>Роли</a>
+    <a class="pf-nav__link" href="#pf-sec-geo" data-pf-nav>География</a>
+    <a class="pf-nav__link" href="#pf-sec-terms" data-pf-nav>Условия</a>
+    <a class="pf-nav__link" href="#pf-sec-transport" data-pf-nav>Транспорт</a>
+    <a class="pf-nav__link" href="#pf-sec-notes" data-pf-nav>Заметки</a>
+  </nav>
+</div>

@@ -3,24 +3,31 @@
   у них одни и те же, и если бы форм было две, поле, добавленное в одну, молча не
   работало бы в другой.
 
-  `profile` = None означает создание нового профиля.
+  `profile` = None означает создание нового профиля. На неудачном сохранении сюда
+  приходит разобранная форма — у неё те же имена полей, поэтому введённое не
+  теряется.
 
   Везде, где есть состояние «Не указано», оно стоит первым и означает именно
   «не указано»: правила поиска отличают его от «нет», и подменять одно другим нельзя.
+  В разметке это ВСЕГДА пустое value — на этом соглашении держится определение
+  заполненности и на сервере, и в браузере.
+
+  Разметка любого поля одинакова, и это не случайно: состояние поля считает один
+  общий механизм, а не код на каждое поле по отдельности.
+
+      <div class="pf-field is-filled" data-pf-field data-pf-kind="…" data-pf-state="filled">
+
+  * `data-pf-field` — за что цепляется общий обработчик;
+  * `data-pf-kind`  — по какому правилу считать заполненность (text/select/choice/checkbox);
+  * `is-filled`     — класс, которым рисуется заполненное состояние;
+  * `data-pf-state` — то же состояние машиночитаемо: empty / filled / error.
+
+  Начальное состояние ставит сервер, поэтому у открытого на правку профиля
+  заданные параметры подсвечены сразу, до любого взаимодействия и без JS.
+  Дальше то же самое поле на ходу переставляет profile-form.js.
 #}
+{% from "profile/partials/field_state.html" import filled_flag %}
 {% set p = profile %}
-{% macro tri(name, label, hint='') %}
-  {% set value = p[name] if p is not none else none %}
-  <div class="pform-field">
-    <label class="pform-label" for="pf-{{ name }}">{{ label }}</label>
-    <select id="pf-{{ name }}" name="{{ name }}">
-      <option value="" {% if value is none %}selected{% endif %}>Не указано</option>
-      <option value="true" {% if value is sameas true %}selected{% endif %}>Да</option>
-      <option value="false" {% if value is sameas false %}selected{% endif %}>Нет</option>
-    </select>
-    {% if hint %}<p class="pform-hint">{{ hint }}</p>{% endif %}
-  </div>
-{% endmacro %}
 
 {% set roles = (p.desired_roles if p is not none and p.desired_roles else []) %}
 {% set cities = (p.preferred_locations if p is not none and p.preferred_locations else []) %}
@@ -29,180 +36,321 @@
 {% set excluded = (p.excluded_roles if p is not none and p.excluded_roles else []) %}
 {% set chosen_employment = (p.employment_types if p is not none and p.employment_types else []) %}
 
-<fieldset class="pform-group">
-  <legend class="pform-legend">Название</legend>
-  <div class="pform-field">
-    <label class="pform-label" for="pf-name">Название профиля</label>
-    <input id="pf-name" name="name" type="text" required
-           value="{{ p.name if p is not none else '' }}"
-           placeholder="Например: Перегон автомобилей" />
-    <p class="pform-hint">Видно только вам — чтобы отличать профили друг от друга.</p>
+{% macro text_field(name, label, value, hint='', placeholder='', required=false, wide=false) %}
+{% set filled = (value is not none) and (value | string | trim) != '' %}
+<div class="pf-field{{ ' pf-field--wide' if wide }}{{ ' is-filled' if filled }}"
+     data-pf-field data-pf-kind="text" data-pf-state="{{ 'filled' if filled else 'empty' }}">
+  <div class="pf-field__head">
+    <label class="pf-label" for="pf-{{ name }}">{{ label }}</label>
+    {{ filled_flag() }}
   </div>
-</fieldset>
+  <input class="pf-input" id="pf-{{ name }}" name="{{ name }}" type="text"
+         value="{{ value if value is not none else '' }}"
+         placeholder="{{ placeholder }}"
+         {% if required %}required aria-required="true"{% endif %} />
+  <p class="pf-field__error" data-pf-error hidden></p>
+  {% if hint %}<p class="pf-hint">{{ hint }}</p>{% endif %}
+</div>
+{% endmacro %}
 
-<fieldset class="pform-group">
-  <legend class="pform-legend">Профессия</legend>
-  <div class="pform-field">
-    <label class="pform-label" for="pf-primary_role">Основная профессия</label>
-    <input id="pf-primary_role" name="primary_role" type="text"
-           value="{{ roles[0] if roles else '' }}"
-           placeholder="Например: перегон автомобилей" />
-    <p class="pform-hint">Можно по-русски, по-украински, по-английски или по-немецки.</p>
+{% macro number_field(name, label, value, hint='', placeholder='', suffix='', min=0, max=1000, step=1) %}
+{% set filled = (value is not none) and (value | string | trim) != '' %}
+<div class="pf-field{{ ' is-filled' if filled }}"
+     data-pf-field data-pf-kind="text" data-pf-state="{{ 'filled' if filled else 'empty' }}">
+  <div class="pf-field__head">
+    <label class="pf-label" for="pf-{{ name }}">{{ label }}</label>
+    {{ filled_flag() }}
   </div>
-  <div class="pform-field">
-    <label class="pform-label" for="pf-additional_roles">Дополнительные роли</label>
-    <input id="pf-additional_roles" name="additional_roles" type="text"
-           value="{{ roles[1:] | join(', ') }}"
-           placeholder="Через запятую" />
-    <p class="pform-hint">Тоже подходят. Порядок задаёт приоритет.</p>
+  <div class="pf-input-wrap">
+    <input class="pf-input" id="pf-{{ name }}" name="{{ name }}" type="number"
+           min="{{ min }}" max="{{ max }}" step="{{ step }}"
+           value="{{ value if value is not none else '' }}"
+           placeholder="{{ placeholder }}" />
+    {% if suffix %}<span class="pf-input-suffix" aria-hidden="true">{{ suffix }}</span>{% endif %}
   </div>
-  <div class="pform-field">
-    <label class="pform-label" for="pf-excluded_roles">Исключаемые профессии</label>
-    <input id="pf-excluded_roles" name="excluded_roles" type="text"
-           value="{{ excluded | join(', ') }}"
-           placeholder="Например: Paketzustellung" />
-    <p class="pform-hint">Вакансии с такими словами в заголовке скрываются.</p>
-  </div>
-</fieldset>
+  <p class="pf-field__error" data-pf-error hidden></p>
+  {% if hint %}<p class="pf-hint">{{ hint }}</p>{% endif %}
+</div>
+{% endmacro %}
 
-<fieldset class="pform-group">
-  <legend class="pform-legend">Ключевые слова для источников</legend>
-  <div class="pform-field">
-    <label class="pform-label" for="pf-search_query_terms">Основные ключевые слова</label>
-    <input id="pf-search_query_terms" name="search_query_terms" type="text"
-           value="{{ terms | join(', ') }}"
-           placeholder="Например: Fahrzeugüberführer, Überführungsfahrer" />
-    <p class="pform-hint">
-      Что именно спрашивать у сайтов вакансий. Первое слово — главный запрос.
-      Пусто — подберём сами по профессии.
-    </p>
+{% macro textarea_field(name, label, value, hint='', placeholder='', rows=4) %}
+{% set filled = (value is not none) and (value | string | trim) != '' %}
+<div class="pf-field pf-field--wide{{ ' is-filled' if filled }}"
+     data-pf-field data-pf-kind="text" data-pf-state="{{ 'filled' if filled else 'empty' }}">
+  <div class="pf-field__head">
+    <label class="pf-label" for="pf-{{ name }}">{{ label }}</label>
+    {{ filled_flag() }}
   </div>
-  <div class="pform-field">
-    <label class="pform-label" for="pf-additional_search_terms">Дополнительные ключевые слова</label>
-    <input id="pf-additional_search_terms" name="additional_search_terms" type="text"
-           value="{{ extra_terms | join(', ') }}"
-           placeholder="Например: PKW-Rangierer, Umsetzfahrer" />
-    <p class="pform-hint">Пробуются после основных, чтобы расширить охват.</p>
-  </div>
-</fieldset>
+  <textarea class="pf-input pf-textarea" id="pf-{{ name }}" name="{{ name }}" rows="{{ rows }}"
+            placeholder="{{ placeholder }}">{{ value if value is not none else '' }}</textarea>
+  <p class="pf-field__error" data-pf-error hidden></p>
+  {% if hint %}<p class="pf-hint">{{ hint }}</p>{% endif %}
+</div>
+{% endmacro %}
 
-<fieldset class="pform-group">
-  <legend class="pform-legend">География</legend>
-  <div class="pform-field">
-    <label class="pform-label" for="pf-primary_city">Основной город поиска</label>
-    <input id="pf-primary_city" name="primary_city" type="text"
-           value="{{ cities[0] if cities else '' }}"
-           placeholder="Например: Neustrelitz" />
+{#
+  Да / Нет / Не указано одной полосой. Это по-прежнему группа radio с тем же
+  именем и теми же значениями, что отдавал select: сервер получает ровно то же.
+  «Не указано» — настоящий вариант с пустым value, а не отсутствие выбора: иначе
+  снятый параметр не пришёл бы в форме и его нельзя было бы очистить.
+#}
+{% macro tri_field(name, label, value, hint='') %}
+{% set filled = value is not none %}
+<div class="pf-field{{ ' is-filled' if filled }}"
+     data-pf-field data-pf-kind="choice" data-pf-state="{{ 'filled' if filled else 'empty' }}">
+  <div class="pf-field__head">
+    <span class="pf-label" id="pf-{{ name }}-label">{{ label }}</span>
+    {{ filled_flag() }}
   </div>
-  <div class="pform-field">
-    <label class="pform-label" for="pf-additional_cities">Дополнительные города</label>
-    <input id="pf-additional_cities" name="additional_cities" type="text"
-           value="{{ cities[1:] | join(', ') }}"
-           placeholder="Через запятую, например: Berlin" />
-    <p class="pform-hint">Выдача идёт разделами в этом порядке.</p>
-  </div>
-  <div class="pform-field">
-    <label class="pform-label" for="pf-search_radius_km">Радиус поиска, км</label>
-    <select id="pf-search_radius_km" name="search_radius_km">
-      <option value="" {% if p is none or p.search_radius_km is none %}selected{% endif %}>
-        Не указано
-      </option>
-      {% for km in radius_options %}
-      <option value="{{ km }}"
-        {% if p is not none and p.search_radius_km == km %}selected{% endif %}>
-        {% if km == 0 %}Только эти города{% else %}+{{ km }} км{% endif %}
-      </option>
-      {% endfor %}
-    </select>
-    <p class="pform-hint">
-      Считается от каждого города из списка. «Не указано» — поиск строго в самих городах.
-    </p>
-  </div>
-  {{ tri('relocation_ready', 'Готовность к переезду', 'Влияет на штраф за дальнюю дорогу.') }}
-  {{ tri('housing_needed', 'Нужна помощь с жильём') }}
-</fieldset>
-
-<fieldset class="pform-group">
-  <legend class="pform-legend">Условия работы</legend>
-  <div class="pform-field">
-    <span class="pform-label">Тип занятости</span>
-    <input type="hidden" name="employment_types_present" value="1" />
-    {% for code, label in employment_choices %}
-    <label class="pform-check">
-      <input type="checkbox" name="employment_types" value="{{ code }}"
-             {% if code in chosen_employment %}checked{% endif %} />
-      {{ label }}
+  <div class="pf-seg" role="radiogroup" aria-labelledby="pf-{{ name }}-label">
+    <label class="pf-seg__opt">
+      <input type="radio" name="{{ name }}" value="" {% if value is none %}checked{% endif %} />
+      <span>Не указано</span>
     </label>
-    {% endfor %}
-    <p class="pform-hint">Ничего не отмечено — занятость не учитывается.</p>
+    <label class="pf-seg__opt">
+      <input type="radio" name="{{ name }}" value="true" {% if value is sameas true %}checked{% endif %} />
+      <span>Да</span>
+    </label>
+    <label class="pf-seg__opt">
+      <input type="radio" name="{{ name }}" value="false" {% if value is sameas false %}checked{% endif %} />
+      <span>Нет</span>
+    </label>
   </div>
-  <div class="pform-field">
-    <label class="pform-label" for="pf-min_salary_eur_per_hour">Ориентир по оплате, € в час</label>
-    <input id="pf-min_salary_eur_per_hour" name="min_salary_eur_per_hour"
-           type="number" min="0" max="1000" step="0.5"
-           value="{{ p.min_salary_eur_per_hour if p is not none and p.min_salary_eur_per_hour else '' }}"
-           placeholder="Например: 16" />
-    <p class="pform-hint">
-      Это предпочтение, а не фильтр: вакансии ниже ориентира остаются в выдаче, но ниже в списке.
-      Месячные и годовые суммы пересчитываются автоматически.
-    </p>
+  {% if hint %}<p class="pf-hint">{{ hint }}</p>{% endif %}
+</div>
+{% endmacro %}
+
+<div class="pf-sections">
+
+<fieldset class="pf-section" id="pf-sec-basic">
+  <legend class="pf-sr">Основное</legend>
+  <div class="pf-section__head">
+    <h3 class="pf-section__title">Основное</h3>
+    <p class="pf-section__note">Как называется поиск и кем вы хотите работать.</p>
   </div>
-  {{ tri('self_employment_ok', 'Самозанятость допустима',
-         'Нет — вакансии с Gewerbeschein скрываются. Не указано — помечаются риском.') }}
-  {{ tri('physical_work_ok', 'Тяжёлая физическая работа допустима',
-         'Нет — вакансии с подъёмом тяжестей скрываются.') }}
-  {{ tri('shift_ok', 'Сменный график подходит') }}
-  <div class="pform-field">
-    <label class="pform-label" for="pf-start_availability_text">Когда готовы начать</label>
-    <input id="pf-start_availability_text" name="start_availability_text" type="text"
-           value="{{ p.start_availability_text if p is not none and p.start_availability_text else '' }}"
-           placeholder="Например: с 16.11.2026 или сразу" />
+  <div class="pf-grid">
+    {{ text_field('name', 'Название профиля', p.name if p is not none else '',
+                  hint='Видно только вам — чтобы отличать профили друг от друга.',
+                  placeholder='Например: Перегон автомобилей', required=true) }}
+    {{ text_field('primary_role', 'Основная профессия', roles[0] if roles else '',
+                  hint='Можно по-русски, по-украински, по-английски или по-немецки.',
+                  placeholder='Например: перегон автомобилей') }}
   </div>
 </fieldset>
 
-<fieldset class="pform-group">
-  <legend class="pform-legend">Транспорт и язык</legend>
-  <div class="pform-field">
-    <label class="pform-label" for="pf-driver_license">Водительские права</label>
+<fieldset class="pf-section" id="pf-sec-roles">
+  <legend class="pf-sr">Роли и поисковые запросы</legend>
+  <div class="pf-section__head">
+    <h3 class="pf-section__title">Роли и поисковые запросы</h3>
+    <p class="pf-section__note">
+      Что ещё подходит, что точно не нужно и какими словами спрашивать сайты вакансий.
+    </p>
+  </div>
+  <div class="pf-grid">
+    {{ text_field('additional_roles', 'Дополнительные роли', roles[1:] | join(', '),
+                  hint='Тоже подходят. Порядок задаёт приоритет.',
+                  placeholder='Через запятую') }}
+    {{ text_field('excluded_roles', 'Исключаемые профессии', excluded | join(', '),
+                  hint='Вакансии с такими словами в заголовке скрываются.',
+                  placeholder='Например: Paketzustellung') }}
+    {{ text_field('search_query_terms', 'Основные запросы', terms | join(', '),
+                  hint='Первое слово — главный запрос. Пусто — подберём сами по профессии.',
+                  placeholder='Например: Fahrzeugüberführer, Überführungsfahrer') }}
+    {{ text_field('additional_search_terms', 'Дополнительные запросы', extra_terms | join(', '),
+                  hint='Пробуются после основных, чтобы расширить охват.',
+                  placeholder='Например: PKW-Rangierer, Umsetzfahrer') }}
+  </div>
+</fieldset>
+
+<fieldset class="pf-section" id="pf-sec-geo">
+  <legend class="pf-sr">География</legend>
+  <div class="pf-section__head">
+    <h3 class="pf-section__title">География</h3>
+    <p class="pf-section__note">Города спрашиваются по очереди — выдача идёт разделами в этом порядке.</p>
+  </div>
+  <div class="pf-grid">
+    {{ text_field('primary_city', 'Основной город', cities[0] if cities else '',
+                  placeholder='Например: Neustrelitz') }}
+    {{ text_field('additional_cities', 'Дополнительные города', cities[1:] | join(', '),
+                  hint='Через запятую. Каждый получит свой раздел в выдаче.',
+                  placeholder='Например: Berlin, Rostock') }}
+
+    {% set radius = p.search_radius_km if p is not none else none %}
+    <div class="pf-field pf-field--wide{{ ' is-filled' if radius is not none }}"
+         data-pf-field data-pf-kind="choice"
+         data-pf-state="{{ 'filled' if radius is not none else 'empty' }}">
+      <div class="pf-field__head">
+        <span class="pf-label" id="pf-search_radius_km-label">Радиус поиска</span>
+        {{ filled_flag() }}
+      </div>
+      <div class="pf-chips" role="radiogroup" aria-labelledby="pf-search_radius_km-label">
+        <label class="pf-chip">
+          <input type="radio" name="search_radius_km" value=""
+                 {% if radius is none %}checked{% endif %} />
+          <span>Не указано</span>
+        </label>
+        {% for km in radius_options %}
+        <label class="pf-chip">
+          <input type="radio" name="search_radius_km" value="{{ km }}"
+                 {% if radius == km %}checked{% endif %} />
+          <span>{% if km == 0 %}Только эти города{% else %}+{{ km }} км{% endif %}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <p class="pf-hint">
+        Считается от каждого города списка. «Не указано» — поиск строго в самих городах.
+      </p>
+    </div>
+
+    {{ tri_field('relocation_ready', 'Готовность к переезду',
+                 p.relocation_ready if p is not none else none,
+                 hint='Влияет на штраф за дальнюю дорогу.') }}
+    {{ tri_field('housing_needed', 'Нужна помощь с жильём',
+                 p.housing_needed if p is not none else none) }}
+  </div>
+</fieldset>
+
+<fieldset class="pf-section" id="pf-sec-terms">
+  <legend class="pf-sr">Условия работы</legend>
+  <div class="pf-section__head">
+    <h3 class="pf-section__title">Условия работы</h3>
+    <p class="pf-section__note">Что вам подходит по форме занятости, оплате и графику.</p>
+  </div>
+  <div class="pf-grid">
+    {#
+      Скрытый маркер: снятый чекбокс браузер не присылает, и без маркера группу
+      нельзя было бы очистить — форма приняла бы это за «поля не было». Общий
+      обработчик его не считает: у маркера type="hidden", а не "checkbox".
+    #}
+    <div class="pf-field pf-field--wide{{ ' is-filled' if chosen_employment }}"
+         data-pf-field data-pf-kind="checkbox"
+         data-pf-state="{{ 'filled' if chosen_employment else 'empty' }}">
+      <div class="pf-field__head">
+        <span class="pf-label" id="pf-employment_types-label">Тип занятости</span>
+        {{ filled_flag() }}
+      </div>
+      <input type="hidden" name="employment_types_present" value="1" />
+      <div class="pf-chips" role="group" aria-labelledby="pf-employment_types-label">
+        {% for code, label in employment_choices %}
+        <label class="pf-chip">
+          <input type="checkbox" name="employment_types" value="{{ code }}"
+                 {% if code in chosen_employment %}checked{% endif %} />
+          <span>{{ label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <p class="pf-hint">Ничего не отмечено — занятость не учитывается.</p>
+    </div>
+
+    {{ number_field('min_salary_eur_per_hour', 'Ориентир по оплате',
+                    p.min_salary_eur_per_hour if p is not none and p.min_salary_eur_per_hour else none,
+                    hint='Предпочтение, а не фильтр: вакансии ниже остаются, но ниже в списке.',
+                    placeholder='16', suffix='€ / час', min=0, max=1000, step=0.5) }}
+    {{ text_field('start_availability_text', 'Когда готовы начать',
+                  p.start_availability_text if p is not none and p.start_availability_text else '',
+                  placeholder='Например: с 16.11.2026 или сразу') }}
+
+    {{ tri_field('self_employment_ok', 'Самозанятость допустима',
+                 p.self_employment_ok if p is not none else none,
+                 hint='Нет — вакансии с Gewerbeschein скрываются. Не указано — помечаются риском.') }}
+    {{ tri_field('physical_work_ok', 'Тяжёлая физическая работа допустима',
+                 p.physical_work_ok if p is not none else none,
+                 hint='Нет — вакансии с подъёмом тяжестей скрываются.') }}
+    {{ tri_field('shift_ok', 'Сменный график подходит',
+                 p.shift_ok if p is not none else none) }}
+  </div>
+</fieldset>
+
+<fieldset class="pf-section" id="pf-sec-transport">
+  <legend class="pf-sr">Транспорт и язык</legend>
+  <div class="pf-section__head">
+    <h3 class="pf-section__title">Транспорт и язык</h3>
+    <p class="pf-section__note">По правам отсекается транспорт, который вам не доверят.</p>
+  </div>
+  <div class="pf-grid">
     {% set current_license = (p.driver_license if p is not none and p.driver_license else '') %}
-    <select id="pf-driver_license" name="driver_license">
-      <option value="" {% if not current_license %}selected{% endif %}>Не указано</option>
-      {% if current_license and current_license not in driver_license_options %}
-      <option value="{{ current_license }}" selected>{{ current_license }}</option>
-      {% endif %}
-      {% for option in driver_license_options %}
-      <option value="{{ option }}" {% if current_license == option %}selected{% endif %}>
-        Категория {{ option }}
-      </option>
-      {% endfor %}
-    </select>
-    <p class="pform-hint">
-      По этому полю отсекается транспорт, который вам не доверят: с категорией B
-      вакансии с обязательными C/CE скрываются.
-    </p>
-  </div>
-  {{ tri('car_available', 'Есть свой автомобиль') }}
-  <div class="pform-field pform-field--check">
-    {# Скрытый маркер: снятый чекбокс браузер не присылает, и без маркера
-       галочку нельзя было бы снять — форма приняла бы это за «поля не было». #}
-    <input type="hidden" name="no_german_required_present" value="1" />
-    <label class="pform-check">
-      <input type="checkbox" name="no_german_required" value="on"
-             {% if p is not none and p.no_german_required %}checked{% endif %} />
-      Скрывать вакансии, где немецкий обязателен
-    </label>
-    <p class="pform-hint">
-      Уровень немецкого и английского относится к вам, а не к одному поиску, поэтому
-      задаётся один раз для всех профилей — в разделе «Язык и статус» на странице профилей.
-    </p>
+    {% set chosen_license = (current_license.split(',') | map('trim') | reject('equalto', '') | list) %}
+    {% set known_license = (driver_license_options | select('in', chosen_license) | list) %}
+    {#
+      Нестандартное сохранённое значение (например с категорией, которой в списке
+      уже нет) показывается отдельной галочкой со своим исходным текстом: открыть
+      профиль на правку не должно молча стирать то, чего форма не умеет собрать.
+    #}
+    {% set legacy_license = current_license if current_license and (known_license | join(', ')) != current_license else '' %}
+    <div class="pf-field pf-field--wide{{ ' is-filled' if current_license }}"
+         data-pf-field data-pf-kind="checkbox"
+         data-pf-state="{{ 'filled' if current_license else 'empty' }}">
+      <div class="pf-field__head">
+        <span class="pf-label" id="pf-driver_license-label">Водительские права</span>
+        {{ filled_flag() }}
+      </div>
+      {#
+        Пустое значение под тем же именем: группа галочек, в которой ничего не
+        отмечено, не пришла бы в форме вовсе, и права нельзя было бы снять.
+      #}
+      <input type="hidden" name="driver_license" value="" />
+      <div class="pf-chips pf-chips--dense" role="group" aria-labelledby="pf-driver_license-label">
+        {% for option in driver_license_options %}
+        <label class="pf-chip pf-chip--code{{ ' pf-chip--key' if option == 'B' }}">
+          <input type="checkbox" name="driver_license" value="{{ option }}"
+                 {% if option in chosen_license %}checked{% endif %} />
+          <span>{{ option }}</span>
+        </label>
+        {% endfor %}
+        {% if legacy_license %}
+        <label class="pf-chip pf-chip--code">
+          <input type="checkbox" name="driver_license" value="{{ legacy_license }}" checked />
+          <span>{{ legacy_license }}</span>
+        </label>
+        {% endif %}
+      </div>
+      <p class="pf-hint">
+        Отметьте все открытые категории. С одной B вакансии с обязательными C/CE скрываются.
+      </p>
+    </div>
+
+    {{ tri_field('car_available', 'Есть свой автомобиль',
+                 p.car_available if p is not none else none) }}
+
+    {#
+      Скрытый маркер: снятый чекбокс браузер не присылает, и без маркера галочку
+      нельзя было бы снять — форма приняла бы это за «поля не было».
+    #}
+    {% set german_on = p is not none and p.no_german_required %}
+    <div class="pf-field{{ ' is-filled' if german_on }}"
+         data-pf-field data-pf-kind="checkbox"
+         data-pf-state="{{ 'filled' if german_on else 'empty' }}">
+      <div class="pf-field__head">
+        <span class="pf-label" id="pf-no_german_required-label">Требование немецкого</span>
+        {{ filled_flag() }}
+      </div>
+      <input type="hidden" name="no_german_required_present" value="1" />
+      <div class="pf-chips" role="group" aria-labelledby="pf-no_german_required-label">
+        <label class="pf-chip">
+          <input type="checkbox" name="no_german_required" value="on"
+                 {% if german_on %}checked{% endif %} />
+          <span>Скрывать, где немецкий обязателен</span>
+        </label>
+      </div>
+      <p class="pf-hint">
+        Сам уровень языка относится к вам, а не к поиску, и задаётся один раз —
+        в разделе «Язык и статус» на <a href="/profile">странице профилей</a>.
+      </p>
+    </div>
   </div>
 </fieldset>
 
-<fieldset class="pform-group">
-  <legend class="pform-legend">Заметки</legend>
-  <div class="pform-field">
-    <label class="pform-label" for="pf-notes">Заметки</label>
-    <textarea id="pf-notes" name="notes" rows="3"
-              placeholder="Свободный текст для себя">{{ p.notes if p is not none and p.notes else '' }}</textarea>
+<fieldset class="pf-section" id="pf-sec-notes">
+  <legend class="pf-sr">Заметки</legend>
+  <div class="pf-section__head">
+    <h3 class="pf-section__title">Заметки</h3>
+    <p class="pf-section__note">Свободный текст для себя — на поиск не влияет.</p>
+  </div>
+  <div class="pf-grid">
+    {{ textarea_field('notes', 'Заметки',
+                      p.notes if p is not none and p.notes else '',
+                      placeholder='Например: не рассматривать ночные смены дальше 60 км') }}
   </div>
 </fieldset>
+
+</div>

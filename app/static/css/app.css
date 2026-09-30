@@ -14,6 +14,17 @@
   --radius: 12px;
   --shadow-sm: 0 1px 3px rgba(30,43,48,.07), 0 1px 2px rgba(30,43,48,.04);
   --shadow-md: 0 4px 12px rgba(30,43,48,.09), 0 1px 3px rgba(30,43,48,.05);
+
+  /* Состояния полей форм профиля. Спокойный шалфейный оттенок «параметр задан»:
+     он не спорит с терракотовым акцентом, которым помечается фокус и главное
+     действие, поэтому заполненное и активное поле не путаются между собой. */
+  --pf-ok-bg: #f3f8f3;
+  --pf-ok-line: #bed4c3;
+  --pf-ok-strong: #4a8161;
+  --pf-ok-text: #35604a;
+  --pf-err-line: #d19a92;
+  --pf-err-text: #9b4436;
+  --pf-quiet: #fffefb;
 }
 
 * {
@@ -1678,7 +1689,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  max-width: 1320px;
 }
 
 /* Reusable buttons for the profiles pilot */
@@ -1955,34 +1965,11 @@ body {
 }
 
 .profiles-empty {
-  max-width: 1320px;
   padding: 22px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--bg-card);
   color: var(--text-soft);
-}
-
-/* Manual digest triggers (kept, de-emphasised) */
-.profiles-notify {
-  max-width: 1320px;
-  margin-top: 28px;
-  padding: 18px 22px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--bg-card);
-}
-
-.profiles-notify__head h3 {
-  margin: 0 0 2px;
-  font-size: 0.98rem;
-}
-
-.profiles-notify__actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 12px;
 }
 
 @media (max-width: 760px) {
@@ -3138,25 +3125,6 @@ body {
   font-size: 0.78rem;
 }
 
-/* --- Формы профиля поиска (создание и редактирование) --------------------- */
-/* Одна разметка на обе формы: поля у них одни и те же. */
-.pform { display: flex; flex-direction: column; gap: 18px; }
-.pform-group {
-  border: 1px solid var(--border, #e2e6ea);
-  border-radius: 10px;
-  padding: 14px 16px 16px;
-  margin: 0;
-}
-.pform-legend { font-weight: 600; font-size: 13px; padding: 0 6px; }
-.pform-field { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
-.pform-group > .pform-field:first-of-type { margin-top: 4px; }
-.pform-label { font-size: 13px; font-weight: 600; }
-.pform-hint { margin: 0; font-size: 12px; opacity: 0.72; line-height: 1.4; }
-.pform-check { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-top: 4px; }
-.pform-check input { width: auto; margin: 0; }
-.pform--inline { flex-direction: row; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
-.pform--inline .pform-field { margin-top: 0; min-width: 150px; }
-
 .pcard-new-row { display: flex; flex-wrap: wrap; gap: 10px; }
 .pcard-new--muted { opacity: 0.8; }
 
@@ -3184,4 +3152,708 @@ body {
 @media (max-width: 560px) {
   .applied-params__list { grid-template-columns: 1fr; gap: 2px; }
   .applied-params__list dd { margin-bottom: 8px; }
+}
+
+/* --- Форма поискового профиля: создание и редактирование ------------------ */
+/*
+  Форма длинная по существу: критериев поиска действительно много. Поэтому она
+  устроена не как один столбец полей, а как набор разделов, в котором заданный
+  параметр видно, не читая его значение.
+
+  Три состояния различаются нарочно: пустое поле — нейтральное, заданное — с
+  подкрашенной рамкой и галочкой у подписи, ошибка — перебивает и то и другое.
+  Порядок правил ниже и есть приоритет: ошибка > фокус > заполнено > пусто.
+*/
+.pf-page {
+  max-width: 1100px;
+  display: grid;
+  gap: 14px;
+}
+
+.pf-page__lead {
+  margin: 0;
+  max-width: 82ch;
+  color: var(--text-soft);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.pf-form {
+  display: grid;
+  gap: 14px;
+}
+
+/* Текст только для программы чтения экрана: состояние поля не должно сообщаться
+   одним цветом, поэтому рядом с галочкой лежит слово. */
+.pf-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Шапка: прогресс и переход по разделам ────────────────── */
+.pf-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  flex-wrap: wrap;
+  padding: 11px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.pf-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.pf-progress__track {
+  flex: none;
+  width: 104px;
+  height: 6px;
+  border-radius: 999px;
+  background: #e8e1d5;
+  overflow: hidden;
+}
+
+.pf-progress__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--pf-ok-strong);
+  transition: width 0.18s ease;
+}
+
+.pf-progress__label {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-soft);
+}
+
+.pf-progress__label strong {
+  color: var(--text-main);
+  font-weight: 650;
+}
+
+.pf-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.pf-nav__link {
+  padding: 6px 11px;
+  border-radius: 7px;
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: var(--text-soft);
+  text-decoration: none;
+  transition: background 0.12s, color 0.12s;
+}
+
+.pf-nav__link:hover {
+  background: rgba(30, 43, 48, 0.055);
+  color: var(--text-main);
+}
+
+.pf-nav__link.is-active {
+  background: var(--text-main);
+  color: #fdfbf9;
+}
+
+.pf-nav__link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ── Разделы ─────────────────────────────────────────────── */
+.pf-sections {
+  display: grid;
+  gap: 14px;
+}
+
+.pf-section {
+  margin: 0;
+  padding: 18px 20px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  /* Запас под липкую шапку: иначе переход по ссылке прячет заголовок раздела. */
+  scroll-margin-top: 88px;
+}
+
+.pf-section__head {
+  margin-bottom: 15px;
+}
+
+.pf-section__title {
+  margin: 0;
+  font-size: 0.96rem;
+  font-weight: 650;
+}
+
+.pf-section__note {
+  margin: 4px 0 0;
+  max-width: 76ch;
+  font-size: 0.81rem;
+  line-height: 1.45;
+  color: var(--text-soft);
+}
+
+.pf-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 20px;
+  align-items: start;
+}
+
+.pf-field--wide {
+  grid-column: 1 / -1;
+}
+
+/* ── Поле ────────────────────────────────────────────────── */
+.pf-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pf-field__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-height: 17px;
+}
+
+.pf-label {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-soft);
+  transition: color 0.12s;
+}
+
+.pf-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--text-soft);
+}
+
+.pf-flag {
+  display: none;
+  align-items: center;
+  color: var(--pf-ok-strong);
+}
+
+.pf-flag__icon {
+  width: 13px;
+  height: 13px;
+}
+
+.pf-field.is-filled .pf-flag {
+  display: inline-flex;
+}
+
+.pf-field.is-filled .pf-label {
+  color: var(--text-main);
+}
+
+.pf-field__error {
+  display: flex;
+  gap: 5px;
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--pf-err-text);
+}
+
+.pf-field__error[hidden] {
+  display: none;
+}
+
+/* ── Текстовые поля ──────────────────────────────────────── */
+.pf-input {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background-color: var(--pf-quiet);
+  color: var(--text-main);
+  font: inherit;
+  font-size: 0.9rem;
+  transition: border-color 0.12s, background 0.12s, box-shadow 0.12s;
+}
+
+.pf-input::placeholder {
+  color: #a69d90;
+}
+
+.pf-textarea {
+  min-height: 92px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.pf-select {
+  /* Своя стрелка вместо системной: у select иначе другая высота и другой шрифт,
+     и в ряду с текстовыми полями он выпадал из общей сетки. */
+  appearance: none;
+  padding-right: 34px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%235a6470' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  cursor: pointer;
+}
+
+/* Поле и его кнопка как один узел: город проживания сохраняется отдельно. */
+.pf-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pf-inline .pf-input {
+  flex: 1 1 180px;
+}
+
+.pf-inline .btn {
+  flex: none;
+  height: 42px;
+}
+
+/* ── Общие данные человека под списком профилей ───────────── */
+.pf-shared {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.pf-shared__head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pf-shared__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.pf-shared__note {
+  margin: 0;
+  font-size: 0.83rem;
+  color: var(--text-soft);
+}
+
+.pf-shared__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.pf-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px 20px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+}
+
+.pf-card--wide {
+  grid-column: 1 / -1;
+}
+
+.pf-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pf-card__title {
+  margin: 0;
+  font-size: 0.94rem;
+  font-weight: 650;
+}
+
+/* Подтверждение сохранения: одна строка рядом с заголовком своей карточки, а не
+   баннер на всю страницу — сохранён один блок, а не вся страница. */
+.pf-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--pf-ok-text);
+}
+
+.pf-card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  flex-wrap: wrap;
+}
+
+.pf-card__actions--start {
+  justify-content: flex-start;
+}
+
+.pf-card__actions .pf-hint {
+  flex: 1 1 260px;
+}
+
+.pf-grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.pf-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pf-input-wrap .pf-input {
+  padding-right: 74px;
+}
+
+.pf-input-suffix {
+  position: absolute;
+  right: 12px;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+  pointer-events: none;
+}
+
+.pf-input:hover:not(:focus):not(:disabled) {
+  border-color: #cdc4b5;
+}
+
+.pf-input:disabled {
+  background-color: #f2efe9;
+  color: #9b9388;
+  cursor: not-allowed;
+}
+
+.pf-field.is-filled .pf-input {
+  border-color: var(--pf-ok-line);
+  background-color: var(--pf-ok-bg);
+}
+
+/* ── Да / Нет / Не указано одной полосой ─────────────────── */
+.pf-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f6f3ed;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.pf-seg__opt {
+  position: relative;
+  display: inline-flex;
+  flex: 1 1 auto;
+}
+
+.pf-seg__opt input,
+.pf-chip input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.pf-seg__opt span {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 7px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-soft);
+  transition: background 0.12s, color 0.12s, box-shadow 0.12s;
+}
+
+.pf-seg__opt input:hover:not(:checked) + span {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.pf-seg__opt input:checked + span {
+  background: var(--bg-card);
+  color: var(--text-main);
+  box-shadow: var(--shadow-sm);
+}
+
+/*
+  «Не указано» — тоже выбранный вариант, но не заданное значение, и выглядеть как
+  заданное он не должен: пилюля остаётся приглушённой и без тени.
+*/
+.pf-seg__opt input[value=""]:checked + span {
+  background: var(--pf-quiet);
+  color: var(--text-soft);
+  box-shadow: none;
+}
+
+.pf-field.is-filled .pf-seg {
+  border-color: var(--pf-ok-line);
+  background: var(--pf-ok-bg);
+}
+
+.pf-field.is-filled .pf-seg__opt input:checked + span {
+  color: var(--pf-ok-text);
+}
+
+/* ── Наборы галочек: занятость, права, немецкий, радиус ──── */
+.pf-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pf-chips--dense {
+  gap: 6px;
+}
+
+.pf-chip {
+  position: relative;
+  display: inline-flex;
+}
+
+.pf-chip span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--pf-quiet);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+  transition: border-color 0.12s, background 0.12s, box-shadow 0.12s, color 0.12s;
+}
+
+.pf-chip input:hover:not(:checked) + span {
+  border-color: #cdc4b5;
+  background: #fff;
+}
+
+.pf-chip input:checked + span {
+  border-color: var(--pf-ok-line);
+  background: var(--pf-ok-bg);
+  color: var(--pf-ok-text);
+  box-shadow: inset 0 0 0 1px var(--pf-ok-line);
+}
+
+/* Галочка перед подписью: выбранное отмечено не только цветом, но и знаком. */
+.pf-chip input:checked + span::before {
+  content: "✓";
+  font-size: 0.86em;
+  line-height: 1;
+}
+
+.pf-chip input[value=""]:checked + span {
+  border-color: var(--line);
+  background: var(--pf-quiet);
+  color: var(--text-soft);
+  box-shadow: none;
+}
+
+.pf-chip input[value=""]:checked + span::before {
+  content: none;
+}
+
+.pf-chip--code span {
+  min-width: 54px;
+  justify-content: center;
+  padding: 0 10px;
+  letter-spacing: 0.02em;
+}
+
+/* Категория B — самая ходовая; выбранной её должно быть видно с первого взгляда. */
+.pf-chip--key input:checked + span {
+  border-color: var(--pf-ok-strong);
+  box-shadow: inset 0 0 0 1.5px var(--pf-ok-strong);
+}
+
+/* ── Ошибка перебивает заполненность ─────────────────────── */
+.pf-field.has-error .pf-input,
+.pf-field.has-error .pf-seg,
+.pf-field.has-error .pf-chip span {
+  border-color: var(--pf-err-line);
+}
+
+.pf-field.has-error .pf-input {
+  background-color: #fdf4f2;
+}
+
+.pf-field.has-error .pf-label {
+  color: var(--pf-err-text);
+}
+
+.pf-field.has-error .pf-flag {
+  display: none;
+}
+
+/* ── Фокус перебивает всё, кроме самой ошибки ─────────────── */
+.pf-input:focus,
+.pf-field.is-filled .pf-input:focus,
+.pf-field.has-error .pf-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(194, 98, 58, 0.16);
+}
+
+.pf-seg__opt input:focus-visible + span,
+.pf-chip input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Браузерная проверка обязательного поля — после попытки отправки, не до неё. */
+.pf-input:user-invalid {
+  border-color: var(--pf-err-line);
+  background-color: #fdf4f2;
+}
+
+/* ── Кнопки, прилипшие к низу окна ───────────────────────── */
+.pf-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  padding-top: 4px;
+}
+
+.pf-actions__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 18px;
+  flex-wrap: wrap;
+  padding: 11px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 -2px 12px rgba(30, 43, 48, 0.08);
+}
+
+.pf-actions__note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
+
+.pf-actions__buttons {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+}
+
+/* ── Узкие экраны ────────────────────────────────────────── */
+@media (max-width: 860px) {
+  /* Переход по разделам на телефоне только мешает: разделы и так рядом. */
+  .pf-nav {
+    display: none;
+  }
+
+  .pf-topbar {
+    position: static;
+  }
+
+  .pf-section {
+    scroll-margin-top: 16px;
+  }
+}
+
+@media (max-width: 1000px) {
+  /* Планшет: два поля в строке и третье под ними — вместо трёх узких. */
+  .pf-grid--three {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .pf-grid,
+  .pf-grid--three,
+  .pf-shared__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pf-inline .btn {
+    flex: 1 1 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .pf-section {
+    padding: 16px 14px 18px;
+  }
+
+  .pf-topbar {
+    padding: 10px 12px;
+  }
+
+  .pf-seg {
+    display: flex;
+    width: 100%;
+  }
+
+  .pf-seg__opt span {
+    padding: 0 8px;
+  }
+
+  .pf-chip span {
+    padding: 0 12px;
+  }
+
+  .pf-actions__note {
+    display: none;
+  }
+
+  .pf-actions__buttons {
+    width: 100%;
+  }
+
+  .pf-actions__buttons .btn {
+    flex: 1 1 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }

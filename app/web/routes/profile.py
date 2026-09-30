@@ -18,6 +18,7 @@ from app.services.profile_form_spec import (
 )
 from app.web.deps import get_profile_catalog_service
 from app.web.form_utils import read_form_data
+from app.web.profile_labels import LEGAL_STATUS_LABELS, legal_status_label
 from app.web.views import render_page
 
 router = APIRouter(tags=["web-profile"])
@@ -54,6 +55,11 @@ def profile_page(
             "home_city": catalog_service.get_home_city(db),
             # Языковые уровни и статус — свойства человека, общие для всех профилей.
             "user_profile": entries[0].user_profile if entries else None,
+            "legal_status_labels": LEGAL_STATUS_LABELS,
+            "legal_status_label": legal_status_label,
+            # Какой блок только что сохранён — чтобы показать «Сохранено» рядом с
+            # ним, а не одним баннером на всю страницу.
+            "saved_block": request.query_params.get("saved"),
         },
     )
 
@@ -66,7 +72,7 @@ async def profile_set_home_city(
 ) -> RedirectResponse:
     form = await read_form_data(request)
     catalog_service.set_home_city(db, city=_read_text(form, "home_city"))
-    return RedirectResponse(url="/profile", status_code=303)
+    return RedirectResponse(url="/profile?saved=home-city", status_code=303)
 
 
 def _read_text(form: FormData, key: str) -> str | None:
@@ -104,13 +110,19 @@ async def profile_new_submit(
     fields = parse_profile_form(form_data)
     created = catalog_service.create_profile_from_form(db, fields=fields)
     if created is None:
+        # Форма возвращается заполненной: у разобранных полей те же имена, что у
+        # профиля, поэтому шаблон читает их так же. Заставлять человека набирать
+        # два десятка критериев заново из-за неудачной записи незачем.
         return render_page(
             request,
             "profile/new.html",
             page_key="profile",
             page_title="Новый профиль поиска",
             page_subtitle="Не удалось сохранить профиль. Проверьте поля и попробуйте снова.",
-            extra_context=_form_context(None),
+            extra_context={
+                **_form_context(fields),
+                "form_error": "Профиль не сохранился. Введённое осталось в форме — проверьте поля и отправьте снова.",
+            },
         )
     return RedirectResponse(url="/profile", status_code=303)
 
@@ -129,7 +141,7 @@ async def profile_set_languages(
         english_level=_read_text(form, "english_level") or None,
         legal_status=_read_text(form, "legal_status") or None,
     )
-    return RedirectResponse(url="/profile", status_code=303)
+    return RedirectResponse(url="/profile?saved=languages", status_code=303)
 
 
 @router.post("/profile/{profile_id}/set-default")

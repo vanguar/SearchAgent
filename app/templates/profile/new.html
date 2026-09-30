@@ -1,22 +1,22 @@
 {% extends "base.html" %}
+{% from "profile/partials/profile_form_actions.html" import form_actions %}
 
 {% block content %}
-<article class="panel">
-  <h3>Новый профиль поиска</h3>
-  <p class="muted">
-    Заполните то, что знаете. Незаполненное поле остаётся «не указано» — поиск это
-    учитывает и ничего за вас не додумывает. Всё можно изменить позже.
+<div class="pf-page">
+  {% if form_error %}
+  <div class="notice warning">{{ form_error }}</div>
+  {% endif %}
+
+  <p class="pf-page__lead">
+    Заполните то, что знаете: незаполненное поле остаётся «не указано», и поиск это
+    учитывает, а не додумывает за вас. Всё можно изменить позже. Проще рассказать
+    словами — <a href="/profile/intake">опишите ситуацию текстом</a>, профиль соберётся сам.
   </p>
-  <p class="muted">
-    Если проще описать ситуацию словами — <a href="/profile/intake">расскажите свободным текстом</a>,
-    и профиль соберётся сам.
-  </p>
-  <form method="post" action="/profile/new" class="pform">
+
+  <form method="post" action="/profile/new" class="pf-form" data-pf-form>
+    {% include "profile/partials/profile_form_nav.html" %}
     {% include "profile/partials/profile_form_fields.html" %}
-    <div class="action-row">
-      <button type="submit" class="ghost-btn">Создать профиль</button>
-      <a class="ghost-btn" href="/profile">Отмена</a>
-    </div>
+    {{ form_actions("Создать профиль") }}
   </form>
-</article>
+</div>
 {% endblock %}

@@ -228,15 +228,25 @@ def _bounded_float(form_data: Mapping[str, object], key: str, low: float, high: 
 
 
 def _driver_license(form_data: Mapping[str, object]) -> str | None:
-    """Категория прав. Принимаются только известные обозначения.
+    """Категории прав. Принимаются только известные обозначения.
 
     Свободный текст сюда пускать нельзя: по этому полю работает жёсткий фильтр
     по классу транспорта, и опечатка в нём меняет выдачу молча.
+
+    Поле читается как повторяющееся, потому что открытых категорий у человека
+    бывает несколько (B и BE — обычное дело), и форма отмечает их набором
+    галочек с одним именем. Одно значение со списком через запятую разбирается
+    так же, как раньше: это тот же набор, записанный одной строкой.
     """
-    raw = _text(form_data, "driver_license")
-    if raw is None:
+    parts = [
+        part.strip().upper()
+        for value in _multi_values(form_data, "driver_license")
+        for part in _LIST_SPLIT_RE.split(value)
+        if part.strip()
+    ]
+    if not parts:
         return None
-    candidates = {value.strip().upper() for value in _LIST_SPLIT_RE.split(raw) if value.strip()}
+    candidates = set(parts)
     allowed = [option for option in DRIVER_LICENSE_OPTIONS if option in candidates]
     return ", ".join(allowed) or None
 

@@ -1,14 +1,16 @@
 {% extends "base.html" %}
+{% from "profile/partials/profile_form_actions.html" import form_actions %}
 
 {% block content %}
-<article class="panel">
-  <h3>Редактировать профиль</h3>
-  <form method="post" action="/profile/{{ profile.id }}/edit" class="pform">
+<div class="pf-page">
+  {% if form_error %}
+  <div class="notice warning">{{ form_error }}</div>
+  {% endif %}
+
+  <form method="post" action="/profile/{{ profile.id }}/edit" class="pf-form" data-pf-form>
+    {% include "profile/partials/profile_form_nav.html" %}
     {% include "profile/partials/profile_form_fields.html" %}
-    <div class="action-row">
-      <button type="submit" class="ghost-btn">Сохранить</button>
-      <a class="ghost-btn" href="/profile">Отмена</a>
-    </div>
+    {{ form_actions("Сохранить изменения") }}
   </form>
-</article>
+</div>
 {% endblock %}

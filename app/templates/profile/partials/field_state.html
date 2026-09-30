@@ -1,0 +1,17 @@
+{#
+  Отметка «параметр задан» — общая для всех форм профиля.
+
+  Галочка, а не только цвет: состояние обязано читаться и тем, кто не различает
+  цвета, и программой чтения экрана — поэтому рядом со значком лежит скрытое
+  слово. Показывается отметка классом `is-filled` на обёртке поля, поэтому в
+  разметке она стоит всегда и ничего не занимает, пока поле пустое.
+#}
+{% macro filled_flag() %}
+<span class="pf-flag">
+  <svg class="pf-flag__icon" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+    <path d="M2.2 6.4 4.6 8.8 9.8 3.2" fill="none" stroke="currentColor"
+          stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
+  </svg>
+  <span class="pf-sr">указано</span>
+</span>
+{% endmacro %}

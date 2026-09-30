@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import replace
 
 import pytest
@@ -104,13 +105,27 @@ def test_unchecking_all_employment_types_clears_only_selected_profile(client, db
     assert second.employment_types == ["full_time"]
 
 
+def _license_shown_as_chosen(page_text: str) -> str:
+    """Категории прав, отмеченные на странице правки, в порядке разметки.
+
+    Проверять разметку построчно нельзя: способ выбора категорий — дело внешнего
+    вида и меняется. Неизменно другое: страница правки обязана показывать ровно
+    то, что сохранено, иначе открыть профиль значило бы молча его переписать.
+    """
+    checked = re.findall(
+        r'<input[^>]*name="driver_license"[^>]*value="([^"]*)"[^>]*checked',
+        page_text,
+    )
+    return ", ".join(value for value in checked if value)
+
+
 @pytest.mark.parametrize("license_text", ["B, CE", "B/CE", "B (EU)", "B196"])
 def test_edit_preserves_existing_license_representation(client, db_session, owner_records, license_text):
     profile = owner_records["search_profile"]
     profile.driver_license = license_text
     db_session.commit()
     page = client.get(f"/profile/{profile.id}/edit")
-    assert f'value="{license_text}" selected' in page.text
+    assert _license_shown_as_chosen(page.text) == license_text
     client.post(f"/profile/{profile.id}/edit", data={"name": "Переименован", "driver_license": license_text})
     db_session.refresh(profile)
     assert profile.driver_license == license_text
