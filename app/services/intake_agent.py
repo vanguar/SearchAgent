@@ -11,7 +11,12 @@ from app.services.profile_mapper import map_to_profile_payload
 from app.services.profile_parser import ConservativeProfileParser, extraction_result_to_draft
 from app.services.profile_questions import ProfileQuestionGenerator
 from app.services.profile_validator import ProfileValidator
-from app.services.search_normalizer import normalize_query_from_roles, normalize_search_location_for_profile
+from app.services.search_normalizer import (
+    is_german_city_name,
+    normalize_query_from_roles,
+    normalize_search_location_for_profile,
+    parse_search_cities,
+)
 
 try:
     from app.services.profile_llm_extractor import ProfileLLMExtractor
@@ -105,6 +110,31 @@ class IntakeAgentService:
             warnings=tuple(warnings),
         )
 
+    def _translate_remaining_cities(self, search_location_de: str) -> str:
+        """Догнать переводом только те города, которые словарь не распознал.
+
+        Раньше здесь стоял перевод ОДНОГО города — preferred_regions[0], — и его
+        результат замещал всю строку. Профиль «Нойштрелиц, Берлин» после этого
+        искал только в Нойштрелице: второй город молча исчезал ещё до поиска.
+
+        Детерминированный словарь и транслитерация уже разобрали то, что смогли
+        (normalize_search_location_for_profile). LLM нужен только там, где осталась
+        кириллица, и его ответ подставляется на место одного города, не затрагивая
+        остальные. Порядок городов сохраняется: он задаёт порядок выдачи.
+        """
+        cities = parse_search_cities(search_location_de)
+        if not cities:
+            return search_location_de
+
+        resolved: list[str] = []
+        for city in cities:
+            if is_german_city_name(city):
+                resolved.append(city)
+                continue
+            translated = self._llm_client.translate_location_to_de(city) if self._llm_client else None
+            resolved.append(translated.strip() if translated and translated.strip() else city)
+        return ", ".join(resolved)
+
     def save_confirmed_profile(
         self,
         *,
@@ -191,9 +221,9 @@ class IntakeAgentService:
                 and analysis.draft.preferred_regions
                 and search_profile.search_location_de
             ):
-                translated_l = self._llm_client.translate_location_to_de(analysis.draft.preferred_regions[0])
-                if translated_l:
-                    search_profile.search_location_de = translated_l.strip()
+                search_profile.search_location_de = self._translate_remaining_cities(
+                    search_profile.search_location_de
+                )
 
         db.commit()
         db.refresh(user_profile)

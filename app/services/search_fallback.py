@@ -76,6 +76,15 @@ FAMILY_SYNONYMS: dict[RoleFamily, tuple[str, ...]] = {
         "fahrer", "kurier", "zusteller", "lieferfahrer", "kraftfahrer", "berufskraftfahrer",
         "auslieferungsfahrer", "paketzusteller", "lkw-fahrer", "delivery driver", "truck driver",
     ),
+    RoleFamily.VEHICLE_LOGISTICS: (
+        # Одна и та же работа называется в объявлениях по-разному, и все формы —
+        # внутри направления: ни одного термина доставки посылок здесь нет.
+        "Fahrzeugüberführer", "Überführungsfahrer", "Fahrzeugüberführung", "Fahrzeugverbringung",
+        "Fahrzeugumsetzer", "Umsetzfahrer", "PKW-Rangierer", "Rangierfahrer",
+        "Fahrzeuglogistik", "Mitarbeiter Fahrzeuglogistik", "Fahrer Fahrzeuglogistik",
+        "Werkstattfahrer", "Fahrer Hol- und Bringservice", "Fahrzeugrückführung",
+        "Fahrer Autovermietung", "Fahrzeugaufbereiter",
+    ),
     RoleFamily.CLEANING: (
         "reinigungskraft", "gebäudereiniger", "raumpfleger", "reinigung", "unterhaltsreinigung",
         "reinigungshelfer", "housekeeping", "cleaner", "cleaning",
@@ -176,6 +185,24 @@ ROLE_SYNONYMS_DE: dict[str, tuple[str, ...]] = {
     "gärtner": ("landschaftsgärtner", "galabau", "gartenhelfer"),
     "landwirtschaft": ("erntehelfer", "saisonarbeiter"),
     "erntehelfer": ("ernte", "saisonarbeiter"),
+    # --- Vehicle logistics (перегон автомобилей) ---
+    # Ключи — канонические слова из ROLE_INTENT_MAP. Расширение остаётся внутри
+    # своего вида работы: перегон между филиалами не подменяется работой на площадке.
+    "fahrzeugüberführer": ("Überführungsfahrer", "Fahrzeugüberführung", "Fahrzeugverbringung"),
+    "überführungsfahrer": ("Fahrzeugüberführer", "Fahrzeugüberführung", "Fahrzeugrückführung"),
+    "fahrzeugüberführung": ("Fahrzeugüberführer", "Überführungsfahrer", "Fahrzeugverbringung"),
+    "fahrzeugverbringung": ("Fahrzeugüberführung", "Fahrzeugüberführer"),
+    "fahrzeugrückführung": ("Fahrzeugüberführung", "Rückführungsfahrer"),
+    "fahrzeugumsetzer": ("Umsetzfahrer", "PKW-Rangierer", "Rangierfahrer"),
+    "umsetzfahrer": ("Fahrzeugumsetzer", "PKW-Rangierer", "Rangierfahrer"),
+    "pkw-rangierer": ("Rangierfahrer", "Fahrzeugrangierer", "Fahrzeugumsetzer"),
+    "rangierfahrer": ("PKW-Rangierer", "Fahrzeugumsetzer", "Umsetzfahrer"),
+    "fahrzeuglogistik": ("Mitarbeiter Fahrzeuglogistik", "Fahrer Fahrzeuglogistik", "Autologistik"),
+    "werkstattfahrer": ("Fahrer Hol- und Bringservice", "Fahrzeugüberführer"),
+    "fahrer hol- und bringservice": ("Werkstattfahrer", "Hol- und Bringservice"),
+    "fahrer autovermietung": ("Fahrzeugumsetzer", "Umsetzfahrer", "Fahrzeugaufbereiter"),
+    "fahrzeugaufbereiter": ("Fahrzeugaufbereitung", "Fahrzeugpfleger", "Autoaufbereiter"),
+    "fahrzeugpfleger": ("Fahrzeugaufbereiter", "Fahrzeugaufbereitung"),
     # --- Driving specifics (family pool also applies) ---
     "taxifahrer": ("personenbeförderung", "mietwagenfahrer"),
     "berufskraftfahrer": ("lkw-fahrer", "kraftfahrer", "fernfahrer"),
@@ -254,7 +281,10 @@ def get_intent_fallback_keywords(
     # Role-specific synonyms first (most relevant), then same-family alternative titles.
     combined = (
         tuple(intent.synonyms_de)
-        + ROLE_SYNONYMS_DE.get(intent.primary_de, ())
+        # Синонимы ищутся по КАНОНИЧЕСКОМУ слову: primary_de может быть составным
+        # запросом самого пользователя («Fahrer Hol- und Bringservice»), которого в
+        # словаре синонимов нет и быть не должно.
+        + ROLE_SYNONYMS_DE.get(intent.canonical_keyword, ())
         + FAMILY_SYNONYMS.get(intent.family, ())
     )
     if low_language and not prohibits_broad_fallback(intent.family):

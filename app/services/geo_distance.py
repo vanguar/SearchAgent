@@ -110,6 +110,8 @@ _CITY_DISTRICT_PARENTS: dict[str, str] = {
     "rahlstedt": "hamburg",
     "stellingen": "hamburg",
     # Берлин
+    # https://www.berlin.de/ba-treptow-koepenick/ueber-den-bezirk/ortsteile/adlershof/
+    "adlershof": "berlin",
     "charlottenburg": "berlin",
     "kreuzberg": "berlin",
     "neukolln": "berlin",
@@ -135,6 +137,95 @@ _CITY_DISTRICT_PARENTS: dict[str, str] = {
     "schoneberg": "berlin",
     "gesundbrunnen": "berlin",
 }
+
+# Районы мегаполисов, чьё имя носит ЕЩЁ И отдельный населённый пункт в другой
+# части Германии.
+#
+# Почтовый справочник работает на уровне муниципалитетов, поэтому берлинских
+# Ortsteile в нём нет вовсе: запись «Biesdorf» — это Бисдорф в Айфеле (576 км от
+# Берлина), «Weissensee» — тюрингский город (219 км), «Rosenthal» — гессенский
+# (357 км). Из-за этого голое «Biesdorf» в объявлении уверенно опознавалось как
+# другой город, и берлинская вакансия жёстко отклонялась.
+#
+# Что мы про такое имя знаем на самом деле: ничего. Это либо район заказанного
+# города, либо одноимённый город в шестистах километрах, и по одному слову их не
+# различить. Поэтому ответ здесь — «по локации не понять»: вакансия остаётся в
+# выдаче, но городом не помечается. Потерять живую вакансию хуже, чем показать
+# одну лишнюю; а когда у поиска задан радиус, лишнюю всё равно отсечёт проверка
+# расстояния.
+_AMBIGUOUS_DISTRICT_NAMES: dict[str, frozenset[str]] = {
+    "berlin": frozenset({
+        "hansaviertel", "tiergarten", "weissensee", "blankenburg", "heinersdorf", "karow",
+        "blankenfelde", "buch", "franzosisch buchholz", "rosenthal", "wilhelmsruh",
+        "schmargendorf", "grunewald", "westend", "halensee", "haselhorst", "siemensstadt",
+        "staaken", "gatow", "kladow", "hakenfelde", "wilhelmstadt", "lichterfelde", "lankwitz",
+        "dahlem", "wannsee", "schlachtensee", "friedenau", "britz", "buckow", "rudow",
+        "gropiusstadt", "planterwald", "baumschulenweg", "johannisthal", "altglienicke",
+        "bohnsdorf", "friedrichshagen", "rahnsdorf", "grunau", "muggelheim", "schmockwitz",
+        "biesdorf", "kaulsdorf", "mahlsdorf", "friedrichsfelde", "karlshorst", "falkenberg",
+        "malchow", "wartenberg", "tegel", "konradshohe", "heiligensee", "frohnau", "hermsdorf",
+        "waidmannslust", "lubars", "wittenau", "borsigwalde",
+    }),
+    "hamburg": frozenset({
+        "allermohe", "alsterdorf", "altengamme", "altenwerder", "bahrenfeld", "billbrook",
+        "borgfelde", "curslack", "dulsberg", "eilbek", "eppendorf", "finkenwerder", "francop",
+        "hamm", "harvestehude", "hoheluft", "horn", "jenfeld", "langenhorn", "lokstedt",
+        "lurup", "moorburg", "neuenfelde", "neugraben", "niendorf", "ohlsdorf", "osdorf",
+        "rissen", "rothenburgsort", "schnelsen", "steilshoop", "sulldorf", "tonndorf",
+        "uhlenhorst", "veddel", "wilhelmsburg", "wohldorf",
+    }),
+}
+
+
+def _is_ambiguous_district(candidate: str, target: str) -> bool:
+    """Может ли это имя быть районом заказанного города, а может и чужим городом."""
+    return candidate in _AMBIGUOUS_DISTRICT_NAMES.get(target, frozenset())
+
+
+# Страны, названные в поле локации. Справочник тут только немецкий, поэтому
+# «Kyiv, Ukraine» или «Wien, Österreich» не опознавались ни как заказанный город,
+# ни как чужой, и вакансия оставалась в выдаче по Берлину — при том что это
+# заведомо не Берлин. Названная страна, кроме Германии, отвечает однозначно.
+_NON_GERMAN_COUNTRY_MARKERS: tuple[str, ...] = (
+    "ukraine", "ukraina", "osterreich", "austria", "schweiz", "switzerland", "suisse",
+    "polska", "polen", "poland", "czechia", "tschechien", "czech republic", "slowakei",
+    "slovakia", "ungarn", "hungary", "rumanien", "romania", "bulgarien", "bulgaria",
+    "niederlande", "netherlands", "holland", "belgien", "belgium", "luxemburg",
+    "luxembourg", "frankreich", "france", "spanien", "spain", "portugal", "italien",
+    "italy", "danemark", "denmark", "schweden", "sweden", "norwegen", "norway",
+    "finnland", "finland", "estland", "estonia", "lettland", "latvia", "litauen",
+    "lithuania", "irland", "ireland", "united kingdom", "great britain", "england",
+    "schottland", "scotland", "turkei", "turkey", "griechenland", "greece", "kroatien",
+    "croatia", "slowenien", "slovenia", "serbien", "serbia", "united states", "usa",
+    "canada", "kanada", "india", "indien", "brazil", "brasilien", "kasachstan",
+    "kazakhstan", "georgien", "georgia", "moldau", "moldova", "uzbekistan",
+    "usbekistan", "kirgisistan", "kyrgyzstan",
+)
+_GERMANY_MARKERS: frozenset[str] = frozenset({"deutschland", "germany", "germania", "de"})
+
+
+def names_other_country(location_text: str | None, *, country_code: str | None = None) -> bool:
+    """Названа ли в локации страна, отличная от Германии.
+
+    Смотрит ТОЛЬКО на поле локации, не на текст объявления: немецкая вакансия
+    вполне может упоминать другие страны в описании, и это ничего не значит.
+
+    Явное «Deutschland» рядом перебивает: «Frankfurt, Deutschland, Kunden in
+    Polen» — это немецкая вакансия.
+    """
+    if country_code and country_code.upper() != "DE":
+        return True
+    if not location_text:
+        return False
+    normalized = _ascii_fold(location_text)
+    if not normalized:
+        return False
+    tokens = set(normalized.split())
+    if tokens & _GERMANY_MARKERS:
+        return False
+    padded = f" {normalized} "
+    return any(f" {marker} " in padded for marker in _NON_GERMAN_COUNTRY_MARKERS)
+
 
 # Псевдонимы названий. Две группы:
 #  * английские экзонимы — часть источников (Arbeitnow, Remotive, Greenhouse)
@@ -254,6 +345,44 @@ def _geo_tables() -> tuple[dict[str, GeoPoint], dict[str, tuple[_WeightedPlace, 
     return postal, places, prefix_centroids
 
 
+# Сколько почтовых индексов должно приходиться на место, чтобы считать его
+# городом, у которого в объявлениях пишут районы.
+#
+# Порог низкий намеренно: форма «Город-Район» в Германии universal, а не только
+# столичная — «Rostock-Evershagen» ровно того же устройства, что
+# «Berlin-Kreuzberg», и у Ростока всего десять индексов. Отсекается лишь хутор с
+# единственным индексом, чтобы «Neustadt Holstein» не становился «Neustadt».
+_CITY_WITH_DISTRICTS_MIN_POSTAL_CODES = 2
+
+
+def _parent_city_head(normalized: str) -> str | None:
+    """Город, стоящий в начале составного названия района.
+
+    Почтовый справочник называет районы «Berlin Kreuzberg», «Hamburg Altona
+    Altstadt» — и это ОТДЕЛЬНЫЕ его записи. Из-за этого вакансия в Кройцберге
+    считалась вакансией другого города и жёстко отклонялась при поиске по
+    Берлину, хотя Кройцберг и есть Берлин.
+
+    Правило общее: в немецком названии района муниципалитет стоит первым, а
+    независимые населённые пункты повторяют чужое имя только с предлогом
+    («Neustadt an der Weinstraße», «Roggentin bei Rostock»), и такие формы
+    разбираются отдельно, в _CITY_QUALIFIER_RE.
+    """
+    tokens = normalized.split()
+    if len(tokens) < 2:
+        return None
+    _, place_table, _ = _geo_tables()
+    # Самая длинная подходящая голова: «frankfurt am main hoechst» — это
+    # Франкфурт-на-Майне, а не Франкфурт вообще.
+    for length in range(len(tokens) - 1, 0, -1):
+        head = " ".join(tokens[:length])
+        head = _CITY_DISTRICT_PARENTS.get(head, _CITY_EXONYMS.get(head, head))
+        places = place_table.get(head)
+        if places and sum(place.weight for place in places) >= _CITY_WITH_DISTRICTS_MIN_POSTAL_CODES:
+            return head
+    return None
+
+
 def canonical_city(city: str | None) -> str | None:
     """Нормализованное имя города: районы сведены к своему городу.
 
@@ -264,7 +393,10 @@ def canonical_city(city: str | None) -> str | None:
     if not normalized:
         return None
     normalized = _CITY_EXONYMS.get(normalized, normalized)
-    return _CITY_DISTRICT_PARENTS.get(normalized, normalized)
+    district_parent = _CITY_DISTRICT_PARENTS.get(normalized)
+    if district_parent is not None:
+        return district_parent
+    return _parent_city_head(normalized) or normalized
 
 
 def is_known_place(name: str | None) -> bool:
@@ -313,9 +445,17 @@ def location_matches_city(location_text: str | None, city: str | None) -> bool |
 
     any_known_segment = False
     for segment in (location_text, *_location_segments(location_text)):
+        # Имя, которое носит и район заказанного города, и чужой город, не
+        # доказывает ничего — см. _AMBIGUOUS_DISTRICT_NAMES. Проверяется ДО
+        # разбора вариантов: вариант мог уже увести имя в чужой город (таблица
+        # районов относит «Hansaviertel» к Ростоку, хотя он есть и в Берлине).
+        if _is_ambiguous_district(_normalize_city(segment), target):
+            continue
         for candidate in _city_candidates(segment):
             if candidate == target:
                 return True
+            if _is_ambiguous_district(candidate, target):
+                continue
             if is_known_place(candidate):
                 any_known_segment = True
     return False if any_known_segment else None
@@ -520,6 +660,12 @@ def _city_candidates(city: str | None) -> tuple[str, ...]:
         add(_CITY_DISTRICT_PARENTS.get(trimmed, ""))
         add(trimmed)
         add(_CITY_EXONYMS.get(trimmed, ""))
+
+    # Район мегаполиса — это сам мегаполис. Справочник хранит "berlin kreuzberg"
+    # отдельной записью, поэтому без этого варианта вакансия в Кройцберге
+    # выглядела вакансией другого города и отклонялась при поиске по Берлину.
+    # Вариант добавляется ПОСЛЕДНИМ: точное название всегда важнее.
+    add(_parent_city_head(normalized) or "")
     return tuple(candidates)
 
 

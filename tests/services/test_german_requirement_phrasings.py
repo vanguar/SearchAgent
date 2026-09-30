@@ -42,6 +42,7 @@ def _signals(requirement_phrase: str):
     )
     record = VacancyNormalizer().normalize_source_record(
         SourceRecordPreview(
+            description_complete=True,
             source_id="careerjet",
             source_name="Careerjet",
             external_id="cj-1",
@@ -132,6 +133,7 @@ def test_conversational_german_is_not_reported_as_a_high_bar(phrase: str, expect
 def _signals_for_body(body: str):
     record = VacancyNormalizer().normalize_source_record(
         SourceRecordPreview(
+            description_complete=True,
             source_id="careerjet",
             source_name="Careerjet",
             external_id="cj-2",

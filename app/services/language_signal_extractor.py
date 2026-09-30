@@ -4,17 +4,18 @@ import re
 
 from app.services.hashers import normalize_text_for_fingerprint
 from app.services.normalization_models import LanguageSignals
+from app.services.signal_negation import mask_negated_signals, normalize_signal_text
 
 _STRONG_GERMAN_PATTERNS = (
     r"\b(?:sehr gute|gute|fliessend(?:e|er|es|en)?|verhandlungssicher(?:e|er|es|en)?|sichere|b1|b2|c1|c2)\s+deutsch",
     r"\bdeutsch(?:kenntnisse)?\s+(?:mindestens\s+)?(?:b1|b2|c1|c2)\b",
-    r"\bdeutschkenntnisse\b(?!\s*.{0,30}\b(?:nicht|keine)\s+(?:erforderlich|notwendig)\b).{0,80}\b(?:erforderlich|vorausgesetzt|zwingend|required|mandatory)\b",
+    r"\bdeutschkenntnisse\b(?!\s+(?:auf\s+)?a[12]\b)(?!\s*.{0,30}\b(?:nicht|keine)\s+(?:erforderlich|notwendig)\b).{0,80}\b(?:erforderlich|vorausgesetzt|zwingend|required|mandatory)\b",
     # «Deutsch in Wort und Schrift» и «fliessend Deutsch» — уверенный уровень,
     # а не просто наличие требования.
     r"(?<!kein )(?<!keine )(?<!nicht )(?<!ohne )\bdeutsch\s+in\s+wort\s+und\s+schrift\b",
     r"(?<!kein )(?<!keine )(?<!nicht )(?<!ohne )\bdeutsche\s+sprache\s+in\s+wort\s+und\s+schrift\b",
     r"(?<!kein )(?<!keine )(?<!nicht )(?<!ohne )\b(?:du\s+sprichst|sie\s+sprechen)\s+flie(?:ss|s)end\s+deutsch\b",
-    r"\bgerman\b.*\b(?:required|must|mandatory)\b",
+    r"(?<!basic )\bgerman\b[^;]*\b(?:required|must|mandatory)\b",
 )
 _LOW_LANGUAGE_PATTERNS = (
     r"\bohne deutsch",
@@ -97,8 +98,12 @@ class LanguageSignalExtractor:
     def extract(self, *, title: str | None, body_text: str | None) -> LanguageSignals:
         combined = normalize_text_for_fingerprint(" ".join(part for part in (title, body_text) if part))
 
+        german_text = mask_negated_signals(
+            normalize_signal_text("; ".join(part for part in (title, body_text) if part)),
+            re.compile(r"\b(?:deutsch\w*|german)\b"),
+        )
         return LanguageSignals(
-            strong_german_required=_matches_any(combined, _STRONG_GERMAN_PATTERNS),
+            strong_german_required=_matches_any(german_text, _STRONG_GERMAN_PATTERNS),
             german_mentioned=bool(re.search(r"\b(?:deutsch\w*|german)\b", combined)),
             english_mentioned=bool(re.search(r"\b(?:englisch\w*|english)\b", combined)),
             english_required=_matches_any(combined, _ENGLISH_REQUIRED_PATTERNS),

@@ -16,6 +16,7 @@ _COMPANY_SUFFIX_RE = re.compile(
     r"\b(?:gmbh|mbh|ag|kg|gbr|ohg|ug|haftungsbeschrankt|co|co kg|e v|ev|se)\b"
 )
 _BODY_KEYS = (
+    "_full_description",
     "stellenangebotsBeschreibung",
     "stellenbeschreibung",
     "description",
@@ -89,6 +90,7 @@ class VacancyNormalizer:
                 normalized_body_text,
             ),
             language_signals=language_signals,
+            description_complete=record.description_complete,
         )
 
 

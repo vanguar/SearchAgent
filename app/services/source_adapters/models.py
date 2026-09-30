@@ -32,6 +32,7 @@ class SourceRecordPreview:
     posted_at: str | None
     detail_url: str | None
     raw_payload: RawPayload
+    description_complete: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)

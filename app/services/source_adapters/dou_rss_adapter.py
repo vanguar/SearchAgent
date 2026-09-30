@@ -137,6 +137,7 @@ def _item_to_record(source_id: str, source_name: str, raw_item: dict[str, Any]) 
     raw_title = _to_text(raw_item.get("title")) or "Без названия"
     parsed = parse_dou_title(raw_title)
     return SourceRecordPreview(
+            description_complete=False,
         source_id=source_id,
         source_name=source_name,
         external_id=external_id,

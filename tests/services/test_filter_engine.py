@@ -797,8 +797,6 @@ def test_driver_b_only_profile_rejects_every_explicit_non_b_license_mention() ->
         ("Fahrer", "B erforderlich, C von Vorteil."),
         ("Fahrer", "CE wünschenswert."),
         ("Fahrer", "CE optional."),
-        ("Fahrer", "CE nicht erforderlich."),
-        ("Fahrer", "Klasse B ausreichend, CE nicht notwendig."),
         ("Fahrer", "Führerschein B, C kann später erworben werden."),
         ("Fahrer", "Führerschein Klasse C/CE."),
         ("LKW Fahrer Kl. CE", "Nah-/Fernverkehr."),
@@ -939,7 +937,7 @@ def test_driver_b_profile_allows_explicitly_negated_heavy_vehicle_context() -> N
         assert not any(hit.code == "heavy_vehicle_mismatch" for hit in result.rejection_hits), title
 
 
-def test_negated_lkw_license_mention_keeps_existing_strict_license_rejection() -> None:
+def test_negated_lkw_license_mention_does_not_reject() -> None:
     profile = _build_profile(
         desired_roles=(DRIVER_B_FERNVERKEHR_ROLE,),
         search_query_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
@@ -955,7 +953,8 @@ def test_negated_lkw_license_mention_keeps_existing_strict_license_rejection() -
     rejection_codes = {hit.code for hit in result.rejection_hits}
 
     assert "heavy_vehicle_mismatch" not in rejection_codes
-    assert "driver_license_mismatch" in rejection_codes
+    assert "driver_license_mismatch" not in rejection_codes
+    assert not result.hard_reject
 
 
 def test_driver_b_profile_rejects_conflicting_light_and_heavy_vehicle_signals() -> None:
@@ -1070,8 +1069,10 @@ def test_driver_b_profile_handles_conjunction_alternative_and_negated_requiremen
         ("Klasse B oder CE", True),
         ("CE erforderlich, B reicht nicht aus", True),
         ("CE erforderlich und Klasse C wünschenswert", True),
-        ("Kein LKW-Führerschein erforderlich, Klasse B genügt", True),
-        ("Führerschein CE nicht erforderlich", True),
+        ("Kein LKW-Führerschein erforderlich, Klasse B genügt", False),
+        ("Führerschein CE nicht erforderlich", False),
+        ("CE nicht erforderlich.", False),
+        ("Klasse B ausreichend, CE nicht notwendig.", False),
     )
 
     for body, expected_reject in cases:

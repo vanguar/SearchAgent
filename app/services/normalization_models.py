@@ -56,6 +56,7 @@ class NormalizedVacancyRecord:
     title_fingerprint: str
     content_fingerprint: str
     language_signals: LanguageSignals
+    description_complete: bool | None = None
 
     @property
     def source_record_key(self) -> str:

@@ -41,6 +41,7 @@ FIXTURE_TODAY = date(2026, 4, 24)
 def _build_canonical(*, title: str, body: str, location: str = "Berlin, Deutschland") -> CanonicalVacancyGroup:
     record = VacancyNormalizer().normalize_source_record(
         SourceRecordPreview(
+            description_complete=True,
             source_id="ba",
             source_name="BA",
             external_id="fixture-1",

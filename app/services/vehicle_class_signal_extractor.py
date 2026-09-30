@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from app.services.hashers import normalize_text_for_fingerprint
+from app.services.signal_negation import is_negated_signal, normalize_signal_text
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,19 +102,10 @@ _DRIVER_OR_VEHICLE_CONTEXT_RE = re.compile(
     r"\b(?:fahrer|fahrerin|kraftfahrer|berufskraftfahrer|fahrzeug|fahrzeuge|fahrzeugen|"
     r"lkw|lastwagen|transporter|tonner|zugmaschine)\w*\b"
 )
-_NEGATED_HEAVY_PREFIX_RE = re.compile(
-    r"(?:"
-    r"\b(?:kein|keine|keinen|keinem|keiner|keines|ohne|weder|statt)\s+|"
-    r"\banstelle\s+von\s+|"
-    r"\bnicht\s+(?:mit|auf|als)\s+|"
-    r"\b(?:kein|keine|keinen)\s+(?:einsatz|fahrt|fahrten)\s+(?:mit|auf|als)\s+|"
-    r"\b(?:kein|keine|keinen)\s+fahrzeug\w*\s+(?:uber|mit|ab)\s+"
-    r")$"
-)
 
 
 def extract_vehicle_class_signals(text: str | None) -> VehicleClassSignals:
-    normalized = normalize_text_for_fingerprint(text)
+    normalized = normalize_signal_text(text)
     if not normalized:
         return VehicleClassSignals()
 
@@ -159,5 +150,4 @@ def _matching_labels(
 
 
 def _is_negated_heavy_match(normalized_text: str, match: re.Match[str]) -> bool:
-    prefix = normalized_text[max(0, match.start() - 80) : match.start()]
-    return _NEGATED_HEAVY_PREFIX_RE.search(prefix) is not None
+    return is_negated_signal(normalized_text, match)

@@ -156,6 +156,7 @@ class BAAdapter(BaseSourceAdapter):
         detail_url = _to_text(raw_item.get("externeUrl")) or _build_ba_detail_url(reference or external_id)
 
         return SourceRecordPreview(
+            description_complete=False,
             source_id=self.source_id,
             source_name=self.display_name,
             external_id=external_id,

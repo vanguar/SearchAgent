@@ -10,27 +10,31 @@ from app.services.ai_tools_profile import (
     is_ai_tools_profile,
 )
 from app.services.driver_license_signal_extractor import extract_profile_driver_license_categories
+from app.services.employment_signal_extractor import EMPLOYMENT_TYPE_LABELS_RU
 from app.services.hashers import normalize_text_for_fingerprint
 from app.services.normalization_models import CanonicalVacancyGroup
+from app.services.profile_condition_review import condition_review_hits
 from app.services.profile_parser import (
     DRIVER_B_FERNVERKEHR_ROLE,
     DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
 )
 from app.services.role_family import (
+    DRIVING_LIKE_FAMILIES,
     RoleFamily,
-    classify_desired_roles,
+    classify_role_families,
     classify_vacancy_de,
     families_are_compatible,
     is_specific_family,
 )
 from app.services.role_intent import normalize_role_intent
-from app.services.rule_catalog import inspect_vacancy
+from app.services.rule_catalog import build_raw_analysis_text, inspect_vacancy
 from app.services.search_models import (
     FilterResult,
     RuleHit,
     SearchProfileContext,
     VacancySignalSnapshot,
     normalize_profile_text,
+    profile_role_texts,
 )
 from app.services.search_normalizer import is_remote_worldwide_location
 
@@ -148,6 +152,15 @@ class FilterEngine:
 
         if resolved_signals.strong_german_required and profile.low_german:
             rejection_hits.append(RuleHit(code="strong_german_mismatch", label_ru="явно требуют хороший немецкий"))
+        elif resolved_signals.strong_german_required and not profile.german_level_known:
+            # Уровень немецкого в профиле не заполнен. Считать это «немецкий в
+            # порядке» нельзя — но и скрывать вакансию не за что: человек решает сам.
+            review_hits.append(
+                RuleHit(
+                    code="strong_german_unknown_level",
+                    label_ru="требуют хороший немецкий, а уровень в профиле не указан",
+                )
+            )
 
         if (
             resolved_signals.german_any_required
@@ -214,8 +227,19 @@ class FilterEngine:
 
         # A worldwide-remote run must never hard-reject on geography: the user explicitly
         # opted out of a local filter (see worldwide_search above).
+        #
+        # Когда у прогона есть заказанные города, географию решает ТОЛЬКО их
+        # проверка (outside_requested_cities ниже): она знает про районы, про
+        # радиус и про разницу между «чужой город» и «по локации не понять».
+        # Дублирующее правило по местам профиля тут лишь мешало: «Friedrichshain,
+        # Berlin» и «Gewerbegebiet Nordwest» оно отклоняло как чужую локацию,
+        # хотя первая — это Берлин, а про вторую ничего не известно.
+        #
+        # Без заказанных городов (поиск по всей стране) правило остаётся: там
+        # места профиля — единственное, что ограничивает географию.
         if (
             profile.preferred_locations
+            and not profile.search_cities
             and profile.relocation_ready is False
             and not worldwide_search
             and resolved_signals.location_match is False
@@ -226,8 +250,33 @@ class FilterEngine:
         if outside_cities is not None:
             rejection_hits.append(outside_cities)
 
+        self_employment_hit = _self_employment_hit(resolved_signals, profile)
+        if self_employment_hit is not None:
+            target = rejection_hits if profile.self_employment_ok is False else review_hits
+            target.append(self_employment_hit)
+
+        if profile.physical_work_ok is False and resolved_signals.heavy_physical_signals:
+            rejection_hits.append(
+                RuleHit(
+                    code="heavy_physical_mismatch",
+                    label_ru=(
+                        "тяжёлая физическая нагрузка, а профиль её исключает: "
+                        + resolved_signals.heavy_physical_signals[0]
+                    ),
+                )
+            )
+
+        employment_type_hit = _employment_type_hit(resolved_signals, profile)
+        if employment_type_hit is not None:
+            review_hits.append(employment_type_hit)
+
         if resolved_signals.sponsorship_ambiguity:
             review_hits.append(RuleHit(code="sponsorship_review", label_ru="есть вопросы по допуску к работе"))
+
+        review_hits.extend(condition_review_hits(
+            build_raw_analysis_text(canonical), profile,
+            immediate_start=resolved_signals.immediate_start_signal,
+        ))
 
         decision = "allow"
         if rejection_hits:
@@ -243,26 +292,98 @@ class FilterEngine:
         )
 
 
+def _self_employment_hit(
+    signals: VacancySignalSnapshot,
+    profile: SearchProfileContext,
+) -> RuleHit | None:
+    """Вакансия требует самозанятости, а профиль её не принимает.
+
+    Три состояния поля профиля, и все три разные:
+
+    * False — человек хочет трудовой договор. Самозанятость здесь жёсткий отказ:
+      ни отпуска, ни больничного, ни социальных отчислений.
+    * None — не указано. Тогда это риск на карточке, а не причина спрятать
+      вакансию: молчание профиля не повод решать за человека.
+    * True — самозанятость устраивает, правило не работает вовсе.
+    """
+    if profile.self_employment_ok is True:
+        return None
+    if not signals.requires_self_employment:
+        return None
+    detected = ", ".join(signals.self_employment_signals)
+    if profile.self_employment_ok is False:
+        return RuleHit(
+            code="self_employment_mismatch",
+            label_ru=f"оформление не трудовым договором ({detected}), а профиль требует трудоустройства",
+        )
+    return RuleHit(
+        code="self_employment_review",
+        label_ru=f"оформление не трудовым договором ({detected}); в профиле это не задано",
+    )
+
+
+def _employment_type_hit(
+    signals: VacancySignalSnapshot,
+    profile: SearchProfileContext,
+) -> RuleHit | None:
+    """Форма занятости вакансии не совпадает ни с одной допустимой в профиле.
+
+    Это «на проверку», а не отказ: объявления сплошь пишут несколько форм сразу
+    («Vollzeit oder Teilzeit»), и распознавание по тексту здесь не настолько
+    надёжно, чтобы на нём скрывать вакансию. Когда в тексте о занятости не сказано
+    вовсе, правило молчит: отсутствие данных — это не расхождение.
+    """
+    if not profile.employment_types or not signals.employment_types:
+        return None
+    if set(profile.employment_types) & set(signals.employment_types):
+        return None
+    vacancy_labels = ", ".join(
+        EMPLOYMENT_TYPE_LABELS_RU.get(code, code) for code in signals.employment_types
+    )
+    profile_labels = ", ".join(
+        EMPLOYMENT_TYPE_LABELS_RU.get(code, code) for code in profile.employment_types
+    )
+    return RuleHit(
+        code="employment_type_review",
+        label_ru=f"занятость в вакансии — {vacancy_labels}, а в профиле выбрано: {profile_labels}",
+    )
+
+
 def _outside_requested_cities_hit(
     signals: VacancySignalSnapshot,
     profile: SearchProfileContext,
     worldwide_search: bool,
 ) -> RuleHit | None:
-    """Вакансия стоит не в том городе, который заказали в форме поиска.
+    """Вакансия стоит не там, где заказали в форме поиска.
 
-    Города — это и есть заказ: «Berlin, Rostock» означает вакансии в Берлине и
-    Ростоке, а не всё в их окрестностях. Источники так не умеют — Careerjet
-    досыпает Людвигсфельде к Берлину, Arbeitnow фильтрует на своей стороне и
-    присылает Мюнхен на запрос Ростока, — поэтому последнее слово за проверкой
-    здесь.
+    Без радиуса города — это и есть заказ: «Berlin, Rostock» означает вакансии в
+    Берлине и Ростоке, а не всё в их окрестностях. Источники так не умеют —
+    Careerjet досыпает Людвигсфельде к Берлину, Arbeitnow фильтрует на своей
+    стороне и присылает Мюнхен на запрос Ростока, — поэтому последнее слово за
+    проверкой здесь.
+
+    С заданным радиусом заказ шире: «в пределах N км от любого из этих городов».
+    Расстояние считает _match_requested_cities по офлайн-справочнику, поэтому
+    ограничение работает и там, где источник радиуса не понимает.
 
     Проверка не зависит от relocation_ready: готовность к переезду — свойство
-    профиля, а города человек задал для ЭТОГО запроса.
+    профиля, а места человек задал для ЭТОГО запроса.
     """
     if worldwide_search or not profile.search_cities:
         return None
     if not signals.outside_requested_cities:
         return None
+    radius_km = profile.search_radius_km or 0
+    if radius_km > 0:
+        distance = signals.distance_to_search_city_km
+        measured = f", ближайший в {distance:.0f} км" if distance is not None else ""
+        return RuleHit(
+            code="outside_requested_cities",
+            label_ru=(
+                f"вакансия дальше {radius_km} км от заказанных городов"
+                f" ({', '.join(profile.search_cities)}){measured}"
+            ),
+        )
     return RuleHit(
         code="outside_requested_cities",
         label_ru="город вакансии не из заказанных: " + ", ".join(profile.search_cities),
@@ -304,7 +425,7 @@ def _driver_license_mismatch_hit(
     incompatible_categories = tuple(
         category
         for category in signals.mentioned_driver_license_categories
-        if category != "B"
+        if category != "B" and category not in signals.negated_driver_license_categories
     )
     if not incompatible_categories:
         return None
@@ -360,11 +481,14 @@ def is_b_only_driving_profile(profile: SearchProfileContext) -> bool:
     if _is_driver_b_fernverkehr_profile(profile):
         return True
 
+    # Перегон автомобилей — тоже работа за рулём: человеку с категорией B не отдадут
+    # седельный тягач, как бы вакансия ни называлась. Поэтому проверяются оба
+    # «водительских» семейства, а не только доставка.
     for role_text in (*profile.desired_roles, *profile.search_query_terms):
         intent = normalize_role_intent(role_text)
-        if intent is not None and intent.family is RoleFamily.DRIVING:
+        if intent is not None and intent.family in DRIVING_LIKE_FAMILIES:
             return True
-    return RoleFamily.DRIVING in classify_desired_roles(profile.desired_roles)
+    return bool(classify_role_families(profile_role_texts(profile)) & DRIVING_LIKE_FAMILIES)
 
 
 def _is_clear_role_mismatch(signals: VacancySignalSnapshot, profile: SearchProfileContext) -> bool:
@@ -383,7 +507,11 @@ def _negative_hits_are_compatible_with_profile(
     signals: VacancySignalSnapshot,
     profile: SearchProfileContext,
 ) -> bool:
-    query_families = {family for family in classify_desired_roles(profile.desired_roles) if is_specific_family(family)}
+    query_families = {
+        family
+        for family in classify_role_families(profile_role_texts(profile))
+        if is_specific_family(family)
+    }
     if not query_families:
         return False
 
@@ -413,10 +541,11 @@ def _check_profession_family_mismatch(
     the most distinctive tokens to avoid false positives from incidental mentions.
     Returns False conservatively when both title and body are GENERIC.
     """
-    if not profile.desired_roles:
+    role_texts = profile_role_texts(profile)
+    if not role_texts:
         return False
 
-    query_families = classify_desired_roles(profile.desired_roles)
+    query_families = classify_role_families(role_texts)
     specific_query_families = {f for f in query_families if is_specific_family(f)}
     if not specific_query_families:
         return False
@@ -438,7 +567,7 @@ def _is_non_it_writing_title_for_it_profile(
     profile: SearchProfileContext,
 ) -> bool:
     """Reject writing/content titles for IT profiles before noisy body terms can rescue them."""
-    query_families = classify_desired_roles(profile.desired_roles)
+    query_families = classify_role_families(profile_role_texts(profile))
     specific_query_families = {f for f in query_families if is_specific_family(f)}
     if RoleFamily.IT not in specific_query_families:
         return False

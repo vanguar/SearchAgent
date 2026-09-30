@@ -5,7 +5,14 @@ from dataclasses import dataclass
 
 from app.services.ai_tools_profile import is_ai_tools_profile
 from app.services.driver_license_signal_extractor import extract_driver_license_requirements
-from app.services.geo_distance import GeoPoint, distance_km, location_matches_city, resolve_point
+from app.services.employment_signal_extractor import extract_employment_signals
+from app.services.geo_distance import (
+    GeoPoint,
+    distance_km,
+    location_matches_city,
+    names_other_country,
+    resolve_point,
+)
 from app.services.hashers import normalize_text_for_fingerprint
 from app.services.language_signal_extractor import (
     ENGLISH_BENEFIT_PATTERNS,
@@ -15,12 +22,20 @@ from app.services.language_signal_extractor import (
 from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.role_family import (
     RoleFamily,
-    classify_desired_roles,
+    classify_role_families,
     families_are_compatible,
     is_specific_family,
 )
-from app.services.search_models import RuleHit, SearchProfileContext, VacancySignalSnapshot, normalize_profile_text
+from app.services.salary_signal_extractor import extract_salary_signals
+from app.services.search_models import (
+    RuleHit,
+    SearchProfileContext,
+    VacancySignalSnapshot,
+    normalize_profile_text,
+    profile_role_texts,
+)
 from app.services.search_normalizer import is_remote_worldwide_location
+from app.services.signal_negation import mask_negated_signals, normalize_signal_text
 from app.services.vehicle_class_signal_extractor import extract_vehicle_class_signals
 
 HOT_BUCKET_MIN_SCORE = 70
@@ -104,6 +119,29 @@ POSITIVE_ROLE_FAMILIES: tuple[TextRule, ...] = (
         patterns=(r"\bhelfer\w*", r"\bhilfskraft\w*", r"\baushilfe\w*"),
     ),
     TextRule(
+        code="vehicle_logistics_family",
+        label_ru="роль в автомобильной логистике",
+        # Перегон и перестановка автомобилей. Только однозначные составные формы:
+        # голое "fahrzeug" стоит и в "Fahrzeugbau" (производство), и в
+        # "Fahrzeugtechniker" (автомеханик) — это другая работа.
+        patterns=(
+            r"\bfahrzeug(?:uberfuhr|verbring|ruckfuhr|umsetz|logistik|aufbereit|pfleg|rangier)\w*",
+            r"\buberfuhrungsfahrer\w*",
+            r"\bruckfuhrungsfahrer\w*",
+            r"\bumsetzfahrer\w*",
+            r"\brangierfahrer\w*",
+            r"\b(?:pkw|kfz|auto)\s+rangierer\w*",
+            r"\brangierer\b",
+            r"\bwerkstattfahrer\w*",
+            r"\bhol\s+und\s+bringservice\b",
+            r"\bhol\s+und\s+bringfahrer\b",
+            r"\bhol\s+und\s+bring\s+service\b",
+            r"\bautologistik\w*",
+            r"\bautoaufbereit\w*",
+            r"\b(?:fahrzeug|auto)transport\w*",
+        ),
+    ),
+    TextRule(
         code="delivery_driving_family",
         label_ru="роль в доставке или вождении",
         # Погрузчик исключён явно: "Staplerfahrer" кончается на "-fahrer", но это
@@ -131,7 +169,13 @@ POSITIVE_ROLE_HIT_FAMILIES: dict[str, RoleFamily] = {
     "packaging_family": RoleFamily.WAREHOUSE,
     "production_family": RoleFamily.PRODUCTION,
     "delivery_driving_family": RoleFamily.DRIVING,
+    "vehicle_logistics_family": RoleFamily.VEHICLE_LOGISTICS,
 }
+
+# Правила по коду. Раньше алиасы профиля ссылались на POSITIVE_ROLE_FAMILIES по
+# НОМЕРУ в кортеже, и добавление нового семейства в середину списка молча
+# переназначало «водитель» на чужое правило. Имя не сдвигается.
+POSITIVE_ROLE_RULES_BY_CODE: dict[str, TextRule] = {rule.code: rule for rule in POSITIVE_ROLE_FAMILIES}
 
 
 NEGATIVE_ROLE_FAMILIES: tuple[TextRule, ...] = (
@@ -176,7 +220,7 @@ STRONG_GERMAN_REQUIREMENT_RULE = TextRule(
     patterns=(
         r"\b(?:sehr gute|gute|fliessend(?:e|er|es|en)?|verhandlungssicher(?:e|er|es|en)?|sichere|b1|b2|c1|c2)\s+deutsch",
         r"\bdeutsch(?:kenntnisse)?\s+(?:mindestens\s+)?(?:b1|b2|c1|c2)\b",
-        r"\bdeutschkenntnisse\b(?!\s*.{0,30}\b(?:nicht|keine)\s+(?:erforderlich|notwendig)\b).{0,80}\b(?:erforderlich|vorausgesetzt|zwingend|required|mandatory|must)\b",
+        r"\bdeutschkenntnisse\b(?!\s+(?:auf\s+)?a[12]\b)(?!\s*.{0,30}\b(?:nicht|keine)\s+(?:erforderlich|notwendig)\b).{0,80}\b(?:erforderlich|vorausgesetzt|zwingend|required|mandatory|must)\b",
         # Уверенный уровень, записанный без слова "Kenntnisse". Эти формы
         # встречаются в объявлениях не реже канонических и пропускались целиком.
         r"(?<!kein )(?<!keine )(?<!nicht )(?<!ohne )\bdeutsch\s+flie(?:ss|s)end\b",
@@ -184,7 +228,7 @@ STRONG_GERMAN_REQUIREMENT_RULE = TextRule(
         r"\bdeutsch\s+(?:auf\s+)?muttersprach\w*(?:\s+niveau)?\b",
         r"\bsichere[rn]?\s+umgang\s+mit\s+der\s+deutschen\s+sprache\b",
         r"\bexzellente\s+deutschkenntnisse\b",
-        r"\bgerman\b.*\b(?:required|must|mandatory)\b",
+        r"(?<!basic )\bgerman\b[^;]*\b(?:required|must|mandatory)\b",
     ),
 )
 GERMAN_ANY_REQUIRED_RULE = TextRule(
@@ -201,7 +245,7 @@ GERMAN_ANY_REQUIRED_RULE = TextRule(
         # are not preserved — cross-sentence matching is a known limitation.
         # Защита от отрицания: «Deutschkenntnisse sind nicht erforderlich» — это НЕ требование.
         # Такая же защита уже стоит у строгого правила; здесь её не было.
-        r"\bdeutschkenntnisse\b(?!\s*.{0,30}\b(?:nicht|keine)\s+(?:erforderlich|notwendig)\b)"
+        r"\bdeutschkenntnisse\b(?!\s+(?:auf\s+)?a[12]\b)(?!\s*.{0,30}\b(?:nicht|keine)\s+(?:erforderlich|notwendig)\b)"
         r".{0,80}\b(?:erforderlich|vorausgesetzt|zwingend|pflicht|muss|required|mandatory)\b",
         # Qualified German knowledge — adjective signals it is required, not optional
         r"\b(?:gute|sehr\s+gute|fliessende|fliessend|verhandlungssichere|verhandlungssicher|sichere)\s+deutschkenntnisse\b",
@@ -459,8 +503,10 @@ def _english_requirement_is_mandatory(text: str) -> bool:
     """
     for pattern in ENGLISH_REQUIRED_RULE.patterns:
         for match in re.finditer(pattern, text):
-            start = max(0, match.start() - _QUALIFICATION_OPTIONALITY_WINDOW)
-            window = text[start : match.end() + _QUALIFICATION_OPTIONALITY_WINDOW]
+            start = max(text.rfind(";", 0, match.start()) + 1, match.start() - _QUALIFICATION_OPTIONALITY_WINDOW)
+            boundary = text.find(";", match.end())
+            end = boundary if boundary >= 0 else len(text)
+            window = text[start : min(end, match.end() + _QUALIFICATION_OPTIONALITY_WINDOW)]
             if not _english_mention_is_soft(window):
                 return True
     return False
@@ -476,8 +522,10 @@ def _requirement_is_mandatory(text: str, rule: TextRule) -> bool:
     """
     for pattern in rule.patterns:
         for match in re.finditer(pattern, text):
-            start = max(0, match.start() - _QUALIFICATION_OPTIONALITY_WINDOW)
-            window = text[start : match.end() + _QUALIFICATION_OPTIONALITY_WINDOW]
+            start = max(text.rfind(";", 0, match.start()) + 1, match.start() - _QUALIFICATION_OPTIONALITY_WINDOW)
+            boundary = text.find(";", match.end())
+            end = boundary if boundary >= 0 else len(text)
+            window = text[start : min(end, match.end() + _QUALIFICATION_OPTIONALITY_WINDOW)]
             if not _window_softens_requirement(window):
                 return True
     return False
@@ -542,26 +590,40 @@ _ROLE_SUFFIX_TOKENS = frozenset({
 })
 
 _POSITIVE_ROLE_PROFILE_ALIASES: dict[str, tuple[TextRule, ...]] = {
-    "склад": (POSITIVE_ROLE_FAMILIES[0],),
-    "warehouse": (POSITIVE_ROLE_FAMILIES[0],),
-    "lager": (POSITIVE_ROLE_FAMILIES[0],),
-    "логист": (POSITIVE_ROLE_FAMILIES[1],),
-    "logistik": (POSITIVE_ROLE_FAMILIES[1],),
-    "упаков": (POSITIVE_ROLE_FAMILIES[2],),
-    "verpack": (POSITIVE_ROLE_FAMILIES[2],),
-    "packer": (POSITIVE_ROLE_FAMILIES[2],),
-    "packing": (POSITIVE_ROLE_FAMILIES[2],),
-    "производ": (POSITIVE_ROLE_FAMILIES[3],),
-    "produktion": (POSITIVE_ROLE_FAMILIES[3],),
-    "помощ": (POSITIVE_ROLE_FAMILIES[4],),
-    "helper": (POSITIVE_ROLE_FAMILIES[4],),
-    "helfer": (POSITIVE_ROLE_FAMILIES[4],),
-    "курьер": (POSITIVE_ROLE_FAMILIES[5],),
-    "водитель": (POSITIVE_ROLE_FAMILIES[5],),
-    "fahrer": (POSITIVE_ROLE_FAMILIES[5],),
-    "kurier": (POSITIVE_ROLE_FAMILIES[5],),
-    "zusteller": (POSITIVE_ROLE_FAMILIES[5],),
-    "lieferfahrer": (POSITIVE_ROLE_FAMILIES[5],),
+    alias: (POSITIVE_ROLE_RULES_BY_CODE[code],)
+    for alias, code in (
+        ("склад", "warehouse_family"),
+        ("warehouse", "warehouse_family"),
+        ("lager", "warehouse_family"),
+        ("логист", "logistics_family"),
+        ("logistik", "logistics_family"),
+        ("упаков", "packaging_family"),
+        ("verpack", "packaging_family"),
+        ("packer", "packaging_family"),
+        ("packing", "packaging_family"),
+        ("производ", "production_family"),
+        ("produktion", "production_family"),
+        ("помощ", "helper_family"),
+        ("helper", "helper_family"),
+        ("helfer", "helper_family"),
+        ("курьер", "delivery_driving_family"),
+        ("водитель", "delivery_driving_family"),
+        ("fahrer", "delivery_driving_family"),
+        ("kurier", "delivery_driving_family"),
+        ("zusteller", "delivery_driving_family"),
+        ("lieferfahrer", "delivery_driving_family"),
+        # Автомобильная логистика — своё направление, а не доставка.
+        ("перегон", "vehicle_logistics_family"),
+        ("перегонщик", "vehicle_logistics_family"),
+        ("автологистик", "vehicle_logistics_family"),
+        ("uberfuhr", "vehicle_logistics_family"),
+        ("uberfuhrung", "vehicle_logistics_family"),
+        ("fahrzeuglogistik", "vehicle_logistics_family"),
+        ("rangierer", "vehicle_logistics_family"),
+        ("umsetzfahrer", "vehicle_logistics_family"),
+        ("werkstattfahrer", "vehicle_logistics_family"),
+        ("fahrzeugaufbereit", "vehicle_logistics_family"),
+    )
 }
 _NEGATIVE_ROLE_PROFILE_ALIASES: dict[str, tuple[TextRule, ...]] = {
     "мед": (NEGATIVE_ROLE_FAMILIES[0],),
@@ -620,6 +682,8 @@ def _has_analyzable_body(canonical: CanonicalVacancyGroup) -> bool:
     прежде: найденное в куске текста остаётся найденным.
     """
     for record in canonical.source_records:
+        if record.description_complete is not True:
+            continue
         body = (record.body_text or "").strip()
         if len(body) < _MIN_BODY_CHARS_FOR_ABSENCE_CLAIM:
             continue
@@ -681,18 +745,29 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
     )
     driver_license_requirement = extract_driver_license_requirements(build_driver_license_text(canonical))
     vehicle_class_signals = extract_vehicle_class_signals(build_vehicle_class_text(canonical))
+    # Форма занятости, самозанятость и нагрузка читаются по ИСХОДНОМУ тексту:
+    # combined_text уже свёрнут для поиска слов, а извлекателям нужны свои
+    # нормализации (и оригинальная пунктуация — для суммы вида "15,50 €").
+    raw_text = build_raw_analysis_text(canonical)
+    employment_signals = extract_employment_signals(raw_text)
+    salary_signals = extract_salary_signals(raw_text)
     location_match, location_hits = _match_profile_locations(canonical, profile)
     distance_from_home = _measure_home_distance(canonical, profile)
-    matched_search_city, outside_requested_cities = _match_requested_cities(canonical, profile)
+    matched_search_city, outside_requested_cities, distance_to_search_city = _match_requested_cities(
+        canonical, profile
+    )
 
     # Немецкий проверяется так же, как квалификация: важно не наличие слова, а
     # есть ли рядом смягчение. Без этого "Deutsch B1 wünschenswert" читалось как
     # жёсткое требование и отсекало вакансию, куда берут и без B1.
-    german_requirement_softened = _german_requirement_is_softened_everywhere(combined_text)
-    strong_german_required = _requirement_is_mandatory(combined_text, STRONG_GERMAN_REQUIREMENT_RULE) or (
+    german_text = mask_negated_signals(
+        normalize_signal_text(raw_text), re.compile(r"\b(?:deutsch\w*|german)\b")
+    )
+    german_requirement_softened = _german_requirement_is_softened_everywhere(german_text)
+    strong_german_required = _requirement_is_mandatory(german_text, STRONG_GERMAN_REQUIREMENT_RULE) or (
         canonical.language_signals.strong_german_required and not german_requirement_softened
     )
-    german_any_required = _requirement_is_mandatory(combined_text, GERMAN_ANY_REQUIRED_RULE)
+    german_any_required = _requirement_is_mandatory(german_text, GERMAN_ANY_REQUIRED_RULE)
     german_not_required_signal = (
         not strong_german_required and _matches_rule(combined_text, GERMAN_NOT_REQUIRED_RULE)
     )
@@ -737,9 +812,20 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         allowed_driver_license_categories=driver_license_requirement.allowed,
         optional_driver_license_categories=driver_license_requirement.optional,
         mentioned_driver_license_categories=driver_license_requirement.mentioned,
+        negated_driver_license_categories=driver_license_requirement.negated,
         distance_from_home_km=distance_from_home,
         matched_search_city=matched_search_city,
         outside_requested_cities=outside_requested_cities,
+        distance_to_search_city_km=distance_to_search_city,
+        employment_types=employment_signals.employment_types,
+        self_employment_signals=employment_signals.self_employment_signals,
+        requires_self_employment=employment_signals.requires_self_employment,
+        heavy_physical_signals=employment_signals.heavy_physical_signals,
+        salary_mentioned=salary_signals.mentioned,
+        salary_hourly_eur=salary_signals.hourly_eur,
+        salary_period=salary_signals.period,
+        salary_is_net=salary_signals.is_net,
+        salary_is_comparable=salary_signals.is_comparable,
         light_commercial_vehicle_signals=vehicle_class_signals.light_commercial,
         heavy_vehicle_signals=vehicle_class_signals.heavy_vehicle,
         heavy_vehicle_context_signals=vehicle_class_signals.heavy_vehicle_context,
@@ -751,6 +837,7 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         low_language_signal=canonical.language_signals.low_language_signal or _matches_rule(combined_text, LOW_LANGUAGE_RULE),
         german_not_required_signal=german_not_required_signal,
         basic_german_signal=basic_german_signal,
+        description_insufficient=not analyzable_body,
         no_mandatory_german_mentioned=(
             not strong_german_required
             and not german_any_required
@@ -805,6 +892,18 @@ def build_driver_license_text(canonical: CanonicalVacancyGroup) -> str:
     return "\n".join(part for part in parts if part)
 
 
+def build_raw_analysis_text(canonical: CanonicalVacancyGroup) -> str:
+    """Исходный текст объявления без свёртывания.
+
+    Нужен извлекателям, у которых своя нормализация: сумма «15,50 €» без запятой
+    и знака валюты теряет смысл, а combined_text убирает всю пунктуацию.
+    """
+    parts: list[str] = [canonical.normalized_title]
+    for record in canonical.source_records:
+        parts.extend((record.original_title, record.body_text or ""))
+    return "\n".join(part for part in parts if part)
+
+
 def build_vehicle_class_text(canonical: CanonicalVacancyGroup) -> str:
     parts: list[str] = [canonical.normalized_title]
     for record in canonical.source_records:
@@ -839,7 +938,7 @@ def _keep_profile_relevant_role_hits(
     """
     query_families = {
         family
-        for family in classify_desired_roles(profile.desired_roles)
+        for family in classify_role_families(profile_role_texts(profile))
         if is_specific_family(family)
     }
     if not query_families:
@@ -998,17 +1097,24 @@ def _resolve_vacancy_point(canonical: CanonicalVacancyGroup) -> GeoPoint | None:
 def _match_requested_cities(
     canonical: CanonicalVacancyGroup,
     profile: SearchProfileContext,
-) -> tuple[str | None, bool]:
+) -> tuple[str | None, bool, float | None]:
     """Который из заказанных городов — город этой вакансии.
 
-    Возвращает (город, "точно не наш"). Третье состояние — (None, False) —
-    означает "по локации не понять": работодатель не назвал место или назвал
-    его так, чего нет в справочнике. Молчание не приравнивается к чужому
-    городу: источник вернул вакансию по запросу конкретного города, и
-    выбрасывать её только за неуказанный адрес значит терять живые вакансии.
+    Возвращает (город, "точно не наш", расстояние до ближайшего заказанного
+    города). Третье состояние первых двух значений — (None, False) — означает
+    "по локации не понять": работодатель не назвал место или назвал его так,
+    чего нет в справочнике. Молчание не приравнивается к чужому городу:
+    источник вернул вакансию по запросу конкретного города, и выбрасывать её
+    только за неуказанный адрес значит терять живые вакансии.
+
+    Радиус. Когда профиль задал search_radius_km, «наш город» — это не только
+    город из списка, но и всё в пределах радиуса от него: человек, живущий в
+    Нойштрелице и готовый ездить 50 км, хочет видеть и Нойбранденбург. Без
+    радиуса (None или 0) правило работает как прежде — строго по названиям
+    городов, и заказ «Berlin, Rostock» означает ровно эти два города.
     """
     if not profile.search_cities:
-        return None, False
+        return None, False, None
 
     location_texts = [canonical.location_text, canonical.city]
     location_texts.extend(
@@ -1022,10 +1128,54 @@ def _match_requested_cities(
         for text in location_texts:
             verdict = location_matches_city(text, city)
             if verdict:
-                return city, False
+                return city, False, 0.0
             if verdict is False:
                 recognized_elsewhere = True
-    return None, recognized_elsewhere
+
+    # Названа другая страна — это однозначный ответ «не наш город», даже если
+    # самого города нет в немецком справочнике. Без этой проверки «Kyiv, Ukraine»
+    # и «Wien, AT» проходили как «по локации не понять» и оставались в выдаче по
+    # Берлину.
+    if any(
+        names_other_country(text, country_code=canonical.country_code)
+        for text in location_texts
+        if text
+    ):
+        return None, True, None
+
+    nearest_city, nearest_distance = _nearest_requested_city(canonical, profile)
+    radius_km = profile.search_radius_km or 0
+    if radius_km > 0 and nearest_distance is not None:
+        if nearest_distance <= radius_km:
+            return nearest_city, False, nearest_distance
+        # Место известно и оно дальше радиуса — это уже точно не наш район, даже
+        # если название города в справочнике не нашлось.
+        return None, True, nearest_distance
+
+    return None, recognized_elsewhere, nearest_distance
+
+
+def _nearest_requested_city(
+    canonical: CanonicalVacancyGroup,
+    profile: SearchProfileContext,
+) -> tuple[str | None, float | None]:
+    """Ближайший из заказанных городов и расстояние до него в километрах."""
+    vacancy_point = _resolve_vacancy_point(canonical)
+    if vacancy_point is None:
+        return None, None
+
+    best_city: str | None = None
+    best_distance: float | None = None
+    for city in profile.search_cities:
+        city_point = resolve_point(city=city)
+        if city_point is None:
+            continue
+        distance = distance_km(city_point, vacancy_point)
+        if distance is None:
+            continue
+        if best_distance is None or distance < best_distance:
+            best_city, best_distance = city, distance
+    return best_city, best_distance
 
 
 def _match_profile_locations(
@@ -1043,6 +1193,34 @@ def _match_profile_locations(
             return True, ("worldwide remote",)
         return None, ()
 
+    if not location_text:
+        # Источник не сообщил место вообще. Это «не понять», а не «чужой город»:
+        # False здесь означал жёсткое отклонение по location_mismatch, и вакансии
+        # без локации молча выбрасывались у любого профиля с relocation_ready=False
+        # — притом что источник вернул их именно по запросу нужного города.
+        # Тот же принцип уже соблюдает _match_requested_cities.
+        return None, ()
+
+    # Те же строки, по которым города проверяет _match_requested_cities. Раньше
+    # здесь брались только урезанные canonical-поля, и «Friedrichshain, Berlin»
+    # превращалось в «friedrichshain»: токен «berlin» в тексте не находился, и
+    # берлинская вакансия жёстко отклонялась по location_mismatch — при том что
+    # проверка заказанных городов ту же вакансию принимала. Две географические
+    # проверки обязаны отвечать одинаково.
+    raw_location_texts = [
+        text
+        for text in (
+            canonical.location_text,
+            canonical.city,
+            *(
+                value
+                for record in canonical.source_records
+                for value in (record.normalized_location.raw_text, record.original_location)
+            ),
+        )
+        if text
+    ]
+
     matched_locations: list[str] = []
     for preferred in profile.preferred_locations:
         normalized_preferred = normalize_profile_text(preferred)
@@ -1051,6 +1229,15 @@ def _match_profile_locations(
         if normalized_preferred in {"deutschland", "germany", "germania", "германия"} and canonical.country_code == "DE":
             matched_locations.append(preferred)
             continue
+
+        # Сначала — та же проверка города, что и у заказанных городов: она знает
+        # про районы и про почтовые индексы.
+        if any(location_matches_city(text, preferred) for text in raw_location_texts):
+            matched_locations.append(preferred)
+            continue
+
+        # Земли и страны в городском справочнике отсутствуют, поэтому для них
+        # остаётся проверка по словам.
         tokens = tuple(token for token in normalized_preferred.split() if len(token) >= 2)
         if tokens and all(token in location_text for token in tokens):
             matched_locations.append(preferred)

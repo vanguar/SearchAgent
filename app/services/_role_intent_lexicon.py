@@ -18,6 +18,19 @@ class RoleIntent:
     primary_de: str                  # primary German keyword for source adapters
     synonyms_de: tuple[str, ...]     # ranked fallback keywords (excluding primary_de)
     primary_en: str | None = None    # optional English keyword
+    # Канонический немецкий ключевик семейства, когда primary_de заменён на то, что
+    # написал сам пользователь. Пустое значение означает "primary_de и есть канон".
+    #
+    # Зачем: запрос «Fahrer Hol- und Bringservice» нельзя переписывать в «fahrer» —
+    # так теряется вся специфика, и источник отвечает водителями вообще. Но пул
+    # синонимов ищется именно по каноническому слову (ROLE_SYNONYMS_DE), поэтому
+    # канон сохраняется отдельно от запроса.
+    canonical_de: str | None = None
+
+    @property
+    def canonical_keyword(self) -> str:
+        """Канонический немецкий ключевик для поиска синонимов по словарю."""
+        return self.canonical_de or self.primary_de
 
 
 # ---------------------------------------------------------------------------
@@ -111,6 +124,129 @@ ROLE_INTENT_MAP: dict[str, RoleIntent] = {
     "fahrer": RoleIntent(
         RoleFamily.DRIVING, "fahrer",
         ("kraftfahrer", "kurier", "zusteller"), "driver",
+    ),
+
+    # ---- VEHICLE LOGISTICS (перегон и перестановка автомобилей) -------------
+    # Транспорт здесь — сам товар, а не средство доставки. Синонимы держатся
+    # внутри направления: расширять «Fahrzeugüberführer» до «zusteller» нельзя,
+    # это уже доставка посылок.
+    "перегон автомобилей": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Fahrzeugüberführer",
+        ("Überführungsfahrer", "Fahrzeugüberführung", "Fahrer Fahrzeuglogistik", "Fahrzeugverbringung"),
+        "vehicle transfer driver",
+    ),
+    "перегон авто": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Fahrzeugüberführer",
+        ("Überführungsfahrer", "Fahrzeugüberführung", "Fahrer Fahrzeuglogistik"),
+        "vehicle transfer driver",
+    ),
+    "перегонщик автомобилей": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Fahrzeugüberführer",
+        ("Überführungsfahrer", "Fahrzeugüberführung", "Umsetzfahrer"),
+        "vehicle transfer driver",
+    ),
+    "перегонщик": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Fahrzeugüberführer",
+        ("Überführungsfahrer", "Fahrzeugüberführung", "Umsetzfahrer"),
+        "vehicle transfer driver",
+    ),
+    "перегін автомобілів": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Fahrzeugüberführer",
+        ("Überführungsfahrer", "Fahrzeugüberführung", "Fahrer Fahrzeuglogistik"),
+        "vehicle transfer driver",
+    ),
+    "автомобильная логистика": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Fahrzeuglogistik",
+        ("Mitarbeiter Fahrzeuglogistik", "Fahrer Fahrzeuglogistik", "Fahrzeugüberführer"),
+        "vehicle logistics",
+    ),
+    "автологистика": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Fahrzeuglogistik",
+        ("Mitarbeiter Fahrzeuglogistik", "Fahrer Fahrzeuglogistik", "Autologistik"),
+        "vehicle logistics",
+    ),
+    "подготовка автомобилей": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Fahrzeugaufbereiter",
+        ("Fahrzeugaufbereitung", "Fahrzeugpfleger", "Autoaufbereiter"),
+        "vehicle detailer",
+    ),
+    "vehicle transfer driver": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Fahrzeugüberführer",
+        ("Überführungsfahrer", "Fahrzeugüberführung", "Fahrer Fahrzeuglogistik"),
+        "vehicle transfer driver",
+    ),
+    "vehicle logistics": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Fahrzeuglogistik",
+        ("Mitarbeiter Fahrzeuglogistik", "Fahrer Fahrzeuglogistik"), "vehicle logistics",
+    ),
+    "fahrzeugüberführer": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Fahrzeugüberführer",
+        ("Überführungsfahrer", "Fahrzeugüberführung", "Fahrer Fahrzeuglogistik", "Fahrzeugverbringung"),
+        "vehicle transfer driver",
+    ),
+    "überführungsfahrer": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Überführungsfahrer",
+        ("Fahrzeugüberführer", "Fahrzeugüberführung", "Umsetzfahrer"), "transfer driver",
+    ),
+    "fahrzeugüberführung": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Fahrzeugüberführung",
+        ("Fahrzeugüberführer", "Überführungsfahrer", "Fahrzeugverbringung"), "vehicle transfer",
+    ),
+    "fahrzeugverbringung": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Fahrzeugverbringung",
+        ("Fahrzeugüberführung", "Fahrzeugüberführer", "Überführungsfahrer"), "vehicle transfer",
+    ),
+    "fahrzeugrückführung": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Fahrzeugrückführung",
+        ("Fahrzeugüberführung", "Überführungsfahrer", "Rückführungsfahrer"), "vehicle return",
+    ),
+    "fahrzeugumsetzer": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Fahrzeugumsetzer",
+        ("Umsetzfahrer", "PKW-Rangierer", "Fahrzeuglogistik"), "vehicle shunter",
+    ),
+    "umsetzfahrer": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Umsetzfahrer",
+        ("Fahrzeugumsetzer", "PKW-Rangierer", "Fahrzeuglogistik"), "vehicle shunter",
+    ),
+    "pkw-rangierer": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "PKW-Rangierer",
+        ("Fahrzeugrangierer", "Rangierfahrer", "Umsetzfahrer", "Fahrzeuglogistik"), "car shunter",
+    ),
+    "rangierfahrer": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Rangierfahrer",
+        ("PKW-Rangierer", "Fahrzeugrangierer", "Umsetzfahrer"), "shunt driver",
+    ),
+    "fahrzeuglogistik": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Fahrzeuglogistik",
+        ("Mitarbeiter Fahrzeuglogistik", "Fahrer Fahrzeuglogistik", "Autologistik"), "vehicle logistics",
+    ),
+    "werkstattfahrer": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Werkstattfahrer",
+        ("Fahrer Hol- und Bringservice", "Hol- und Bringservice", "Fahrzeugüberführer"), "workshop driver",
+    ),
+    "hol- und bringfahrer": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Hol- und Bringfahrer",
+        ("Werkstattfahrer", "Fahrer Hol- und Bringservice", "Fahrzeugüberführer"), "collection and delivery driver",
+    ),
+    "hol- und bringservice": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Fahrer Hol- und Bringservice",
+        ("Werkstattfahrer", "Hol- und Bringservice", "Fahrzeugüberführer"), "collection and delivery driver",
+    ),
+    "fahrer autovermietung": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Fahrer Autovermietung",
+        ("Fahrzeugumsetzer", "Umsetzfahrer", "Fahrzeugüberführer"), "rental fleet driver",
+    ),
+    "autovermietung": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Fahrer Autovermietung",
+        ("Fahrzeugumsetzer", "Umsetzfahrer", "Fahrzeugaufbereiter"), "rental fleet driver",
+    ),
+    "fahrzeugaufbereiter": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Fahrzeugaufbereiter",
+        ("Fahrzeugaufbereitung", "Fahrzeugpfleger", "Autoaufbereiter"), "vehicle detailer",
+    ),
+    "fahrzeugpfleger": RoleIntent(
+        RoleFamily.VEHICLE_LOGISTICS, "Fahrzeugpfleger",
+        ("Fahrzeugaufbereiter", "Fahrzeugaufbereitung", "Autoaufbereiter"), "vehicle detailer",
     ),
 
     # ---- WAREHOUSE ---------------------------------------------------------

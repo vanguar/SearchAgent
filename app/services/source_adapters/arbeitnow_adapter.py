@@ -132,9 +132,22 @@ def _parse_record(source_id: str, source_name: str, raw_job: Mapping[str, Any]) 
     if external_id is None:
         return None
     raw_payload = dict(raw_job)
+    # Теги — это МЕТКИ вакансии, а не её описание. Раньше они записывались прямо в
+    # "description" и затирали настоящий текст объявления (а при пустом списке —
+    # обнуляли его). Из-за этого по вакансиям Arbeitnow языковые требования, диплом,
+    # категория прав и класс транспорта определялись по одному заголовку, а
+    # _has_analyzable_body всегда отвечал "судить не по чему".
     tags = raw_job.get("tags")
     if isinstance(tags, list):
-        raw_payload["description"] = " ".join(str(tag) for tag in tags if tag)
+        tag_text = " ".join(str(tag) for tag in tags if tag)
+        if tag_text:
+            raw_payload["tags_text"] = tag_text
+            description = _to_text(raw_payload.get("description"))
+            # Метки дописываются к описанию, а не вместо него: они несут полезные
+            # для правил слова ("driving", "logistics"), но не заменяют текст.
+            raw_payload["description"] = (
+                "\n".join((description, tag_text)) if description else tag_text
+            )
     return SourceRecordPreview(
         source_id=source_id,
         source_name=source_name,

@@ -214,6 +214,16 @@ ROLE_TO_DE_QUERY: dict[str, str] = {
     "швея": "näherin",
     "разнорабочий": "helfer",
     "сторож": "sicherheitsdienst",
+    # Автомобильная логистика. Здесь, в отличие от остальных записей, немецкое
+    # слово составное: normalize_query_from_roles берёт только первое слово, и
+    # для перегона это именно то слово, которое понимают немецкие job-API.
+    "перегон автомобилей": "Fahrzeugüberführer",
+    "перегон авто": "Fahrzeugüberführer",
+    "перегонщик": "Fahrzeugüberführer",
+    "перегонщик автомобилей": "Fahrzeugüberführer",
+    "автомобильная логистика": "Fahrzeuglogistik",
+    "автологистика": "Fahrzeuglogistik",
+    "подготовка автомобилей": "Fahrzeugaufbereiter",
 }
 
 

@@ -8,6 +8,7 @@ from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING
 
+from app.core.config import Settings
 from app.core.logging import logger
 from app.services.ai_tools_profile import AI_TOOLS_WESTERN_QUERY_TRANSLATIONS
 from app.services.filter_engine import FilterEngine, is_b_only_driving_profile
@@ -53,9 +54,11 @@ from app.services.search_models import (
     SearchRunResult,
     SearchSourceState,
     SourceStatusKind,
+    VacancySignalSnapshot,
 )
 from app.services.search_normalizer import is_german_city_name, parse_search_cities
 from app.services.search_profile_resolver import DatabaseSearchProfileResolver
+from app.services.source_adapters.base import SourceAdapter
 from app.services.source_adapters.errors import SourceAdapterError
 from app.services.source_adapters.models import (
     AdapterSearchResponse,
@@ -85,6 +88,28 @@ _MAX_ENRICH_WORKERS = 8
 _DISPLAYED_BUCKETS: frozenset[SearchBucket] = frozenset({"hot", "maybe"})
 
 
+class _FetchBudget:
+    """Per-run request bound and circuit breaker, shared by fallback attempts."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._total = 0
+        self._counts: Counter[str] = Counter()
+        self._blocked: set[str] = set()
+
+    def consume(self, source_id: str) -> bool:
+        with self._lock:
+            if source_id in self._blocked or self._total >= 48 or self._counts[source_id] >= 24:
+                return False
+            self._total += 1
+            self._counts[source_id] += 1
+            return True
+
+    def block(self, source_id: str) -> None:
+        with self._lock:
+            self._blocked.add(source_id)
+
+
 class SearchService:
     """PHASE 7 orchestration: fetch, normalize, dedup, filter, score, explain, summarize."""
 
@@ -100,6 +125,7 @@ class SearchService:
         summary_service: SummaryService | None = None,
         profile_resolver: DatabaseSearchProfileResolver | None = None,
         llm_client: LLMClient | None = None,
+        settings: Settings | None = None,
     ) -> None:
         self.registry = registry or SourceAdapterRegistry()
         self.vacancy_processing_service = vacancy_processing_service or VacancyProcessingService()
@@ -111,6 +137,9 @@ class SearchService:
         self.profile_resolver = profile_resolver or DatabaseSearchProfileResolver()
         self._llm_client = llm_client
         self._memory_service = RelevanceMemoryService()
+        # Глубина выдачи источника. Читается из настроек, чтобы менять её можно было
+        # не правя код; max_pages=1 полностью сохраняет прежнее поведение.
+        self._max_pages = max(1, (settings or Settings()).search_max_pages)
 
     def list_sources(self) -> tuple[SourceAdapterDescriptor, ...]:
         return self.registry.list_sources()
@@ -130,6 +159,7 @@ class SearchService:
         feedback_memory: ProfileFeedbackMemory | None = None,
         enrich_with_llm: bool = True,
         served_requests: set[str] | None = None,
+        fetch_budget: _FetchBudget | None = None,
     ) -> SearchRunResult:
         resolved_profile = _with_run_geography(
             profile or self.get_profile_context(profile_id=profile_id), search_input
@@ -154,13 +184,14 @@ class SearchService:
             )
         else:
             repeated_source_ids = ()
+        fetch_budget = fetch_budget or _FetchBudget()
         outcomes: dict[str, tuple[AdapterSearchResponse | None, SearchSourceState | None]] = {}
         if active_source_ids:
             max_workers = min(len(active_source_ids), _MAX_FETCH_WORKERS)
             running_total = 0
             with ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="src-fetch") as pool:
                 future_to_id = {
-                    pool.submit(self._fetch_source, source_id, search_input): source_id
+                    pool.submit(self._fetch_source, source_id, search_input, stop_event, fetch_budget): source_id
                     for source_id in active_source_ids
                 }
                 for future in as_completed(future_to_id):
@@ -229,29 +260,41 @@ class SearchService:
             _build_dedup_preview_item(canonical)
             for canonical in processed.canonical_groups
         )
-        hidden_filtered_items = tuple(
-            hidden
-            for canonical in processed.canonical_groups
-            if (hidden := self._build_hidden_filtered_item(
-                canonical=canonical,
-                profile=resolved_profile,
-                search_mode=search_input.search_mode,
-            )) is not None
-        )
 
-        results = tuple(
-            item
-            for canonical in processed.canonical_groups
-            if (item := self._build_result_item(
+        # Сигналы и решение фильтра считаются ОДИН раз на вакансию. Раньше обе
+        # операции выполнялись дважды: сначала при отборе жёстко скрытых, потом
+        # заново при построении карточки. inspect_vacancy прогоняет свыше сотни
+        # регулярок по всему тексту объявления — это самый дорогой участок прогона,
+        # и его удвоение ничего не давало.
+        hidden_items: list[HiddenFilteredItem] = []
+        results_list: list[SearchResultItem] = []
+        for canonical in processed.canonical_groups:
+            signals = inspect_vacancy(canonical, resolved_profile)
+            filter_result = self.filter_engine.evaluate(
+                canonical, resolved_profile, signals=signals, search_mode=search_input.search_mode
+            )
+            if filter_result.hard_reject:
+                hidden_items.append(
+                    self._build_hidden_filtered_item(canonical=canonical, filter_result=filter_result)
+                )
+                continue
+            # None здесь означал бы жёсткое отклонение, а его мы уже отсеяли выше;
+            # проверка оставлена, чтобы у списка был точный тип без приведений.
+            item = self._build_result_item(
                 canonical=canonical,
                 profile=resolved_profile,
+                signals=signals,
+                filter_result=filter_result,
                 feedback_memory=feedback_memory,
                 search_query=search_input.query,
                 search_mode=search_input.search_mode,
                 enrich_with_llm=enrich_with_llm,
-            )) is not None
-        )
-        ordered_results = tuple(sorted(results, key=_result_sort_key))
+            )
+            if item is not None:
+                results_list.append(item)
+
+        hidden_filtered_items = tuple(hidden_items)
+        ordered_results = tuple(sorted(results_list, key=_result_sort_key))
 
         source_states = self._build_source_states(
             successful_responses=tuple(successful_responses),
@@ -343,7 +386,7 @@ class SearchService:
             fallback_keywords = get_profile_fallback_keywords(
                 profile_terms=(effective_primary_query, *profile_terms),
                 family=query_family,
-                role_primary_de=primary_intent.primary_de if primary_intent is not None else "",
+                role_primary_de=primary_intent.canonical_keyword if primary_intent is not None else "",
                 broaden=(
                     is_specific_family(query_family)
                     and not _uses_only_russian_language_sources(resolved_source_ids)
@@ -376,6 +419,7 @@ class SearchService:
         # 16 терминов AI-профиля дают одну пару рубрик), и без этой памяти конвейер
         # разбирал бы один и тот же фид на каждой попытке.
         served_requests: set[str] = set()
+        fetch_budget = _FetchBudget()
 
         def _run_one(query: str, location: str | None) -> SearchRunResult:
             # Attempts are scored deterministically (no LLM). LLM enrichment is applied once,
@@ -385,9 +429,11 @@ class SearchService:
                     search_input,
                     query=query,
                     location=location,
-                    # Ноль означает «строго этот город»: BA понимает umkreis=0,
-                    # остальные источники просто не получают радиуса.
-                    radius_km=0 if location else search_input.radius_km,
+                    # Радиус прогона идёт в источник как есть. Если радиус не задан
+                    # вовсе, а город назван — спрашиваем строго этот город: ноль
+                    # понимает BA (umkreis=0), остальные просто не получают радиуса,
+                    # и город проверяется уже на нашей стороне.
+                    radius_km=_leg_radius_km(search_input.radius_km, location),
                 ),
                 source_ids=resolved_source_ids,
                 profile=resolved_profile,
@@ -396,6 +442,7 @@ class SearchService:
                 feedback_memory=feedback_memory,
                 enrich_with_llm=False,
                 served_requests=served_requests,
+                fetch_budget=fetch_budget,
             )
 
         def _run(query: str) -> SearchRunResult:
@@ -821,6 +868,8 @@ class SearchService:
         self,
         source_id: str,
         search_input: SourceSearchInput,
+        stop_event: threading.Event | None = None,
+        fetch_budget: _FetchBudget | None = None,
     ) -> tuple[AdapterSearchResponse | None, SearchSourceState | None]:
         """Fetch one source. Returns (response, None) on success or (None, failed_state) on error.
 
@@ -842,7 +891,7 @@ class SearchService:
                 search_input.search_mode,
                 descriptor.enabled,
             )
-            response = adapter.search(search_input)
+            response = self._fetch_source_pages(adapter, search_input, stop_event, fetch_budget)
         except SourceAdapterError as exc:
             logger.warning(
                 "source_adapter_error source_id=%s source_name=%r code=%s retryable=%s message=%r",
@@ -891,21 +940,91 @@ class SearchService:
             )
         return response, None
 
+    def _fetch_source_pages(
+        self,
+        adapter: SourceAdapter,
+        search_input: SourceSearchInput,
+        stop_event: threading.Event | None = None,
+        fetch_budget: _FetchBudget | None = None,
+    ) -> AdapterSearchResponse:
+        """Continue full, useful pages within a bounded shared request budget."""
+        budget = fetch_budget or _FetchBudget()
+        records: list[SourceRecordPreview] = []
+        seen: set[str] = set()
+        warnings: list[str] = []
+        first: AdapterSearchResponse | None = None
+        for offset in range(min(4, max(1, self._max_pages))):
+            if stop_event is not None and stop_event.is_set():
+                break
+            if not budget.consume(adapter.source_id):
+                warnings.append("Дальнейшие запросы остановлены: лимит запросов или ограничение источника.")
+                break
+            try:
+                response = adapter.search(dataclasses.replace(search_input, page=search_input.page + offset))
+            except Exception as exc:
+                if getattr(exc, "status_code", None) in {403, 429}:
+                    budget.block(adapter.source_id)
+                if first is None:
+                    raise
+                logger.warning("source_adapter_extra_page_failed source_id=%s page=%d",
+                               adapter.source_id, search_input.page + offset)
+                warnings.append("Не удалось загрузить следующую страницу; показана полученная часть выдачи.")
+                break
+            if first is None:
+                first = response
+            new_records = []
+            for record in response.records:
+                key = f"{record.source_id}:{record.external_id}"
+                if key not in seen:
+                    seen.add(key)
+                    new_records.append(record)
+            records.extend(new_records)
+            warnings.extend(response.warnings)
+            if len(response.records) < search_input.page_size or not new_records:
+                break
+            if response.total_count is not None and response.page * response.page_size >= response.total_count:
+                break
+            # Do not deepen a query whose entire page is explicitly another profession.
+            intent = normalize_role_intent(search_input.query)
+            if intent is not None and is_specific_family(intent.family):
+                families = [classify_vacancy_de(normalize_text_for_fingerprint(r.title)) for r in new_records]
+                if all(is_specific_family(f) and not families_are_compatible(intent.family, f) for f in families):
+                    break
+            if offset + 1 == min(4, max(1, self._max_pages)):
+                warnings.append("Достигнут лимит страниц; выдача источника может быть неполной.")
+        if first is None:
+            return AdapterSearchResponse(
+                source_id=adapter.source_id, source_name=adapter.display_name, records=(),
+                total_count=None, page=search_input.page, page_size=search_input.page_size,
+                raw_payload=None, warnings=tuple(warnings),
+            )
+        return dataclasses.replace(first, records=tuple(records), warnings=tuple(dict.fromkeys(warnings)))
+
     def _build_result_item(
         self,
         *,
         canonical: CanonicalVacancyGroup,
         profile: SearchProfileContext,
+        signals: VacancySignalSnapshot | None = None,
+        filter_result: FilterResult | None = None,
         feedback_memory: ProfileFeedbackMemory | None = None,
         search_query: str | None = None,
         search_mode: str | None = None,
         enrich_with_llm: bool = True,
     ) -> SearchResultItem | None:
+        """Карточка вакансии.
+
+        `signals` и `filter_result` принимаются готовыми: вызывающий цикл уже
+        посчитал их один раз на вакансию. Без них метод считает сам — так он
+        остаётся пригодным для точечных вызовов из тестов.
+        """
         primary_record = _pick_primary_record(canonical)
-        signals = inspect_vacancy(canonical, profile)
-        filter_result = self.filter_engine.evaluate(
-            canonical, profile, signals=signals, search_mode=search_mode
-        )
+        if signals is None:
+            signals = inspect_vacancy(canonical, profile)
+        if filter_result is None:
+            filter_result = self.filter_engine.evaluate(
+                canonical, profile, signals=signals, search_mode=search_mode
+            )
         if filter_result.hard_reject:
             return None
 
@@ -987,17 +1106,10 @@ class SearchService:
         self,
         *,
         canonical: CanonicalVacancyGroup,
-        profile: SearchProfileContext,
-        search_mode: str | None = None,
-    ) -> HiddenFilteredItem | None:
+        filter_result: FilterResult,
+    ) -> HiddenFilteredItem:
+        """Запись о жёстко скрытой вакансии по УЖЕ посчитанному решению фильтра."""
         primary_record = _pick_primary_record(canonical)
-        signals = inspect_vacancy(canonical, profile)
-        filter_result = self.filter_engine.evaluate(
-            canonical, profile, signals=signals, search_mode=search_mode
-        )
-        if not filter_result.hard_reject:
-            return None
-
         return HiddenFilteredItem(
             canonical_key=canonical.canonical_key,
             title=primary_record.original_title,
@@ -1153,7 +1265,29 @@ def _with_run_geography(
         profile,
         search_location=search_input.location or None,
         search_cities=profile.search_cities or parse_search_cities(search_input.location),
+        # Введённый запрос — тоже часть заказа этого прогона. Он задаёт семейство
+        # ролей наравне с ролями профиля, иначе явная настройка запуска молча
+        # отсекалась бы планом профиля.
+        run_query_terms=profile.run_query_terms or _run_query_terms(search_input.query),
+        # Радиус этого прогона. Форма — явная настройка запуска, и она сильнее
+        # сохранённого в профиле значения; когда в форме радиуса нет, остаётся
+        # профильный. Ноль означает «строго в перечисленных городах».
+        search_radius_km=(
+            search_input.radius_km if search_input.radius_km is not None else profile.search_radius_km
+        ),
     )
+
+
+def _leg_radius_km(run_radius_km: int | None, location: str | None) -> int | None:
+    """Радиус для одной ветки веера городов."""
+    if run_radius_km is not None:
+        return run_radius_km
+    return 0 if location else None
+
+
+def _run_query_terms(query: str) -> tuple[str, ...]:
+    stripped = (query or "").strip()
+    return (stripped,) if stripped else ()
 
 
 def _resolve_profile_search_terms(
@@ -1162,14 +1296,24 @@ def _resolve_profile_search_terms(
     source_ids: Sequence[str] = (),
 ) -> tuple[str, ...]:
     preserve_raw_terms = _uses_only_russian_language_sources(source_ids)
+    # Дополнительные слова идут ПОСЛЕ основных: человек дописал их, чтобы
+    # расширить план, а не чтобы перебить главный запрос. Порядок и есть приоритет.
+    extra = tuple(profile.additional_search_terms)
     if profile.search_query_terms:
         return _normalize_profile_terms_for_sources(
-            profile.search_query_terms,
+            (*profile.search_query_terms, *extra),
             preserve_raw_terms=preserve_raw_terms,
         )
     if profile.profile_source == "saved" and len(profile.desired_roles) > 1:
         return _normalize_profile_terms_for_sources(
-            profile.desired_roles,
+            (*profile.desired_roles, *extra),
+            preserve_raw_terms=preserve_raw_terms,
+        )
+    if extra and profile.desired_roles:
+        # Основных слов нет, но дополнительные заданы: план всё равно должен их
+        # пройти, иначе поле в форме профиля ничего бы не меняло.
+        return _normalize_profile_terms_for_sources(
+            (*profile.desired_roles, *extra),
             preserve_raw_terms=preserve_raw_terms,
         )
     return ()

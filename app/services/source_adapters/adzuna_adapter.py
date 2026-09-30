@@ -238,6 +238,7 @@ def _parse_record(
         raw_payload["salary"] = salary_text
 
     return SourceRecordPreview(
+            description_complete=False,
         source_id=source_id,
         source_name=source_name,
         external_id=external_id,

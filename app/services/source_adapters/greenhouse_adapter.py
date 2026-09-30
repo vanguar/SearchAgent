@@ -147,6 +147,7 @@ def _parse_record(source_id: str, source_name: str, board_token: str, raw_job: M
     raw_payload["description"] = _plain_text(raw_job.get("content"))
     raw_payload["company_board"] = board_token
     return SourceRecordPreview(
+        description_complete=True,
         source_id=source_id,
         source_name=source_name,
         external_id=f"{board_token}:{job_id}",

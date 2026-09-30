@@ -47,6 +47,7 @@ def _canonical(
 ) -> CanonicalVacancyGroup:
     record = VacancyNormalizer().normalize_source_record(
         SourceRecordPreview(
+            description_complete=True,
             source_id=source_id,
             source_name=source_id.upper(),
             external_id=f"{source_id}-ai-tools",

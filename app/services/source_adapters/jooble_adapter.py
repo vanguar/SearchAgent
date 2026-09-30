@@ -178,6 +178,7 @@ def _parse_record(source_id: str, source_name: str, raw_job: Mapping[str, Any]) 
     if salary:
         raw_payload["salary"] = salary
     return SourceRecordPreview(
+            description_complete=False,
         source_id=source_id,
         source_name=source_name,
         external_id=external_id,

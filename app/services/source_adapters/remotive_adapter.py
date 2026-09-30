@@ -199,6 +199,7 @@ def _parse_record(
     external_id = str(job_id)
 
     return SourceRecordPreview(
+        description_complete=True,
         source_id=source_id,
         source_name=source_name,
         external_id=external_id,

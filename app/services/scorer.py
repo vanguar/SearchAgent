@@ -11,6 +11,7 @@ from app.services.ai_tools_profile import (
     is_ai_tools_profile,
     match_ai_tools_signals,
 )
+from app.services.employment_signal_extractor import EMPLOYMENT_TYPE_LABELS_RU
 from app.services.filter_engine import FilterEngine
 from app.services.hashers import normalize_text_for_fingerprint
 from app.services.normalization_models import CanonicalVacancyGroup
@@ -18,7 +19,7 @@ from app.services.profile_parser import (
     DRIVER_B_FERNVERKEHR_ROLE,
     DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
 )
-from app.services.role_family import RoleFamily, classify_vacancy_de
+from app.services.role_family import DRIVING_LIKE_FAMILIES, classify_vacancy_de
 from app.services.rule_catalog import BASE_SCORE, inspect_vacancy
 from app.services.search_models import (
     DAILY_COMMUTE_LIMIT_KM,
@@ -262,6 +263,88 @@ def _commute_distance_hit(
     return RuleHit(code="commute_distance", label_ru=label, weight=weight)
 
 
+# --- Оплата и форма занятости относительно ориентиров профиля ---
+#
+# Веса небольшие намеренно. Главный вопрос скоринга — «подходит ли работа», и
+# оплата его не переопределяет: вакансия ниже ориентира остаётся в выдаче, просто
+# ниже в списке. Неизвестная оплата НЕ штрафуется — в Германии её чаще не пишут,
+# и наказывать за молчание работодателя значит терять живые вакансии.
+_SALARY_ABOVE_TARGET_BONUS = 6
+_SALARY_NEAR_TARGET_BONUS = 2
+_SALARY_BELOW_TARGET_PENALTY = -8
+# Насколько ниже ориентира ставка ещё считается «около него», а не «ниже».
+_SALARY_NEAR_TARGET_TOLERANCE = 0.95
+_EMPLOYMENT_TYPE_MATCH_BONUS = 4
+_EMPLOYMENT_TYPE_MISMATCH_PENALTY = -10
+# Самозанятость, когда в профиле про неё не сказано: это риск, а не запрет.
+_SELF_EMPLOYMENT_UNKNOWN_PENALTY = -6
+# Тяжёлая нагрузка, когда в профиле про неё не сказано.
+_HEAVY_PHYSICAL_UNKNOWN_PENALTY = -4
+
+
+def _salary_hit(
+    signals: VacancySignalSnapshot,
+    profile: SearchProfileContext,
+) -> RuleHit | None:
+    """Балл за ставку относительно ориентира профиля.
+
+    Молчит в трёх случаях, и каждый по своей причине:
+
+    * ориентира в профиле нет — сравнивать не с чем;
+    * ставку из текста вычислить не удалось — это «неизвестно», а не «мало»;
+    * ставка указана в нетто — пересчёт в брутто по объявлению невосстановим, и
+      сравнивать нетто с брутто-ориентиром значит занижать вакансию на треть
+      без оснований (см. SalarySignals.is_comparable).
+    """
+    target = profile.min_salary_eur_per_hour
+    if target is None or target <= 0:
+        return None
+    if not signals.salary_is_comparable or signals.salary_hourly_eur is None:
+        return None
+
+    hourly = signals.salary_hourly_eur
+    if hourly >= target:
+        return RuleHit(
+            code="salary_above_target",
+            label_ru=f"оплата {hourly:.2f} €/час — не ниже ориентира {target:.2f} €/час",
+            weight=_SALARY_ABOVE_TARGET_BONUS,
+        )
+    if hourly >= target * _SALARY_NEAR_TARGET_TOLERANCE:
+        return RuleHit(
+            code="salary_near_target",
+            label_ru=f"оплата {hourly:.2f} €/час — почти ориентир {target:.2f} €/час",
+            weight=_SALARY_NEAR_TARGET_BONUS,
+        )
+    return RuleHit(
+        code="salary_below_target",
+        label_ru=f"оплата {hourly:.2f} €/час ниже ориентира {target:.2f} €/час",
+        weight=_SALARY_BELOW_TARGET_PENALTY,
+    )
+
+
+def _employment_type_hit(
+    signals: VacancySignalSnapshot,
+    profile: SearchProfileContext,
+) -> RuleHit | None:
+    """Балл за совпадение формы занятости. Молчит, когда сравнивать нечего."""
+    if not profile.employment_types or not signals.employment_types:
+        return None
+    matched = set(profile.employment_types) & set(signals.employment_types)
+    if matched:
+        labels = ", ".join(sorted(EMPLOYMENT_TYPE_LABELS_RU.get(code, code) for code in matched))
+        return RuleHit(
+            code="employment_type_match",
+            label_ru=f"форма занятости подходит: {labels}",
+            weight=_EMPLOYMENT_TYPE_MATCH_BONUS,
+        )
+    labels = ", ".join(EMPLOYMENT_TYPE_LABELS_RU.get(code, code) for code in signals.employment_types)
+    return RuleHit(
+        code="employment_type_mismatch",
+        label_ru=f"форма занятости не та, что нужна профилю: {labels}",
+        weight=_EMPLOYMENT_TYPE_MISMATCH_PENALTY,
+    )
+
+
 # Упоминание профильной темы только в теле объявления — слабый сигнал: он
 # подтверждает, что вакансия из смежного мира, но не то, что это нужная работа.
 _BODY_ONLY_ROLE_BONUS = 8
@@ -277,6 +360,7 @@ _ROLE_FAMILY_LABELS: dict[str, str] = {
     "production_family": "производственная роль",
     "helper_family": "простая вспомогательная роль",
     "delivery_driving_family": "роль в доставке или вождении",
+    "vehicle_logistics_family": "роль в автомобильной логистике",
 }
 
 
@@ -530,6 +614,42 @@ class VacancyScorer:
             score += commute_hit.weight
             (positive_hits if commute_hit.weight >= 0 else negative_hits).append(commute_hit)
 
+        # Оплата и форма занятости — предпочтения профиля, а не жёсткие условия:
+        # они меняют место в списке, но не скрывают вакансию.
+        for preference_hit in (
+            _salary_hit(resolved_signals, profile),
+            _employment_type_hit(resolved_signals, profile),
+        ):
+            if preference_hit is None:
+                continue
+            score += preference_hit.weight
+            (positive_hits if preference_hit.weight >= 0 else negative_hits).append(preference_hit)
+
+        # Самозанятость и тяжёлая нагрузка при НЕЗАПОЛНЕННОМ поле профиля: жёсткого
+        # отказа тут нет (его делает FilterEngine, когда человек сказал "нет"), но и
+        # молчать нельзя — иначе такая вакансия стоит наравне с трудовым договором.
+        if profile.self_employment_ok is None and resolved_signals.requires_self_employment:
+            score += _SELF_EMPLOYMENT_UNKNOWN_PENALTY
+            negative_hits.append(
+                RuleHit(
+                    code="self_employment_unknown",
+                    label_ru="оформление не трудовым договором; в профиле это не задано",
+                    weight=_SELF_EMPLOYMENT_UNKNOWN_PENALTY,
+                )
+            )
+        if profile.physical_work_ok is None and resolved_signals.heavy_physical_signals:
+            score += _HEAVY_PHYSICAL_UNKNOWN_PENALTY
+            negative_hits.append(
+                RuleHit(
+                    code="heavy_physical_unknown",
+                    label_ru=(
+                        "тяжёлая физическая нагрузка: "
+                        + resolved_signals.heavy_physical_signals[0]
+                    ),
+                    weight=_HEAVY_PHYSICAL_UNKNOWN_PENALTY,
+                )
+            )
+
 
         if resolved_signals.low_language_signal:
             score += 12
@@ -705,10 +825,11 @@ def _vacancy_looks_like_driving(
     Product Quality» получал бонус за «deutschlandweit» в тексте и дотягивал до
     раздела «на проверку» у водительского профиля.
     """
-    if any(hit.code == "delivery_driving_family" for hit in signals.positive_role_hits_in_title):
+    driving_codes = {"delivery_driving_family", "vehicle_logistics_family"}
+    if any(hit.code in driving_codes for hit in signals.positive_role_hits_in_title):
         return True
     normalized_title = normalize_text_for_fingerprint(canonical.normalized_title or "")
-    return bool(normalized_title) and classify_vacancy_de(normalized_title) is RoleFamily.DRIVING
+    return bool(normalized_title) and classify_vacancy_de(normalized_title) in DRIVING_LIKE_FAMILIES
 
 
 def _score_driver_b_route_fit(

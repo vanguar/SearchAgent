@@ -136,9 +136,25 @@ def _parse_record(source_id: str, source_name: str, company_slug: str, raw_job: 
     categories = raw_job.get("categories")
     location = _to_text(categories.get("location")) if isinstance(categories, Mapping) else None
     raw_payload = dict(raw_job)
-    raw_payload["description"] = _to_text(raw_job.get("descriptionPlain")) or _to_text(raw_job.get("description"))
+    raw_payload.setdefault("description", _to_text(raw_job.get("descriptionPlain")))
+    parts = [
+        _to_text(raw_job.get("openingPlain")) or _to_text(raw_job.get("opening")),
+        _to_text(raw_job.get("descriptionPlain")) or _to_text(raw_job.get("description")),
+    ]
+    lists = raw_job.get("lists")
+    if isinstance(lists, list):
+        for section in lists:
+            if isinstance(section, dict):
+                parts.extend((_to_text(section.get("text")), _to_text(section.get("content"))))
+    parts.extend((
+        _to_text(raw_job.get("additionalPlain")) or _to_text(raw_job.get("additional")),
+        _to_text(raw_job.get("closingPlain")) or _to_text(raw_job.get("closing")),
+    ))
+    raw_payload["_full_description"] = "\n".join(part for part in parts if part)
+
     raw_payload["company_slug"] = company_slug
     return SourceRecordPreview(
+        description_complete=True,
         source_id=source_id,
         source_name=source_name,
         external_id=f"{company_slug}:{job_id}",

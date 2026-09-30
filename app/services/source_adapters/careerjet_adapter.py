@@ -340,6 +340,7 @@ def _parse_record(
     external_id = "cj-" + hashlib.md5(url.encode()).hexdigest()[:16]
 
     return SourceRecordPreview(
+            description_complete=False,
         source_id=source_id,
         source_name=source_name,
         external_id=external_id,

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 from enum import Enum
+from functools import lru_cache
 
 from app.services.hashers import normalize_text_for_fingerprint
 
@@ -24,6 +25,11 @@ class RoleFamily(str, Enum):
     SALES = "sales"
     HEALTHCARE = "healthcare"
     DRIVING = "driving"
+    # Автомобильная логистика: перегон и перестановка автомобилей, работа на
+    # площадке автологистического центра, подготовка машин. Отдельно от DRIVING,
+    # потому что это НЕ дорожные перевозки груза: транспорт здесь — сам товар, а
+    # не средство доставки, и требования к вакансии другие (категория B, а не C/CE).
+    VEHICLE_LOGISTICS = "vehicle_logistics"
     SECURITY = "security"
     GENERIC = "generic"
 
@@ -39,6 +45,9 @@ _FAMILY_PROHIBITS_BROAD_FALLBACK: frozenset[RoleFamily] = frozenset({
     RoleFamily.SECURITY,
     RoleFamily.KITCHEN,
     RoleFamily.DRIVING,  # delivery/driving stays in its own family, not generic labor
+    # Перегон автомобилей — узкое направление: расширять его до «helfer» значит
+    # подменять запрос на другую работу.
+    RoleFamily.VEHICLE_LOGISTICS,
 })
 
 # Undirected cross-family compatibility pairs (excluding self-compatibility and GENERIC).
@@ -48,6 +57,20 @@ _COMPATIBLE_SPECIFIC_PAIRS: frozenset[frozenset[RoleFamily]] = frozenset({
     frozenset({RoleFamily.WAREHOUSE, RoleFamily.PRODUCTION}),
     frozenset({RoleFamily.PRODUCTION, RoleFamily.CONSTRUCTION}),
     frozenset({RoleFamily.OFFICE, RoleFamily.SALES}),
+    # Пары с VEHICLE_LOGISTICS нет намеренно. Перегон автомобилей и доставка
+    # посылок — разная работа: в первой транспорт это товар, во второй — средство
+    # развозки по десяткам адресов. Совместимость семейств означала бы, что запрос
+    # «Fahrzeugüberführer» приносит Paketzusteller, а запрос «курьер» — перегон.
+    # Кому нужно и то и другое, перечисляет обе роли в своём профиле: набор
+    # семейств профиля складывается из всех его ролей.
+})
+
+# Семейства, для которых работают правила «профиль водителя»: ограничение по
+# категории прав и отсечение тяжёлого транспорта. Перегон сюда входит — человек
+# с категорией B не сможет перегонять седельный тягач.
+DRIVING_LIKE_FAMILIES: frozenset[RoleFamily] = frozenset({
+    RoleFamily.DRIVING,
+    RoleFamily.VEHICLE_LOGISTICS,
 })
 
 # Precompiled word-boundary pattern for "it" as a standalone token.
@@ -73,6 +96,13 @@ _QUERY_RU_TOKENS: list[tuple[RoleFamily, tuple[str, ...]]] = [
     (RoleFamily.SECURITY, ("охранник", "секьюрити")),
     (RoleFamily.OFFICE, ("бухгалтер", "секретарь", "офис-менеджер", "делопроизводств")),
     (RoleFamily.SALES, ("продавец", "торговый представ", "менеджер по продаж")),
+    # Перегон стоит ВЫШЕ вождения: «перегон автомобилей» — это не доставка и не
+    # развозка, и подменять его водительским запросом значит искать другую работу.
+    (RoleFamily.VEHICLE_LOGISTICS, (
+        "перегон", "перегонщик", "перегін", "переганя",
+        "автологистик", "автологістик", "автовоз",
+        "подготовка автомобил", "предпродажная подготовка",
+    )),
     (RoleFamily.DRIVING, ("водитель", "курьер", "доставк", "развоз")),
     (RoleFamily.CONSTRUCTION, (
         "строитель", "монтажник", "электрик", "сварщик", "слесарь", "сантехник", "плотник",
@@ -110,6 +140,24 @@ _TITLE_DE_TOKENS: list[tuple[RoleFamily, tuple[str, ...]]] = [
     (RoleFamily.WAREHOUSE, (
         "gabelstaplerfahrer", "schubmaststaplerfahrer", "staplerfahrer",
         "hochregalstaplerfahrer", "stapler", "hubwagen",
+    )),
+    # Автомобильная логистика. Записи стоят ДО водительской, потому что в этих
+    # заголовках "-fahrer" — лишь хвост композита, а само занятие называет его
+    # начало: "Überführungsfahrer" — перегонщик, а не водитель развозки.
+    # Берутся только однозначные составные формы: голое "fahrzeug" притягивает
+    # Fahrzeugbau (производство) и Fahrzeugtechniker (автомеханик).
+    (RoleFamily.VEHICLE_LOGISTICS, (
+        "fahrzeuguberfuhrer", "uberfuhrungsfahrer", "fahrzeuguberfuhrung", "uberfuhrung",
+        "fahrzeugverbringung", "fahrzeugruckfuhrung", "ruckfuhrungsfahrer",
+        "fahrzeugumsetzer", "umsetzfahrer", "fahrzeuglogistik", "autologistik",
+        "pkw rangierer", "fahrzeugrangierer", "rangierer", "rangierfahrer",
+        "werkstattfahrer", "hol und bringservice", "hol und bring",
+        # Только в связке с ролью: голое "autovermietung" — это отрасль
+        # работодателя, и "Sachbearbeiter Autovermietung" остаётся офисной работой.
+        "fahrer autovermietung", "mitarbeiter autovermietung",
+        "fahrzeugaufbereiter", "fahrzeugaufbereitung", "fahrzeugpfleger", "fahrzeugpflege",
+        "autoaufbereiter", "autoaufbereitung",
+        "fahrzeugtransport", "autotransport", "fahrzeugzustellung",
     )),
     (RoleFamily.DRIVING, (
         "kraftfahrer", "lieferfahrer", "zusteller", "kurier",
@@ -161,6 +209,15 @@ _TITLE_DE_TOKENS: list[tuple[RoleFamily, tuple[str, ...]]] = [
     )),
 ]
 
+# Семейства, которые побеждают в заголовке независимо от позиции слова.
+#
+# Обычное правило — «решает слово, стоящее раньше», — здесь даёт неверный ответ:
+# в «Fahrer Fahrzeuglogistik» раньше стоит "fahrer", и вакансия автологистического
+# центра попадала в доставку. Слова этого семейства — однозначные составные формы
+# ("fahrzeuglogistik", "uberfuhrung", "werkstattfahrer"), и случайно они в
+# заголовке не появляются: если они есть, работа именно такая, где бы они ни стояли.
+_POSITION_INDEPENDENT_FAMILIES: frozenset[RoleFamily] = frozenset({RoleFamily.VEHICLE_LOGISTICS})
+
 
 def classify_query_ru(text: str) -> RoleFamily:
     """Classify a Russian role or query text into a RoleFamily.
@@ -196,6 +253,9 @@ def classify_vacancy_de(normalized_title: str) -> RoleFamily:
     элементами вождения, а не водительская, и водительскому профилю она не нужна.
     При равной позиции решает порядок списка: в "Staplerfahrer" и "stapler", и
     "fahrer" начинаются с нуля, и складская запись стоит выше не случайно.
+
+    Исключение — семейства из _POSITION_INDEPENDENT_FAMILIES: их слова однозначны
+    сами по себе и побеждают из любой позиции.
     """
     best_position: int | None = None
     best_family = RoleFamily.GENERIC
@@ -203,6 +263,8 @@ def classify_vacancy_de(normalized_title: str) -> RoleFamily:
         positions = [position for token in tokens if (position := normalized_title.find(token)) != -1]
         if not positions:
             continue
+        if family in _POSITION_INDEPENDENT_FAMILIES:
+            return family
         earliest = min(positions)
         if best_position is None or earliest < best_position:
             best_position, best_family = earliest, family
@@ -230,9 +292,20 @@ def classify_role_text(text: str) -> RoleFamily:
     return classify_vacancy_de(normalize_text_for_fingerprint(normalized))
 
 
+@lru_cache(maxsize=512)
+def classify_role_families(texts: tuple[str, ...]) -> frozenset[RoleFamily]:
+    """Семейства, представленные набором названий ролей.
+
+    Кэшируется: набор ролей на прогон один, а спрашивают его на каждую вакансию
+    по нескольку раз (гейт положительных сигналов, межсемейный фильтр, проверка
+    отрицательных попаданий).
+    """
+    return frozenset(classify_role_text(text) for text in texts if text.strip())
+
+
 def classify_desired_roles(roles: tuple[str, ...]) -> frozenset[RoleFamily]:
     """Return the set of RoleFamilies represented by the profile's desired roles."""
-    return frozenset(classify_role_text(role) for role in roles if role.strip())
+    return classify_role_families(tuple(roles))
 
 
 def is_specific_family(family: RoleFamily) -> bool:

@@ -4,6 +4,8 @@ import re
 import unicodedata
 from dataclasses import dataclass
 
+from app.services.signal_negation import is_negated_signal
+
 DriverLicenseCategory = str
 
 _CATEGORY_ORDER = (
@@ -101,6 +103,7 @@ class DriverLicenseRequirement:
     allowed: tuple[DriverLicenseCategory, ...] = ()
     optional: tuple[DriverLicenseCategory, ...] = ()
     mentioned: tuple[DriverLicenseCategory, ...] = ()
+    negated: tuple[DriverLicenseCategory, ...] = ()
 
 
 def extract_driver_license_requirements(text: str | None) -> DriverLicenseRequirement:
@@ -112,6 +115,26 @@ def extract_driver_license_requirements(text: str | None) -> DriverLicenseRequir
     allowed: set[str] = set()
     optional: set[str] = set()
     mentioned = _extract_mentioned_categories(normalized)
+    negated: set[str] = set()
+    positive: set[str] = set()
+    covered: list[tuple[int, int]] = []
+    for pattern in (_LICENSE_BEFORE_CATEGORY_RE, _CLASS_BEFORE_CATEGORY_RE,
+                    _CATEGORY_BEFORE_LICENSE_RE, _CATEGORY_PAIR_RE, _BARE_MARKED_CATEGORY_RE,
+                    _HEAVY_VEHICLE_LICENSE_RE):
+        for match in pattern.finditer(normalized):
+            if any(start <= match.start() < end for start, end in covered):
+                continue
+            covered.append(match.span())
+            categories = set(_CATEGORY_RE.findall(match.groupdict().get("categories") or ""))
+            if pattern is _HEAVY_VEHICLE_LICENSE_RE:
+                categories = {"lkw"}
+            # Bare marked patterns include the negation in the match itself.
+            signal = re.search(r"\b(?:" + _CATEGORY_PATTERN + r")\b", match.group())
+            probe = match
+            if pattern is _BARE_MARKED_CATEGORY_RE and signal is not None:
+                probe = _CATEGORY_RE.search(normalized, match.start(), match.end()) or match
+            (negated if is_negated_signal(normalized, probe) else positive).update(categories)
+    negated.difference_update(positive)
 
     for clause in _CLAUSE_SEPARATOR_RE.split(normalized):
         for segment in _split_mixed_requirement_clause(clause):
@@ -138,10 +161,11 @@ def extract_driver_license_requirements(text: str | None) -> DriverLicenseRequir
                 required.update(categories)
 
     return DriverLicenseRequirement(
-        required=_ordered_categories(required),
+        required=_ordered_categories(required - negated),
         allowed=_ordered_categories(allowed),
-        optional=_ordered_categories(optional),
+        optional=_ordered_categories(optional | negated),
         mentioned=_ordered_categories(mentioned),
+        negated=_ordered_categories(negated),
     )
 
 
@@ -217,6 +241,7 @@ def _normalize_requirement_text(text: str | None) -> str:
     folded = _GENDER_MARKER_RE.sub(" ", folded.casefold())
     folded = _ABBREVIATION_RE.sub(lambda match: f"{match.group(1)} ", folded)
     folded = folded.replace("-", " ")
+    folded = re.sub(r"[\n.!?]|\b(?:aber|jedoch|sondern|but)\b", ";", folded)
     folded = _NON_SIGNAL_CHARACTER_RE.sub(" ", folded)
     return _SPACES_RE.sub(" ", folded).strip()
 
