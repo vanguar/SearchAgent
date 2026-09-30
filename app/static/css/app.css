@@ -2587,13 +2587,34 @@ body {
   display: grid;
   /* Роли, города, источник. Колонки радиуса больше нет: город и есть заказ. */
   grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr);
-  gap: 14px 16px;
-  align-items: end;
+  /* Три ряда на всю строку: подпись, поле, подсказка. Поля выравниваются по
+     этим рядам, а не каждое по своей высоте: подсказка есть не у каждого
+     поля, и при выравнивании по низу она поднимала «Города» выше соседей. */
+  grid-template-rows: auto auto auto;
+  gap: 6px 16px;
+  align-items: start;
+}
+
+/* Подсказка живёт в общем третьем ряду, поэтому расстояния задаёт сетка. */
+.search-grid .search-field__hint {
+  margin: 0;
+}
+
+@supports (grid-template-rows: subgrid) {
+  .search-grid > .search-field {
+    grid-row: span 3;
+    grid-template-rows: subgrid;
+    gap: 0;
+  }
 }
 
 .search-grid input,
 .search-grid select {
   width: 100%;
+  /* Одинаковая высота у поля ввода и у списка: у <select> своя внутренняя
+     метрика, и без общей высоты «Источник» оказывался на четыре пикселя выше
+     соседей — заметно, когда поля стоят в ряд. */
+  min-height: 42px;
   padding: 9px 12px;
   border: 1px solid var(--line);
   border-radius: 9px;
@@ -2601,6 +2622,7 @@ body {
   color: var(--text-main);
   font: inherit;
   font-size: 0.9rem;
+  line-height: 1.2;
 }
 
 .search-grid input:focus,
@@ -2728,7 +2750,7 @@ body {
 
 @media (max-width: 860px) {
   .search-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
   }
   .jobs-vacancy-card {
     grid-template-columns: 1fr;
@@ -3114,4 +3136,52 @@ body {
   background: var(--bg-main);
   color: var(--text-soft);
   font-size: 0.78rem;
+}
+
+/* --- Формы профиля поиска (создание и редактирование) --------------------- */
+/* Одна разметка на обе формы: поля у них одни и те же. */
+.pform { display: flex; flex-direction: column; gap: 18px; }
+.pform-group {
+  border: 1px solid var(--border, #e2e6ea);
+  border-radius: 10px;
+  padding: 14px 16px 16px;
+  margin: 0;
+}
+.pform-legend { font-weight: 600; font-size: 13px; padding: 0 6px; }
+.pform-field { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
+.pform-group > .pform-field:first-of-type { margin-top: 4px; }
+.pform-label { font-size: 13px; font-weight: 600; }
+.pform-hint { margin: 0; font-size: 12px; opacity: 0.72; line-height: 1.4; }
+.pform-check { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-top: 4px; }
+.pform-check input { width: auto; margin: 0; }
+.pform--inline { flex-direction: row; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.pform--inline .pform-field { margin-top: 0; min-width: 150px; }
+
+.pcard-new-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.pcard-new--muted { opacity: 0.8; }
+
+/* --- Панель применённых параметров поиска --------------------------------- */
+/* Человек должен видеть, какое значение победило: форма, профиль или умолчание. */
+.applied-params {
+  border: 1px solid var(--border, #e2e6ea);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-size: 13px;
+}
+.applied-params__summary { cursor: pointer; font-weight: 600; }
+.applied-params__hint { font-weight: 400; opacity: 0.7; margin-left: 8px; }
+.applied-params__list {
+  display: grid;
+  grid-template-columns: minmax(140px, max-content) 1fr;
+  gap: 4px 14px;
+  margin: 12px 0 0;
+}
+.applied-params__list dt { font-weight: 600; opacity: 0.8; }
+.applied-params__list dd { margin: 0; }
+.applied-params__note { margin: 12px 0 0; font-size: 12px; opacity: 0.7; }
+
+@media (max-width: 560px) {
+  .applied-params__list { grid-template-columns: 1fr; gap: 2px; }
+  .applied-params__list dd { margin-bottom: 8px; }
 }

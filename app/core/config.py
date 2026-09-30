@@ -49,6 +49,17 @@ class Settings:
         default_factory=lambda: _env_float("SOURCE_ADAPTER_TIMEOUT_SECONDS", 10.0)
     )
 
+    # --- Глубина выдачи источника ---
+    # Сколько вакансий просить у источника за одну страницу и сколько страниц
+    # забирать. Раньше было жёстко 8 вакансий и одна страница: у BA по запросу
+    # "lagermitarbeiter" тысячи вакансий, а видели восемь, и расширение шло только
+    # числом ключевых слов, но не глубиной по каждому.
+    #
+    # Вторая страница берётся лишь тогда, когда первая пришла полной, поэтому для
+    # узких запросов лишних обращений нет.
+    search_page_size: int = field(default_factory=lambda: _env_int("SEARCH_PAGE_SIZE", 25))
+    search_max_pages: int = field(default_factory=lambda: _env_int("SEARCH_MAX_PAGES", 4))
+
     # --- BA ---
     source_ba_enabled: bool = field(default_factory=lambda: _env_bool("SOURCE_BA_ENABLED", True))
     source_ba_base_url: str = field(

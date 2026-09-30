@@ -14,6 +14,32 @@ def _make_alembic_config(sqlite_url: str) -> Config:
     return config
 
 
+def test_0011_preserves_existing_profile_and_keeps_new_criteria_unset(tmp_path: Path) -> None:
+    url = f"sqlite:///{(tmp_path / 'profile_upgrade.sqlite3').as_posix()}"
+    config = _make_alembic_config(url)
+    command.upgrade(config, "0010_search_query_terms")
+    engine = create_engine(url)
+    with engine.begin() as connection:
+        connection.execute(text("INSERT INTO user_profiles (id, display_name, work_authorized, created_at, updated_at) "
+                                "VALUES (1, 'Test', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"))
+        connection.execute(text("INSERT INTO search_profiles "
+                                "(id, user_profile_id, name, is_active, is_default, desired_roles, driver_license, "
+                                "no_german_required, created_at, updated_at) VALUES "
+                                "(1, 1, 'Custom', 1, 1, '[\"Python Developer\"]', 'B', 0, "
+                                "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"))
+    command.upgrade(config, "head")
+    with engine.connect() as connection:
+        rows = connection.execute(text("SELECT * FROM search_profiles")).mappings().all()
+        assert len(rows) == 1
+        assert rows[0]["name"] == "Custom"
+        assert rows[0]["desired_roles"] == '["Python Developer"]'
+        assert rows[0]["driver_license"] == "B"
+        for field in ("search_radius_km", "additional_search_terms", "employment_types",
+                      "min_salary_eur_per_hour", "self_employment_ok"):
+            assert rows[0][field] is None
+    engine.dispose()
+
+
 def test_phase2_migration_upgrade_downgrade_upgrade_cycle(tmp_path: Path) -> None:
     db_path = tmp_path / "phase2_migration.sqlite3"
     sqlite_url = f"sqlite:///{db_path.as_posix()}"

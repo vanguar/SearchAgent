@@ -1,0 +1,122 @@
+{#
+  Что фактически применено к этому поиску.
+
+  Зачем нужно. Настройки приходят из трёх мест — общий профиль пользователя,
+  выбранный профиль поиска и форма текущего запуска, — и до этой панели человек не
+  мог узнать, какое значение победило. Пустая выдача при заполненном профиле
+  выглядела ошибкой программы, хотя причиной был, например, радиус «только эти
+  города» или отмеченный тип занятости.
+
+  Показываются именно применённые значения (SearchRunResult.profile — уже
+  разрешённый контекст прогона), а не то, что лежит в базе.
+#}
+{% set p = search_result.profile %}
+<details class="applied-params">
+  <summary class="applied-params__summary">
+    Применённые параметры поиска
+    <span class="applied-params__hint">профиль: {{ p.profile_label }}</span>
+  </summary>
+  <dl class="applied-params__list">
+    <dt>Профессия</dt>
+    <dd>{{ p.desired_roles | join(", ") if p.desired_roles else "не задана" }}</dd>
+
+    {% if p.run_query_terms %}
+    <dt>Запрос этого поиска</dt>
+    <dd>{{ p.run_query_terms | join(", ") }}</dd>
+    {% endif %}
+
+    {% if p.search_query_terms %}
+    <dt>Ключевые слова профиля</dt>
+    <dd>{{ p.search_query_terms | join(", ") }}</dd>
+    {% endif %}
+
+    {% if p.additional_search_terms %}
+    <dt>Дополнительные слова</dt>
+    <dd>{{ p.additional_search_terms | join(", ") }}</dd>
+    {% endif %}
+
+    {% if p.excluded_roles %}
+    <dt>Исключено</dt>
+    <dd>{{ p.excluded_roles | join(", ") }}</dd>
+    {% endif %}
+
+    <dt>Города</dt>
+    <dd>
+      {% if p.search_cities %}{{ p.search_cities | join(", ") }}
+      {% elif p.search_location %}{{ p.search_location }}
+      {% else %}не ограничены{% endif %}
+    </dd>
+
+    <dt>Радиус</dt>
+    <dd>
+      {% if not p.search_cities %}не применяется — города не заданы
+      {% elif p.search_radius_km %}+{{ p.search_radius_km }} км вокруг каждого города
+      {% else %}строго названные города{% endif %}
+    </dd>
+
+    {% if p.home_city %}
+    <dt>Дорога считается от</dt>
+    <dd>{{ p.home_city }}</dd>
+    {% endif %}
+
+    <dt>Немецкий в профиле</dt>
+    <dd>
+      {{ p.german_level or "не указан" }}
+      {%- if p.no_german_required %}, вакансии с обязательным немецким скрываются{% endif %}
+    </dd>
+
+    <dt>Английский в профиле</dt>
+    <dd>{{ p.english_level or "не указан" }}</dd>
+
+    {% if p.employment_types %}
+    <dt>Тип занятости</dt>
+    <dd>{{ employment_type_labels(p.employment_types) }}</dd>
+    {% endif %}
+
+    {% if p.min_salary_eur_per_hour %}
+    <dt>Ориентир по оплате</dt>
+    <dd>от {{ "%.2f"|format(p.min_salary_eur_per_hour) }} € в час (предпочтение, не фильтр)</dd>
+    {% endif %}
+
+    {% if p.driver_license %}
+    <dt>Права</dt>
+    <dd>категория {{ p.driver_license }}</dd>
+    {% endif %}
+
+    <dt>Самозанятость</dt>
+    <dd>
+      {% if p.self_employment_ok is sameas true %}допустима
+      {% elif p.self_employment_ok is sameas false %}не подходит — такие вакансии скрываются
+      {% else %}не указана — помечается риском{% endif %}
+    </dd>
+
+    <dt>Тяжёлая физическая работа</dt>
+    <dd>
+      {% if p.physical_work_ok is sameas true %}допустима
+      {% elif p.physical_work_ok is sameas false %}не подходит — такие вакансии скрываются
+      {% else %}не указана{% endif %}
+    </dd>
+
+    <dt>Переезд</dt>
+    <dd>
+      {% if p.relocation_ready is sameas true %}готов
+      {% elif p.relocation_ready is sameas false %}не готов
+      {% else %}не указано{% endif %}
+    </dd>
+    <dt>Свой автомобиль</dt>
+    <dd>{{ 'есть' if p.car_available is sameas true else 'нет' if p.car_available is sameas false else 'не указано' }}</dd>
+    <dt>Смены</dt>
+    <dd>{{ 'подходят' if p.shift_ok is sameas true else 'не подходят' if p.shift_ok is sameas false else 'не указано' }}</dd>
+    {% if p.start_availability_text %}
+    <dt>Готовность к выходу</dt><dd>{{ p.start_availability_text }}</dd>
+    {% endif %}
+    {% if p.notes %}
+    <dt>Ваши заметки</dt><dd>{{ p.notes }}</dd>
+    {% endif %}
+  </dl>
+  <p class="applied-params__note">
+    Значение из формы поиска сильнее сохранённого в профиле; профиль сильнее
+    умолчания. Изменить сохранённое — на
+    <a href="/profile">странице профилей</a>.
+  </p>
+</details>

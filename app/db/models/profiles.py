@@ -2,7 +2,7 @@
 
 from app.db.base import Base
 from app.db.models.mixins import TimestampMixin
-from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 
@@ -43,3 +43,19 @@ class SearchProfile(TimestampMixin, Base):
     search_query_de: Mapped[str | None] = mapped_column(String(512))
     search_location_de: Mapped[str | None] = mapped_column(String(255))
     search_query_terms: Mapped[list[str] | None] = mapped_column(JSON)
+    # --- критерии, которые пользователь задаёт сам через форму профиля ---
+    # Каждое поле nullable: «не указано» — значащее состояние, и подменять его
+    # значением по умолчанию нельзя.
+    #
+    # Радиус вокруг заказанных городов в километрах. NULL означает «искать строго
+    # в перечисленных городах», как поиск работал до появления поля.
+    search_radius_km: Mapped[int | None] = mapped_column(Integer)
+    # Ключевые слова, которые пробуются ПОСЛЕ основных (search_query_terms).
+    additional_search_terms: Mapped[list[str] | None] = mapped_column(JSON)
+    # Допустимые формы занятости: full_time | part_time | mini_job | temporary.
+    employment_types: Mapped[list[str] | None] = mapped_column(JSON)
+    # Ориентир по оплате, евро в час. Предпочтение для ранжирования, не фильтр:
+    # в немецких объявлениях зарплату чаще не указывают вовсе.
+    min_salary_eur_per_hour: Mapped[float | None] = mapped_column(Float)
+    # Допустима ли самозанятость (Gewerbeschein / Subunternehmer / Honorarbasis).
+    self_employment_ok: Mapped[bool | None] = mapped_column(Boolean)

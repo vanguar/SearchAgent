@@ -1,0 +1,208 @@
+{#
+  Поля поискового профиля. Один партиал на создание и на редактирование: критерии
+  у них одни и те же, и если бы форм было две, поле, добавленное в одну, молча не
+  работало бы в другой.
+
+  `profile` = None означает создание нового профиля.
+
+  Везде, где есть состояние «Не указано», оно стоит первым и означает именно
+  «не указано»: правила поиска отличают его от «нет», и подменять одно другим нельзя.
+#}
+{% set p = profile %}
+{% macro tri(name, label, hint='') %}
+  {% set value = p[name] if p is not none else none %}
+  <div class="pform-field">
+    <label class="pform-label" for="pf-{{ name }}">{{ label }}</label>
+    <select id="pf-{{ name }}" name="{{ name }}">
+      <option value="" {% if value is none %}selected{% endif %}>Не указано</option>
+      <option value="true" {% if value is sameas true %}selected{% endif %}>Да</option>
+      <option value="false" {% if value is sameas false %}selected{% endif %}>Нет</option>
+    </select>
+    {% if hint %}<p class="pform-hint">{{ hint }}</p>{% endif %}
+  </div>
+{% endmacro %}
+
+{% set roles = (p.desired_roles if p is not none and p.desired_roles else []) %}
+{% set cities = (p.preferred_locations if p is not none and p.preferred_locations else []) %}
+{% set terms = (p.search_query_terms if p is not none and p.search_query_terms else []) %}
+{% set extra_terms = (p.additional_search_terms if p is not none and p.additional_search_terms else []) %}
+{% set excluded = (p.excluded_roles if p is not none and p.excluded_roles else []) %}
+{% set chosen_employment = (p.employment_types if p is not none and p.employment_types else []) %}
+
+<fieldset class="pform-group">
+  <legend class="pform-legend">Название</legend>
+  <div class="pform-field">
+    <label class="pform-label" for="pf-name">Название профиля</label>
+    <input id="pf-name" name="name" type="text" required
+           value="{{ p.name if p is not none else '' }}"
+           placeholder="Например: Перегон автомобилей" />
+    <p class="pform-hint">Видно только вам — чтобы отличать профили друг от друга.</p>
+  </div>
+</fieldset>
+
+<fieldset class="pform-group">
+  <legend class="pform-legend">Профессия</legend>
+  <div class="pform-field">
+    <label class="pform-label" for="pf-primary_role">Основная профессия</label>
+    <input id="pf-primary_role" name="primary_role" type="text"
+           value="{{ roles[0] if roles else '' }}"
+           placeholder="Например: перегон автомобилей" />
+    <p class="pform-hint">Можно по-русски, по-украински, по-английски или по-немецки.</p>
+  </div>
+  <div class="pform-field">
+    <label class="pform-label" for="pf-additional_roles">Дополнительные роли</label>
+    <input id="pf-additional_roles" name="additional_roles" type="text"
+           value="{{ roles[1:] | join(', ') }}"
+           placeholder="Через запятую" />
+    <p class="pform-hint">Тоже подходят. Порядок задаёт приоритет.</p>
+  </div>
+  <div class="pform-field">
+    <label class="pform-label" for="pf-excluded_roles">Исключаемые профессии</label>
+    <input id="pf-excluded_roles" name="excluded_roles" type="text"
+           value="{{ excluded | join(', ') }}"
+           placeholder="Например: Paketzustellung" />
+    <p class="pform-hint">Вакансии с такими словами в заголовке скрываются.</p>
+  </div>
+</fieldset>
+
+<fieldset class="pform-group">
+  <legend class="pform-legend">Ключевые слова для источников</legend>
+  <div class="pform-field">
+    <label class="pform-label" for="pf-search_query_terms">Основные ключевые слова</label>
+    <input id="pf-search_query_terms" name="search_query_terms" type="text"
+           value="{{ terms | join(', ') }}"
+           placeholder="Например: Fahrzeugüberführer, Überführungsfahrer" />
+    <p class="pform-hint">
+      Что именно спрашивать у сайтов вакансий. Первое слово — главный запрос.
+      Пусто — подберём сами по профессии.
+    </p>
+  </div>
+  <div class="pform-field">
+    <label class="pform-label" for="pf-additional_search_terms">Дополнительные ключевые слова</label>
+    <input id="pf-additional_search_terms" name="additional_search_terms" type="text"
+           value="{{ extra_terms | join(', ') }}"
+           placeholder="Например: PKW-Rangierer, Umsetzfahrer" />
+    <p class="pform-hint">Пробуются после основных, чтобы расширить охват.</p>
+  </div>
+</fieldset>
+
+<fieldset class="pform-group">
+  <legend class="pform-legend">География</legend>
+  <div class="pform-field">
+    <label class="pform-label" for="pf-primary_city">Основной город поиска</label>
+    <input id="pf-primary_city" name="primary_city" type="text"
+           value="{{ cities[0] if cities else '' }}"
+           placeholder="Например: Neustrelitz" />
+  </div>
+  <div class="pform-field">
+    <label class="pform-label" for="pf-additional_cities">Дополнительные города</label>
+    <input id="pf-additional_cities" name="additional_cities" type="text"
+           value="{{ cities[1:] | join(', ') }}"
+           placeholder="Через запятую, например: Berlin" />
+    <p class="pform-hint">Выдача идёт разделами в этом порядке.</p>
+  </div>
+  <div class="pform-field">
+    <label class="pform-label" for="pf-search_radius_km">Радиус поиска, км</label>
+    <select id="pf-search_radius_km" name="search_radius_km">
+      <option value="" {% if p is none or p.search_radius_km is none %}selected{% endif %}>
+        Не указано
+      </option>
+      {% for km in radius_options %}
+      <option value="{{ km }}"
+        {% if p is not none and p.search_radius_km == km %}selected{% endif %}>
+        {% if km == 0 %}Только эти города{% else %}+{{ km }} км{% endif %}
+      </option>
+      {% endfor %}
+    </select>
+    <p class="pform-hint">
+      Считается от каждого города из списка. «Не указано» — поиск строго в самих городах.
+    </p>
+  </div>
+  {{ tri('relocation_ready', 'Готовность к переезду', 'Влияет на штраф за дальнюю дорогу.') }}
+  {{ tri('housing_needed', 'Нужна помощь с жильём') }}
+</fieldset>
+
+<fieldset class="pform-group">
+  <legend class="pform-legend">Условия работы</legend>
+  <div class="pform-field">
+    <span class="pform-label">Тип занятости</span>
+    <input type="hidden" name="employment_types_present" value="1" />
+    {% for code, label in employment_choices %}
+    <label class="pform-check">
+      <input type="checkbox" name="employment_types" value="{{ code }}"
+             {% if code in chosen_employment %}checked{% endif %} />
+      {{ label }}
+    </label>
+    {% endfor %}
+    <p class="pform-hint">Ничего не отмечено — занятость не учитывается.</p>
+  </div>
+  <div class="pform-field">
+    <label class="pform-label" for="pf-min_salary_eur_per_hour">Ориентир по оплате, € в час</label>
+    <input id="pf-min_salary_eur_per_hour" name="min_salary_eur_per_hour"
+           type="number" min="0" max="1000" step="0.5"
+           value="{{ p.min_salary_eur_per_hour if p is not none and p.min_salary_eur_per_hour else '' }}"
+           placeholder="Например: 16" />
+    <p class="pform-hint">
+      Это предпочтение, а не фильтр: вакансии ниже ориентира остаются в выдаче, но ниже в списке.
+      Месячные и годовые суммы пересчитываются автоматически.
+    </p>
+  </div>
+  {{ tri('self_employment_ok', 'Самозанятость допустима',
+         'Нет — вакансии с Gewerbeschein скрываются. Не указано — помечаются риском.') }}
+  {{ tri('physical_work_ok', 'Тяжёлая физическая работа допустима',
+         'Нет — вакансии с подъёмом тяжестей скрываются.') }}
+  {{ tri('shift_ok', 'Сменный график подходит') }}
+  <div class="pform-field">
+    <label class="pform-label" for="pf-start_availability_text">Когда готовы начать</label>
+    <input id="pf-start_availability_text" name="start_availability_text" type="text"
+           value="{{ p.start_availability_text if p is not none and p.start_availability_text else '' }}"
+           placeholder="Например: с 16.11.2026 или сразу" />
+  </div>
+</fieldset>
+
+<fieldset class="pform-group">
+  <legend class="pform-legend">Транспорт и язык</legend>
+  <div class="pform-field">
+    <label class="pform-label" for="pf-driver_license">Водительские права</label>
+    {% set current_license = (p.driver_license if p is not none and p.driver_license else '') %}
+    <select id="pf-driver_license" name="driver_license">
+      <option value="" {% if not current_license %}selected{% endif %}>Не указано</option>
+      {% if current_license and current_license not in driver_license_options %}
+      <option value="{{ current_license }}" selected>{{ current_license }}</option>
+      {% endif %}
+      {% for option in driver_license_options %}
+      <option value="{{ option }}" {% if current_license == option %}selected{% endif %}>
+        Категория {{ option }}
+      </option>
+      {% endfor %}
+    </select>
+    <p class="pform-hint">
+      По этому полю отсекается транспорт, который вам не доверят: с категорией B
+      вакансии с обязательными C/CE скрываются.
+    </p>
+  </div>
+  {{ tri('car_available', 'Есть свой автомобиль') }}
+  <div class="pform-field pform-field--check">
+    {# Скрытый маркер: снятый чекбокс браузер не присылает, и без маркера
+       галочку нельзя было бы снять — форма приняла бы это за «поля не было». #}
+    <input type="hidden" name="no_german_required_present" value="1" />
+    <label class="pform-check">
+      <input type="checkbox" name="no_german_required" value="on"
+             {% if p is not none and p.no_german_required %}checked{% endif %} />
+      Скрывать вакансии, где немецкий обязателен
+    </label>
+    <p class="pform-hint">
+      Уровень немецкого и английского относится к вам, а не к одному поиску, поэтому
+      задаётся один раз для всех профилей — в разделе «Язык и статус» на странице профилей.
+    </p>
+  </div>
+</fieldset>
+
+<fieldset class="pform-group">
+  <legend class="pform-legend">Заметки</legend>
+  <div class="pform-field">
+    <label class="pform-label" for="pf-notes">Заметки</label>
+    <textarea id="pf-notes" name="notes" rows="3"
+              placeholder="Свободный текст для себя">{{ p.notes if p is not none and p.notes else '' }}</textarea>
+  </div>
+</fieldset>

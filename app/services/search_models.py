@@ -71,10 +71,25 @@ class SearchProfileContext:
     physical_work_ok: bool | None = None
     housing_needed: bool | None = None
     start_availability_text: str | None = None
+    notes: str | None = None
     no_german_required: bool = False
     section24_interpreted: bool = False
     search_query_terms: tuple[str, ...] = ()
+    # Ключевые слова, которые пробуются ПОСЛЕ основных: человек дописал их сам,
+    # чтобы расширить план, не перебивая главный запрос.
+    additional_search_terms: tuple[str, ...] = ()
     driver_license: str | None = None
+    car_available: bool | None = None
+    # Радиус вокруг заказанных городов, км. None = «строго в этих городах».
+    search_radius_km: int | None = None
+    # Допустимые формы занятости: full_time | part_time | mini_job | temporary.
+    # Пустой набор означает «не указано» — фильтр по занятости не применяется.
+    employment_types: tuple[str, ...] = ()
+    # Ориентир по оплате, евро в час. Предпочтение для ранжирования, не фильтр.
+    min_salary_eur_per_hour: float | None = None
+    # Допустима ли самозанятость. None означает «не указано»: вакансия с
+    # Gewerbeschein тогда помечается риском, но не скрывается.
+    self_employment_ok: bool | None = None
     # Город проживания из профиля пользователя. От него считается дорога на
     # работу; при переезде меняется только это поле.
     home_city: str | None = None
@@ -85,6 +100,12 @@ class SearchProfileContext:
     # список: вакансия считается подходящей, если стоит в любом из них.
     search_location: str | None = None
     search_cities: tuple[str, ...] = ()
+    # Что человек ввёл в строку поиска ИМЕННО в этом запуске. Роли профиля — это
+    # план «обычно ищу вот это», а строка поиска — «сейчас ищу вот это», и второе
+    # не должно отсекаться первым: запрос «Werkstattfahrer» у профиля «курьер»
+    # раньше отклонялся межсемейным фильтром, потому что фильтр смотрел только на
+    # desired_roles и о введённом запросе не знал вовсе.
+    run_query_terms: tuple[str, ...] = ()
 
     @classmethod
     def fallback(cls, *, note_ru: str) -> SearchProfileContext:
@@ -120,7 +141,28 @@ class SearchProfileContext:
 
     @property
     def low_german(self) -> bool:
+        """Уровень немецкого ЗАЯВЛЕН и он слабый.
+
+        Незаполненный уровень сюда не попадает намеренно: это не «немецкий
+        слабый», а «про немецкий ничего не сказано». Жёсткое отклонение по
+        такому предположению скрывало бы вакансии без оснований — см.
+        german_level_known.
+        """
         return is_low_german_level(self.german_level)
+
+    @property
+    def german_level_known(self) -> bool:
+        """Указан ли уровень немецкого в профиле.
+
+        Пустое значение раньше молча читалось как «немецкий в порядке»: правило
+        strong_german_mismatch опирается на low_german, а тот для пустой строки
+        отвечает False. В итоге вакансия с «verhandlungssicheres Deutsch»
+        попадала в горячие профилю, про немецкий которого неизвестно ничего.
+
+        Отсутствие данных — это риск, а не разрешение: фильтр превращает такую
+        вакансию в «на проверку», но не скрывает её.
+        """
+        return bool((self.german_level or "").strip())
 
     @property
     def no_usable_english(self) -> bool:
@@ -169,6 +211,7 @@ class VacancySignalSnapshot:
     german_not_required_signal: bool = False
     basic_german_signal: bool = False
     no_mandatory_german_mentioned: bool = False
+    description_insufficient: bool = False
     english_required_signal: bool = False
     english_preferred_signal: bool = False
     # Требование по английскому не найдено И судить об его отсутствии не по чему:
@@ -188,6 +231,7 @@ class VacancySignalSnapshot:
     allowed_driver_license_categories: tuple[str, ...] = ()
     optional_driver_license_categories: tuple[str, ...] = ()
     mentioned_driver_license_categories: tuple[str, ...] = ()
+    negated_driver_license_categories: tuple[str, ...] = ()
     # Дорога от места жительства до вакансии. None означает "неизвестно" —
     # вести себя как при нуле нельзя.
     distance_from_home_km: float | None = None
@@ -196,6 +240,22 @@ class VacancySignalSnapshot:
     # при outside_requested_cities=False означает "по локации не понять".
     matched_search_city: str | None = None
     outside_requested_cities: bool = False
+    # Расстояние до ближайшего из заказанных городов. None — вычислить не удалось.
+    # Отличается от distance_from_home_km: искать можно по одному городу, живя в другом.
+    distance_to_search_city_km: float | None = None
+    # --- форма занятости, самозанятость, нагрузка, оплата ---
+    # Пустые значения означают «в объявлении не сказано», а не «нет».
+    employment_types: tuple[str, ...] = ()
+    self_employment_signals: tuple[str, ...] = ()
+    requires_self_employment: bool = False
+    heavy_physical_signals: tuple[str, ...] = ()
+    salary_mentioned: bool = False
+    # Ставка, приведённая к евро в час. None — сумму определить не удалось.
+    salary_hourly_eur: float | None = None
+    salary_period: str | None = None
+    salary_is_net: bool = False
+    # Можно ли сравнивать ставку с ориентиром профиля (нетто сравнивать нельзя).
+    salary_is_comparable: bool = False
     light_commercial_vehicle_signals: tuple[str, ...] = ()
     heavy_vehicle_signals: tuple[str, ...] = ()
     # Слабые признаки тяжёлого транспорта: отсекают только при отсутствии сигналов лёгкого.
@@ -440,6 +500,17 @@ class SearchRunResult:
     @property
     def _displayed_results(self) -> tuple[SearchResultItem, ...]:
         return self.hot_results + self.maybe_results
+
+
+def profile_role_texts(profile: SearchProfileContext) -> tuple[str, ...]:
+    """Всё, чем человек описал искомую работу для ЭТОГО прогона.
+
+    Роли профиля, его поисковые термины и строка поиска текущего запуска — три
+    разных способа сказать одно и то же, и все три задают допустимые семейства
+    ролей. Раньше межсемейный фильтр смотрел только на desired_roles, поэтому
+    сохранённые ключевые слова профиля и введённый запрос на него не влияли.
+    """
+    return (*profile.desired_roles, *profile.search_query_terms, *profile.run_query_terms)
 
 
 def normalize_profile_text(text: str | None) -> str:

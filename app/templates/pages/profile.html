@@ -14,9 +14,61 @@
 </div>
 {% endif %}
 
-<a class="pcard-new" href="/profile/intake">
-  <span class="pcard-new__plus" aria-hidden="true">+</span> Новый профиль поиска
-</a>
+<div class="pcard-new-row">
+  <a class="pcard-new" href="/profile/new">
+    <span class="pcard-new__plus" aria-hidden="true">+</span> Новый профиль поиска
+  </a>
+  {#
+    Два пути к одному результату: заполнить поля или рассказать свободным текстом.
+    Второй остаётся — он проще для тех, кто не хочет разбираться в полях.
+  #}
+  <a class="pcard-new pcard-new--muted" href="/profile/intake">
+    <span class="pcard-new__plus" aria-hidden="true">✎</span> Описать словами
+  </a>
+</div>
+
+<section class="profiles-home">
+  <div class="profiles-notify__head">
+    <h3>Язык и статус</h3>
+    <p class="muted">
+      Относится к вам, а не к отдельному поиску, поэтому задаётся один раз и
+      действует во всех профилях. Пустое поле означает «не указано»: поиск тогда
+      не утверждает ни что язык есть, ни что его нет.
+    </p>
+  </div>
+  <form method="post" action="/profile/languages" class="pform pform--inline">
+    {% set levels = ['', 'none', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'] %}
+    <div class="pform-field">
+      <label class="pform-label" for="up-german">Немецкий</label>
+      <select id="up-german" name="german_level">
+        {% for level in levels %}
+        <option value="{{ level }}"
+          {% if user_profile is not none and (user_profile.german_level or '') == level %}selected{% endif %}>
+          {% if level == '' %}Не указано{% elif level == 'none' %}Не знаю совсем{% else %}{{ level }}{% endif %}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="pform-field">
+      <label class="pform-label" for="up-english">Английский</label>
+      <select id="up-english" name="english_level">
+        {% for level in levels %}
+        <option value="{{ level }}"
+          {% if user_profile is not none and (user_profile.english_level or '') == level %}selected{% endif %}>
+          {% if level == '' %}Не указано{% elif level == 'none' %}Не знаю совсем{% else %}{{ level }}{% endif %}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="pform-field">
+      <label class="pform-label" for="up-legal">Правовой статус</label>
+      <input id="up-legal" name="legal_status" type="text"
+             value="{{ user_profile.legal_status if user_profile is not none and user_profile.legal_status else '' }}"
+             placeholder="Например: §24" />
+    </div>
+    <button type="submit" class="btn btn--outline">Сохранить</button>
+  </form>
+</section>
 
 <section class="profiles-home">
   <div class="profiles-notify__head">

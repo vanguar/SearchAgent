@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+<article class="panel">
+  <h3>Новый профиль поиска</h3>
+  <p class="muted">
+    Заполните то, что знаете. Незаполненное поле остаётся «не указано» — поиск это
+    учитывает и ничего за вас не додумывает. Всё можно изменить позже.
+  </p>
+  <p class="muted">
+    Если проще описать ситуацию словами — <a href="/profile/intake">расскажите свободным текстом</a>,
+    и профиль соберётся сам.
+  </p>
+  <form method="post" action="/profile/new" class="pform">
+    {% include "profile/partials/profile_form_fields.html" %}
+    <div class="action-row">
+      <button type="submit" class="ghost-btn">Создать профиль</button>
+      <a class="ghost-btn" href="/profile">Отмена</a>
+    </div>
+  </form>
+</article>
+{% endblock %}

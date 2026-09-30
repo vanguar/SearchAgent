@@ -22,3 +22,12 @@
   placeholder="Например: Berlin, Росток, München"
   hx-swap-oob="true"
 />
+
+<select id="jobs-radius" name="radius_km" hx-swap-oob="true">
+  <option value="" {% if not radius_prefill %}selected{% endif %}>Как в профиле</option>
+  {% for km in radius_options %}
+  <option value="{{ km }}" {% if radius_prefill == km | string %}selected{% endif %}>
+    {% if km == 0 %}Только эти города{% else %}+{{ km }} км{% endif %}
+  </option>
+  {% endfor %}
+</select>

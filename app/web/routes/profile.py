@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
@@ -8,11 +10,29 @@ from starlette.datastructures import FormData
 from app.core.constants import PAGE_META
 from app.db.session import get_db
 from app.services.profile_catalog_service import ProfileCatalogService
+from app.services.profile_form_spec import (
+    DRIVER_LICENSE_OPTIONS,
+    EMPLOYMENT_TYPE_CHOICES,
+    SEARCH_RADIUS_OPTIONS,
+    parse_profile_form,
+)
 from app.web.deps import get_profile_catalog_service
 from app.web.form_utils import read_form_data
 from app.web.views import render_page
 
 router = APIRouter(tags=["web-profile"])
+
+
+# Контекст, одинаковый для форм создания и редактирования: варианты, из которых
+# человек выбирает. Один источник значений — иначе список прав или форм занятости
+# разъезжается между двумя формами.
+def _form_context(profile: object | None) -> dict[str, object]:
+    return {
+        "profile": profile,
+        "radius_options": SEARCH_RADIUS_OPTIONS,
+        "employment_choices": EMPLOYMENT_TYPE_CHOICES,
+        "driver_license_options": DRIVER_LICENSE_OPTIONS,
+    }
 
 
 @router.get("/profile", response_class=HTMLResponse)
@@ -32,6 +52,8 @@ def profile_page(
         extra_context={
             "profile_entries": entries,
             "home_city": catalog_service.get_home_city(db),
+            # Языковые уровни и статус — свойства человека, общие для всех профилей.
+            "user_profile": entries[0].user_profile if entries else None,
         },
     )
 
@@ -50,6 +72,64 @@ async def profile_set_home_city(
 def _read_text(form: FormData, key: str) -> str | None:
     value = form.get(key)
     return value if isinstance(value, str) else None
+
+
+@router.get("/profile/new", response_class=HTMLResponse)
+def profile_new_page(
+    request: Request,
+) -> HTMLResponse:
+    """Форма создания профиля вручную.
+
+    Существует РЯДОМ с интейком свободным текстом, а не вместо него: часть людей
+    предпочитает заполнить поля, часть — рассказать словами, и отнимать второй
+    путь только потому, что появился первый, незачем.
+    """
+    return render_page(
+        request,
+        "profile/new.html",
+        page_key="profile",
+        page_title="Новый профиль поиска",
+        page_subtitle="Заполните критерии поиска. Любое поле можно оставить пустым.",
+        extra_context=_form_context(None),
+    )
+
+
+@router.post("/profile/new")
+async def profile_new_submit(
+    request: Request,
+    db: Session = Depends(get_db),
+    catalog_service: ProfileCatalogService = Depends(get_profile_catalog_service),
+) -> Response:
+    form_data: FormData = await read_form_data(request)
+    fields = parse_profile_form(form_data)
+    created = catalog_service.create_profile_from_form(db, fields=fields)
+    if created is None:
+        return render_page(
+            request,
+            "profile/new.html",
+            page_key="profile",
+            page_title="Новый профиль поиска",
+            page_subtitle="Не удалось сохранить профиль. Проверьте поля и попробуйте снова.",
+            extra_context=_form_context(None),
+        )
+    return RedirectResponse(url="/profile", status_code=303)
+
+
+@router.post("/profile/languages")
+async def profile_set_languages(
+    request: Request,
+    db: Session = Depends(get_db),
+    catalog_service: ProfileCatalogService = Depends(get_profile_catalog_service),
+) -> RedirectResponse:
+    """Уровни языков и правовой статус — одни на все профили поиска."""
+    form = await read_form_data(request)
+    catalog_service.set_user_languages(
+        db,
+        german_level=_read_text(form, "german_level") or None,
+        english_level=_read_text(form, "english_level") or None,
+        legal_status=_read_text(form, "legal_status") or None,
+    )
+    return RedirectResponse(url="/profile", status_code=303)
 
 
 @router.post("/profile/{profile_id}/set-default")
@@ -90,7 +170,7 @@ def profile_edit_page(
         page_key="profile",
         page_title="Редактировать профиль",
         page_subtitle=profile.name,
-        extra_context={"profile": profile},
+        extra_context=_form_context(profile),
     )
 
 
@@ -102,17 +182,14 @@ async def profile_edit_submit(
     catalog_service: ProfileCatalogService = Depends(get_profile_catalog_service),
 ) -> RedirectResponse:
     form_data: FormData = await read_form_data(request)
-    catalog_service.update_profile(
+    fields = parse_profile_form(form_data)
+    existing = catalog_service.get_profile(db, profile_id=profile_id)
+    if existing is not None and form_data.get("driver_license") == existing.driver_license:
+        fields = replace(fields, driver_license=existing.driver_license)
+    catalog_service.apply_form_fields(
         db,
         profile_id=profile_id,
-        name=str(form_data.get("name", "")).strip() or None,
-        desired_roles_text=str(form_data.get("desired_roles", "")).strip() or None,
-        preferred_locations_text=str(form_data.get("preferred_locations", "")).strip() or None,
-        relocation_ready=_parse_bool(form_data.get("relocation_ready")),
-        shift_ok=_parse_bool(form_data.get("shift_ok")),
-        physical_work_ok=_parse_bool(form_data.get("physical_work_ok")),
-        no_german_required=_parse_checkbox(form_data.get("no_german_required")),
-        notes=str(form_data.get("notes", "")).strip() or None,
+        fields=fields,
     )
     return RedirectResponse(url="/profile", status_code=303)
 

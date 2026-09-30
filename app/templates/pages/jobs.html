@@ -82,8 +82,29 @@
           placeholder="Например: Berlin, Росток, München"
         />
         <p class="search-field__hint">
-          Через запятую. Ищем в самих городах; пусто или «Deutschland» — по всей стране.
+          Через запятую. Порядок городов задаёт порядок разделов в выдаче;
+          пусто или «Deutschland» — по всей стране.
         </p>
+      </div>
+
+      <div class="search-field search-field--radius">
+        <label class="search-field__label" for="jobs-radius">Радиус</label>
+        {#
+          Радиус считается от каждого заказанного города по офлайн-справочнику,
+          поэтому работает и с источниками, которые радиус не понимают. Ноль —
+          осмысленный выбор: искать строго в перечисленных городах.
+        #}
+        <select id="jobs-radius" name="radius_km">
+          <option value="" {% if not form_values['radius_km'] %}selected{% endif %}>
+            Как в профиле
+          </option>
+          {% for km in radius_options %}
+          <option value="{{ km }}" {% if form_values['radius_km'] == km | string %}selected{% endif %}>
+            {% if km == 0 %}Только эти города{% else %}+{{ km }} км{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+        <p class="search-field__hint">Вокруг каждого города из списка.</p>
       </div>
 
       <div class="search-field search-field--source">

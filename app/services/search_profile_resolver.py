@@ -128,10 +128,17 @@ class DatabaseSearchProfileResolver:
                 physical_work_ok=search_profile.physical_work_ok,
                 housing_needed=search_profile.housing_needed,
                 start_availability_text=search_profile.start_availability_text,
+                notes=getattr(search_profile, "notes", None),
                 driver_license=getattr(search_profile, "driver_license", None),
                 no_german_required=bool(search_profile.no_german_required),
                 section24_interpreted=legal_status.section24,
                 search_query_terms=tuple(search_profile.search_query_terms or ()),
+                additional_search_terms=tuple(getattr(search_profile, "additional_search_terms", None) or ()),
+                car_available=getattr(search_profile, "car_available", None),
+                search_radius_km=getattr(search_profile, "search_radius_km", None),
+                employment_types=tuple(getattr(search_profile, "employment_types", None) or ()),
+                min_salary_eur_per_hour=getattr(search_profile, "min_salary_eur_per_hour", None),
+                self_employment_ok=getattr(search_profile, "self_employment_ok", None),
                 home_city=getattr(user_profile, "city", None),
             )
             logger.info(

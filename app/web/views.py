@@ -8,7 +8,15 @@ from fastapi.templating import Jinja2Templates
 
 from app.core.config import Settings
 from app.core.constants import APP_SUBTITLE, APP_TITLE, NAV_ITEMS
+from app.services.employment_signal_extractor import EMPLOYMENT_TYPE_LABELS_RU
 from app.services.llm_client import LLMStatus, get_runtime_status
+
+
+def _employment_type_labels(codes: object) -> str:
+    """Русские подписи форм занятости через запятую."""
+    if not isinstance(codes, (list, tuple)):
+        return ""
+    return ", ".join(EMPLOYMENT_TYPE_LABELS_RU.get(str(code), str(code)) for code in codes)
 
 settings = Settings()
 templates = Jinja2Templates(directory=str(settings.templates_dir))
@@ -16,6 +24,9 @@ templates = Jinja2Templates(directory=str(settings.templates_dir))
 # in visible text. Jinja autoescaping still re-escapes the result on render,
 # so this is safe — it never bypasses escaping and never touches stored data.
 templates.env.filters["unescape"] = html.unescape
+# Подписи форм занятости берутся из того же словаря, что и правила поиска, —
+# иначе на карточке и в фильтре одно и то же значение называлось бы по-разному.
+templates.env.globals["employment_type_labels"] = _employment_type_labels
 
 
 def _display_llm_status() -> str:

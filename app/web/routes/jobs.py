@@ -11,11 +11,13 @@ from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData
 
+from app.core.config import Settings
 from app.core.constants import PAGE_META
 from app.core.logging import logger
 from app.core.time import utc_now
 from app.db.session import get_db
 from app.services.profile_catalog_service import ProfileCatalogService
+from app.services.profile_form_spec import MAX_PROFILE_RADIUS_KM, SEARCH_RADIUS_OPTIONS
 from app.services.relevance_memory_service import ProfileFeedbackMemory, RelevanceMemoryService
 from app.services.search_export_service import (
     EXPORT_MODE_DIAGNOSTICS,
@@ -182,7 +184,10 @@ def _get_task(task_id: str) -> _SearchTask | None:
 
 router = APIRouter(tags=["web-jobs"])
 
-SEARCH_PAGE_SIZE = 8
+# Размер страницы берётся из настроек: раньше здесь стояла жёсткая восьмёрка, и
+# у источника с тысячами вакансий видели восемь. Значение читается один раз при
+# импорте — как и остальные настройки приложения.
+SEARCH_PAGE_SIZE = Settings().search_page_size
 ALL_ENABLED_SOURCE_VALUE = "__enabled__"
 JOBS_PAGE_SUBTITLE = "Детерминированный поиск с фильтрами, скорингом и понятной русской выдачей."
 SEARCH_MODE_REMOTE = "remote_worldwide"
@@ -233,6 +238,12 @@ def _profile_location_prefill(profile: object) -> str:
     if search_location_de:
         return search_location_de
     return _locations_to_de(preferred_locations)
+
+
+def _profile_radius_prefill(profile: object) -> str:
+    """Радиус профиля для поля формы. Пусто — профиль его не задавал."""
+    radius = getattr(profile, "search_radius_km", None)
+    return "" if radius is None else str(int(radius))
 
 
 def _profile_search_mode_prefill(profile: object) -> str:
@@ -312,6 +323,11 @@ def _default_form_values() -> dict[str, str]:
         "source_scope": SOURCE_SCOPE_WESTERN,
         "query": "",
         "location": "",
+        # Пустая строка означает «радиус не задан в этом запуске» — тогда берётся
+        # радиус из выбранного профиля. Это разные состояния, и «0» (строго в
+        # перечисленных городах) тоже осмысленное значение, поэтому подставлять
+        # ноль по умолчанию нельзя.
+        "radius_km": "",
     }
 
 
@@ -336,17 +352,59 @@ def _extract_form_values(form_data: Mapping[str, object]) -> dict[str, str]:
     return values
 
 
-def _radius_km_for_search(form_values: dict[str, str]) -> int | None:
-    """Радиус у запроса с городами нулевой: ищем в самих городах.
+# Границы и варианты радиуса общие с формой профиля (profile_form_spec), чтобы
+# значения в двух формах не разъезжались.
+MAX_SEARCH_RADIUS_KM = MAX_PROFILE_RADIUS_KM
 
-    Радиуса в форме больше нет. Названный город — это и есть заказ: «Росток»
-    означает Росток, а не Бад-Доберан в получасе от него. Ноль уходит тем
-    источникам, которые умеют искать строго по месту (BA — umkreis=0), а
-    остальных подстраховывает проверка города на нашей стороне.
+
+def _parse_radius_km(raw: object) -> int | None:
+    """Радиус из формы. None означает «в форме не задан»."""
+    if raw is None:
+        return None
+    text = str(raw).strip()
+    if not text:
+        return None
+    try:
+        value = int(float(text))
+    except ValueError:
+        return None
+    return max(0, min(MAX_SEARCH_RADIUS_KM, value))
+
+
+def _radius_km_for_search(
+    form_values: Mapping[str, str],
+    *,
+    profile_radius_km: int | None = None,
+) -> int | None:
+    """Радиус этого запуска в километрах, либо None.
+
+    Приоритет явный: поле формы сильнее профиля, профиль сильнее умолчания.
+    Форма — это то, что человек сказал про ЭТОТ поиск, и перебивать её
+    сохранённым значением нельзя.
+
+    Умолчание — ноль, «строго в перечисленных городах»: так поиск работал до
+    появления радиуса, и менять поведение молча, без указания пользователя,
+    неправильно. Ноль уходит источникам, которые умеют искать строго по месту
+    (BA — umkreis=0), остальных подстраховывает проверка города на нашей стороне.
 
     Без городов (удалёнка, вся страна) ограничивать нечем — радиуса нет.
     """
-    return 0 if parse_search_cities(form_values.get("location")) else None
+    if not parse_search_cities(form_values.get("location")):
+        return None
+    from_form = _parse_radius_km(form_values.get("radius_km"))
+    if from_form is not None:
+        return from_form
+    if profile_radius_km is not None:
+        return max(0, min(MAX_SEARCH_RADIUS_KM, profile_radius_km))
+    return 0
+
+
+def _profile_radius_km(db: Session, catalog_service: ProfileCatalogService, profile_id: int | None) -> int | None:
+    """Радиус, сохранённый в выбранном профиле. None — профиль его не задал."""
+    if profile_id is None:
+        return None
+    profile = catalog_service.get_profile(db, profile_id=profile_id)
+    return getattr(profile, "search_radius_km", None) if profile is not None else None
 
 
 def _resolve_source_ids(form_values: Mapping[str, str], search_service: SearchService) -> tuple[str, ...]:
@@ -398,6 +456,7 @@ def jobs_page(
                 form_values["query"] = _profile_query_prefill(profile)
                 form_values["location"] = _profile_location_prefill(profile)
                 form_values["search_mode"] = _profile_search_mode_prefill(profile)
+                form_values["radius_km"] = _profile_radius_prefill(profile)
                 break
 
     return render_page(
@@ -415,6 +474,7 @@ def jobs_page(
             "form_error": None,
             "profile_options": profile_options,
             "selected_profile_id": effective_profile_id,
+            "radius_options": SEARCH_RADIUS_OPTIONS,
         },
     )
 
@@ -451,12 +511,14 @@ def jobs_profile_autofill(
 
     query_prefill = ""
     location_prefill = ""
+    radius_prefill = ""
     search_mode_prefill = SEARCH_MODE_GERMANY
     if profile_id is not None:
         profile = catalog_service.get_profile(db, profile_id=profile_id)
         if profile is not None:
             query_prefill = _profile_query_prefill(profile)
             location_prefill = _profile_location_prefill(profile)
+            radius_prefill = _profile_radius_prefill(profile)
             search_mode_prefill = _profile_search_mode_prefill(profile)
 
     return render_partial(
@@ -469,6 +531,8 @@ def jobs_profile_autofill(
             "profile_context": profile_context,
             "query_prefill": query_prefill,
             "location_prefill": location_prefill,
+            "radius_prefill": radius_prefill,
+            "radius_options": SEARCH_RADIUS_OPTIONS,
             "search_mode_prefill": search_mode_prefill,
         },
     )
@@ -553,7 +617,10 @@ async def jobs_search_start(
     search_input = SourceSearchInput(
         query=form_values["query"],
         location=form_values["location"] or None,
-        radius_km=_radius_km_for_search(form_values),
+        radius_km=_radius_km_for_search(
+            form_values,
+            profile_radius_km=_profile_radius_km(db, ProfileCatalogService(), profile_id),
+        ),
         search_mode=form_values["search_mode"],  # type: ignore[arg-type]
         page=1,
         page_size=SEARCH_PAGE_SIZE,
@@ -713,7 +780,10 @@ async def jobs_search_results(
         search_input = SourceSearchInput(
             query=form_values["query"],
             location=form_values["location"] or None,
-            radius_km=_radius_km_for_search(form_values),
+            radius_km=_radius_km_for_search(
+                form_values,
+                profile_radius_km=_profile_radius_km(db, ProfileCatalogService(), profile_id),
+            ),
             search_mode=form_values["search_mode"],  # type: ignore[arg-type]
             page=1,
             page_size=SEARCH_PAGE_SIZE,

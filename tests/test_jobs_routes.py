@@ -27,7 +27,13 @@ from app.services.source_adapters.models import (
     SourceSearchInput,
 )
 from app.services.source_adapters.registry import SourceAdapterRegistry
-from app.web.routes.jobs import _SearchTask, get_profile_catalog_service, get_search_history_service, get_search_service
+from app.web.routes.jobs import (
+    SEARCH_PAGE_SIZE,
+    _SearchTask,
+    get_profile_catalog_service,
+    get_search_history_service,
+    get_search_service,
+)
 from fastapi.testclient import TestClient
 
 
@@ -506,8 +512,13 @@ def test_jobs_page_prefills_every_city_of_the_profile() -> None:
     assert 'value="Rostock, Stralsund, Greifswald"' in response.text
 
 
-def test_jobs_page_has_no_radius_field() -> None:
-    """Радиуса в форме больше нет: заказ — это города, а не круг вокруг них."""
+def test_jobs_page_offers_radius_with_profile_default() -> None:
+    """Радиус задаётся в форме, а по умолчанию берётся из выбранного профиля.
+
+    Пустое значение — это «как в профиле», а не «ноль»: три состояния (не задано
+    в запуске / строго города / радиус N) должны различаться, иначе явная
+    настройка запуска подменялась бы умолчанием.
+    """
     app = create_app()
     app.dependency_overrides[get_search_service] = lambda: FakeSearchService()
     app.dependency_overrides[get_profile_catalog_service] = lambda: FakeProfileCatalogService()
@@ -518,7 +529,9 @@ def test_jobs_page_has_no_radius_field() -> None:
     app.dependency_overrides.clear()
 
     assert response.status_code == 200
-    assert 'name="radius_km"' not in response.text
+    assert 'name="radius_km"' in response.text
+    assert "Как в профиле" in response.text
+    assert "Только эти города" in response.text
     assert 'id="jobs-location"' in response.text
 
 
@@ -716,9 +729,10 @@ def test_jobs_search_results_route_renders_phase7_partial() -> None:
     assert service.last_search_input.query == "lager"
     assert service.last_search_input.location == "Berlin"
     assert service.last_search_input.search_mode == "germany_local"
-    # Ноль километров = "строго названный город": радиуса в форме больше нет.
-    assert service.last_search_input.radius_km == 0
-    assert service.last_search_input.page_size == 8
+    # Радиус из формы доходит до источников как есть.
+    assert service.last_search_input.radius_km == 25
+    # Размер страницы — настройка, а не константа кода; сверяем с ней, а не с числом.
+    assert service.last_search_input.page_size == SEARCH_PAGE_SIZE
     assert history_service.calls == 1
 
 
