@@ -912,6 +912,9 @@ body {
 }
 
 .search-sources {
+  /* Выше стоят раскрывающиеся блоки дедупликации и скрытых вакансий — без
+     отступа карточка источников прилипала к последнему из них вплотную. */
+  margin-top: 16px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: #faf7f2;
