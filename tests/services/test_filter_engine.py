@@ -1235,8 +1235,12 @@ def test_freelance_writer_is_rejected_for_python_backend_profile_even_with_api_w
     assert any(hit.code == "non_it_writing_title_mismatch" for hit in result.rejection_hits)
 
 
-def test_kraftfahrer_without_light_vehicle_evidence_does_not_prove_heavy_transport() -> None:
-    """Generic occupation and unspecified load do not prove a C/CE requirement."""
+def test_kraftfahrer_without_light_vehicle_evidence_is_rejected_for_b_only_profile() -> None:
+    """Реальный случай: объявление RW Transporte набирало 93/100 и вставало первым.
+
+    Слова "LKW" в нём нет — грузовик выдают только формальное "Kraftfahrer" в заголовке и
+    отсутствие любых упоминаний лёгкого транспорта.
+    """
     profile = _build_profile(desired_roles=("Курьер", "Водитель"), driver_license="B")
     canonical = _build_canonical(
         title="Kraftfahrer (m/w/d) Fernverkehr Montag-Freitag",
@@ -1248,8 +1252,34 @@ def test_kraftfahrer_without_light_vehicle_evidence_does_not_prove_heavy_transpo
 
     result = FilterEngine().evaluate(canonical, profile)
 
-    assert not result.hard_reject
-    assert not any(hit.code == "heavy_vehicle_mismatch" for hit in result.rejection_hits)
+    assert result.hard_reject
+    assert any(hit.code == "heavy_vehicle_mismatch" for hit in result.rejection_hits)
+
+
+def test_berufskraftfahrer_title_without_light_vehicle_evidence_is_rejected_for_b_only_profile() -> None:
+    profile = _build_profile(desired_roles=("Курьер", "Водитель"), driver_license="B")
+    canonical = _build_canonical(title="Berufskraftfahrer regional (m/w/d)", body="Wir suchen Verstärkung.")
+
+    result = FilterEngine().evaluate(canonical, profile)
+
+    assert result.hard_reject
+    assert any(hit.code == "heavy_vehicle_mismatch" for hit in result.rejection_hits)
+
+
+def test_kraftfahrer_title_with_light_evidence_or_delivery_role_is_kept_for_b_only_profile() -> None:
+    profile = _build_profile(desired_roles=("Курьер", "Водитель"), driver_license="B")
+    cases = (
+        ("Kraftfahrer / Installationsfahrer (m/w/d)", "Führerscheinklasse B erforderlich."),
+        ("Kraftfahrer /in - Kurierservice - Eilzustellungen", "Wir suchen Verstärkung."),
+        ("Kraftfahrzeugführer - Fahrzeugüberführung (m/w/d)", "Überführung von Pkw."),
+        ("Fahrer für den Kurierdienst (m/w/d)", "Als Kraftfahrer lieferst du Pakete aus."),
+        ("Berufskraftfahrer/in (m/w/d) 3,5 t gesucht!", "Wir suchen Verstärkung."),
+    )
+
+    for title, body in cases:
+        result = FilterEngine().evaluate(_build_canonical(title=title, body=body), profile)
+
+        assert not any(hit.code == "heavy_vehicle_mismatch" for hit in result.rejection_hits), title
 
 
 def test_kraftfahrer_with_sprinter_evidence_is_kept_for_b_only_profile() -> None:

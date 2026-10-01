@@ -127,7 +127,7 @@ class FilterEngine:
         if driver_license_mismatch is not None:
             rejection_hits.append(driver_license_mismatch)
 
-        heavy_vehicle_mismatch = _heavy_vehicle_mismatch_hit(resolved_signals, profile)
+        heavy_vehicle_mismatch = _heavy_vehicle_mismatch_hit(resolved_signals, profile, canonical)
         if heavy_vehicle_mismatch is not None:
             rejection_hits.append(heavy_vehicle_mismatch)
 
@@ -443,14 +443,30 @@ def _driver_license_mismatch_hit(
     )
 
 
+# "Kraftfahrer"/"Berufskraftfahrer" as the job title is the formal name of a truck driver.
+# Only the title counts: the same word in the body or in the BA occupation is too generic.
+_HEAVY_DRIVER_TITLE_RE = re.compile(r"\b(?:berufs)?kraftfahrer")
+# Delivery and vehicle-transfer titles name the job themselves; a bare "3,5 t" in the
+# title names the vehicle class, which the extractor only knows as "bis 3,5 t".
+_LIGHT_ROLE_TITLE_RE = re.compile(
+    r"kurier|zustell|ausliefer|liefer|paket|\bbote\b|uberfuhr|fahrzeugtransfer|hol und bring"
+    r"|\b3 5\s*(?:t|tonn)"
+)
+
+
 def _heavy_vehicle_mismatch_hit(
     signals: VacancySignalSnapshot,
     profile: SearchProfileContext,
+    canonical: CanonicalVacancyGroup | None = None,
 ) -> RuleHit | None:
     if not is_b_only_driving_profile(profile):
         return None
 
     detected = signals.heavy_vehicle_signals or signals.heavy_driver_qualification_signals
+    if not detected and _generic_driver_title_reads_as_heavy(signals, canonical):
+        # A "Kraftfahrer"/"Berufskraftfahrer" title with no light vehicle, no class B and
+        # no delivery or transfer role: in that silence the ad is truck work.
+        detected = signals.heavy_vehicle_context_signals
     if not detected:
         return None
 
@@ -464,6 +480,18 @@ def _heavy_vehicle_mismatch_hit(
             f"Обнаружен сигнал: {detected[0]}."
         ),
     )
+
+
+def _generic_driver_title_reads_as_heavy(
+    signals: VacancySignalSnapshot,
+    canonical: CanonicalVacancyGroup | None,
+) -> bool:
+    if not signals.heavy_vehicle_context_signals or signals.light_commercial_vehicle_signals:
+        return False
+    if "B" in (*signals.required_driver_license_categories, *signals.allowed_driver_license_categories):
+        return False
+    title = normalize_text_for_fingerprint(canonical.normalized_title) if canonical is not None else ""
+    return bool(_HEAVY_DRIVER_TITLE_RE.search(title)) and not _LIGHT_ROLE_TITLE_RE.search(title)
 
 
 def is_b_only_driving_profile(profile: SearchProfileContext) -> bool:
