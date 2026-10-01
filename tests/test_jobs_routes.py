@@ -5,6 +5,7 @@ import dataclasses
 from app.main import create_app
 from app.services.normalization_models import CanonicalVacancyGroup, NormalizedVacancyRecord
 from app.services.normalizer import VacancyNormalizer
+from app.services.rule_catalog import inspect_vacancy
 from app.services.search_models import (
     DedupPreviewItem,
     FilterResult,
@@ -18,7 +19,7 @@ from app.services.search_models import (
     SearchSourceState,
     VacancySignalSnapshot,
 )
-from app.services.search_service import SearchService
+from app.services.search_service import SearchService, _build_city_result_groups
 from app.services.source_adapters.base import BaseSourceAdapter
 from app.services.source_adapters.models import (
     AdapterSearchResponse,
@@ -457,9 +458,52 @@ def test_search_results_are_rendered_city_by_city() -> None:
     app.dependency_overrides.clear()
 
     assert response.status_code == 200
-    assert "Вакансии по городам" in response.text
+    assert "Вакансии по регионам поиска" in response.text
     assert response.text.index("Berlin") < response.text.index("Rostock") < response.text.index("Stralsund")
-    assert "В этом городе после фильтров ничего не осталось." in response.text
+    assert "В этом регионе поиска после фильтров ничего не осталось." in response.text
+
+
+def test_search_region_rostock_keeps_schwerin_as_the_actual_job_location() -> None:
+    base = _build_result()
+    profile = dataclasses.replace(
+        base.profile, profile_label="Arbitrary label", desired_roles=("Fahrzeugüberführer",),
+        search_cities=("Neustrelitz", "Neubrandenburg", "Berlin", "Rostock"), search_radius_km=100,
+    )
+    record = _normalize_record(
+        external_id="schwerin-region", title="Mitarbeiter/in Fahrzeuglogistik / Fahrzeugüberführung",
+        detail_url="https://example.org/schwerin", location="19063 Schwerin, Deutschland",
+    )
+    item = _build_item(
+        canonical_key="schwerin-region", primary_record=record, source_records=(record,),
+        explanation_ru="", summary_ru="", translated_title_ru="Сотрудник автомобильной логистики",
+    )
+    signals = inspect_vacancy(item.canonical_group, profile)
+    assert signals.matched_search_city == "Rostock"
+    assert not signals.outside_requested_cities
+    assert item.canonical_group.city.casefold() == "schwerin"
+    item = dataclasses.replace(item, signals=signals)
+    result = dataclasses.replace(base, profile=profile, results=(item,), hot_results=(item,), maybe_results=())
+    result = dataclasses.replace(
+        result, city_result_groups=_build_city_result_groups(result, profile.search_cities)
+        + (SearchCityResultGroup(city="Без указанного города"),),
+    )
+    assert next(group for group in result.city_result_groups if group.city == "Rostock").visible_count == 1
+    app = create_app()
+    app.dependency_overrides[get_search_service] = lambda: FakeSearchService(search_result=result)
+    app.dependency_overrides[get_profile_catalog_service] = lambda: FakeProfileCatalogService()
+    app.dependency_overrides[get_search_history_service] = lambda: FakeSearchHistoryService()
+    try:
+        response = TestClient(app).post(
+            "/jobs/search-results", data={"source": "ba", "query": "Fahrzeugüberführer", "location": "Rostock"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+    assert response.status_code == 200
+    assert "<span>Регион поиска Rostock</span>" in response.text
+    assert "19063 Schwerin, Deutschland" in response.text
+    assert "Фактическое место работы указано в карточке." in response.text
+    assert "<span>Без указанного города</span>" in response.text
+    assert "Регион поиска Без указанного города" not in response.text
 
 
 class MultiCityProfileCatalogService:

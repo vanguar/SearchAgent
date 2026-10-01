@@ -318,3 +318,19 @@ def test_jooble_default_targets_german_domain_and_explicit_override_wins(monkeyp
     assert Settings().source_jooble_base_url == "https://de.jooble.org/api"
     monkeypatch.setenv("SOURCE_JOOBLE_BASE_URL", "https://jooble.org/api")
     assert Settings().source_jooble_base_url == "https://jooble.org/api"
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_schwerin_pair_without_shared_reference_or_ba_body_is_not_forced_to_merge(reverse):
+    # Same title/city and an apparent branch suffix are not independent identity
+    # proof: Adzuna is dated June 5, BA July 7 and has no description in the payload.
+    records = (live_record("5752620136"), live_record("12913-7767db3af6b9a98f-S"))
+    assert records[0].posted_date == date(2026, 6, 5)
+    assert records[1].posted_date == date(2026, 7, 7)
+    assert not records[1].body_text
+    assert records[1].external_id not in records[0].body_text
+    groups = SourceMergeService().merge_records(records[::-1] if reverse else records).canonical_groups
+    assert len(groups) == 2
+    assert {record.source_url for group in groups for record in group.source_records} == {
+        record.source_url for record in records
+    }

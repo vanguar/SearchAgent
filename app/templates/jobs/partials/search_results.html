@@ -399,18 +399,19 @@
 </div>
 {% endif %}
 <article class="panel jobs-city-groups-panel">
-  <h3>Вакансии по городам</h3>
+  <h3>Вакансии по регионам поиска</h3>
+  <p class="muted">Группы соответствуют городам поискового запроса и заданному радиусу. Фактическое место работы указано в карточке.</p>
   {% for group in search_result.city_result_groups %}
   <section class="jobs-city-group">
     <h4 class="jobs-city-group__title">
-      <span>{{ group.city }}</span>
+      <span>{% if group.city != "Без указанного города" %}Регион поиска {% endif %}{{ group.city }}</span>
       <strong>{{ group.visible_count }}</strong>
     </h4>
     {% if group.visible_count %}
       {{ render_bucket_body("Горячие вакансии", group.hot_results, profile_id) }}
       {{ render_bucket_body("Можно проверить", group.maybe_results, profile_id) }}
     {% else %}
-      <div class="notice info">В этом городе после фильтров ничего не осталось.</div>
+      <div class="notice info">В этом регионе поиска после фильтров ничего не осталось.</div>
     {% endif %}
   </section>
   {% endfor %}
