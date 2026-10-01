@@ -48,6 +48,8 @@ _TASK_MAX_AGE_SECONDS = 600      # задачи старше 10 минут уд�
 SOURCE_SCOPE_WESTERN = "western"
 SOURCE_SCOPE_RUSSIAN = "russian"
 RUSSIAN_LANGUAGE_SOURCE_IDS = frozenset({"hh", "dou_rss", "djinni_rss"})
+# Mirrors search_service: these run only for Remote worldwide, so the status panel says so.
+REMOTE_ONLY_SOURCE_IDS = frozenset({"arbeitnow"})
 
 
 class _SearchTask:
@@ -291,7 +293,11 @@ def _build_source_status_rows(
             {
                 "descriptor": source,
                 "is_russian": source.source_id in RUSSIAN_LANGUAGE_SOURCE_IDS,
-                "mode_scope": "remote_worldwide" if source.global_remote else "germany_local",
+                "mode_scope": (
+                    "remote_worldwide"
+                    if source.global_remote or source.source_id in REMOTE_ONLY_SOURCE_IDS
+                    else "germany_local"
+                ),
             }
         )
     return tuple(rows)

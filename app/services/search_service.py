@@ -82,7 +82,11 @@ _BUCKET_PRIORITY: dict[SearchBucket, int] = {"hot": 0, "maybe": 1, "rejected": 2
 _EXPLICIT_WEAK_SCORE_CAP = HOT_BUCKET_MIN_SCORE - 1
 _EXPLICIT_IRRELEVANT_SCORE_CAP = MAYBE_BUCKET_MIN_SCORE - 1
 _RUSSIAN_LANGUAGE_SOURCE_IDS = frozenset({"hh", "dou_rss", "djinni_rss"})
-_DUAL_MODE_SOURCE_IDS = frozenset({"arbeitnow", "greenhouse", "jooble", "lever"})
+_DUAL_MODE_SOURCE_IDS = frozenset({"greenhouse", "jooble", "lever"})
+# Arbeitnow's feed is office/IT jobs from company ATS boards: in the source audit it gave
+# 0 visible results across all germany_local profiles (17 of 20 calls empty), so it only
+# runs for remote searches.
+_REMOTE_ONLY_SOURCE_IDS = frozenset({"arbeitnow"})
 _CYRILLIC_RE = re.compile(r"[А-Яа-яЁёІіЇїЄєҐґ]")
 # Upper bound on concurrent source fetches per search attempt (I/O-bound network calls).
 _MAX_FETCH_WORKERS = 8
@@ -916,9 +920,15 @@ class SearchService:
             and source.source_id not in _RUSSIAN_LANGUAGE_SOURCE_IDS
             and (
                 source.source_id in _DUAL_MODE_SOURCE_IDS
-                or
-                (search_mode == "remote_worldwide" and source.global_remote)
-                or (search_mode != "remote_worldwide" and not source.global_remote)
+                or (
+                    search_mode == "remote_worldwide"
+                    and (source.global_remote or source.source_id in _REMOTE_ONLY_SOURCE_IDS)
+                )
+                or (
+                    search_mode != "remote_worldwide"
+                    and not source.global_remote
+                    and source.source_id not in _REMOTE_ONLY_SOURCE_IDS
+                )
             )
         )
 
