@@ -23,8 +23,10 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Literal
+
+from app.services.normalization_models import CanonicalVacancyGroup
 
 SalaryPeriod = Literal["hour", "month", "year"]
 
@@ -92,6 +94,17 @@ _ANY_PAY_MENTION_RE = re.compile(
 
 
 @dataclass(frozen=True, slots=True)
+class SalaryEvidence:
+    source_record_key: str
+    source_url: str | None
+    field: Literal["title", "body", "metadata.salary"]
+    raw_amount_eur: float
+    period: SalaryPeriod
+    hourly_eur: float
+    is_net: bool
+
+
+@dataclass(frozen=True, slots=True)
 class SalarySignals:
     """Что объявление сказало об оплате.
 
@@ -104,6 +117,8 @@ class SalarySignals:
     raw_amount_eur: float | None = None
     is_net: bool = False
     is_gross: bool = False
+    evidence: tuple[SalaryEvidence, ...] = ()
+    conflict: bool = False
 
     @property
     def is_comparable(self) -> bool:
@@ -138,6 +153,36 @@ def extract_salary_signals(text: str | None) -> SalarySignals:
         raw_amount_eur=amount,
         is_net=is_net,
         is_gross=is_gross,
+    )
+
+
+def extract_canonical_salary_signals(canonical: CanonicalVacancyGroup, *, analysis_text: str) -> SalarySignals:
+    """Preserve the existing conservative text policy and expose field-level conflicts.
+
+    Scoring uses the lowest textual amount (explicit periods before inferred ones).
+    Adapter salary metadata has never overridden title/body in that policy; retain
+    it as evidence only, since it may be estimated or lack a reliable period.
+    """
+    evidence: list[SalaryEvidence] = []
+    for record in canonical.source_records:
+        fields: list[tuple[Literal["title", "body", "metadata.salary"], str | None]] = [
+            ("title", record.original_title), ("body", record.body_text),
+        ]
+        metadata = record.raw_payload.get("salary") if isinstance(record.raw_payload, dict) else None
+        if isinstance(metadata, str):
+            fields.append(("metadata.salary", metadata))
+        for field, text in fields:
+            salary = extract_salary_signals(text)
+            if salary.hourly_eur is None or salary.raw_amount_eur is None or salary.period is None:
+                continue
+            evidence.append(SalaryEvidence(
+                source_record_key=record.source_record_key, source_url=record.source_url,
+                field=field, raw_amount_eur=salary.raw_amount_eur, period=salary.period,
+                hourly_eur=salary.hourly_eur, is_net=salary.is_net,
+            ))
+    return replace(
+        extract_salary_signals(analysis_text), evidence=tuple(evidence),
+        conflict=len({(round(item.hourly_eur, 2), item.is_net) for item in evidence}) > 1,
     )
 
 

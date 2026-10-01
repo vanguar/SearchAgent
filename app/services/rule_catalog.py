@@ -27,7 +27,7 @@ from app.services.role_family import (
     families_are_compatible,
     is_specific_family,
 )
-from app.services.salary_signal_extractor import extract_salary_signals
+from app.services.salary_signal_extractor import extract_canonical_salary_signals
 from app.services.search_models import (
     RuleHit,
     SearchProfileContext,
@@ -765,7 +765,7 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
     # нормализации (и оригинальная пунктуация — для суммы вида "15,50 €").
     raw_text = build_raw_analysis_text(canonical)
     employment_signals = extract_employment_signals(raw_text)
-    salary_signals = extract_salary_signals(raw_text)
+    salary_signals = extract_canonical_salary_signals(canonical, analysis_text=raw_text)
     location_match, location_hits = _match_profile_locations(canonical, profile)
     distance_from_home = _measure_home_distance(canonical, profile)
     matched_search_city, outside_requested_cities, distance_to_search_city = _match_requested_cities(
@@ -845,6 +845,8 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         salary_period=salary_signals.period,
         salary_is_net=salary_signals.is_net,
         salary_is_comparable=salary_signals.is_comparable,
+        salary_conflict=salary_signals.conflict,
+        salary_evidence=salary_signals.evidence,
         light_commercial_vehicle_signals=vehicle_class_signals.light_commercial,
         heavy_vehicle_signals=vehicle_class_signals.heavy_vehicle,
         heavy_vehicle_context_signals=vehicle_class_signals.heavy_vehicle_context,

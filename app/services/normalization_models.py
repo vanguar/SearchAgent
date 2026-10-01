@@ -86,6 +86,8 @@ class CanonicalVacancySnapshot:
     content_tokens: tuple[str, ...]
     posted_date: date | None = None
     body_text: str | None = None
+    employer_references: tuple[str, ...] = ()
+    ba_reference_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

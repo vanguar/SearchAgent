@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from app.services.normalization_models import CanonicalVacancyGroup, NormalizedVacancyRecord
+from app.services.salary_signal_extractor import SalaryEvidence
 
 FilterDecision = Literal["allow", "review", "reject"]
 SearchBucket = Literal["hot", "maybe", "rejected"]
@@ -257,6 +258,8 @@ class VacancySignalSnapshot:
     salary_is_net: bool = False
     # Можно ли сравнивать ставку с ориентиром профиля (нетто сравнивать нельзя).
     salary_is_comparable: bool = False
+    salary_conflict: bool = False
+    salary_evidence: tuple[SalaryEvidence, ...] = ()
     light_commercial_vehicle_signals: tuple[str, ...] = ()
     heavy_vehicle_signals: tuple[str, ...] = ()
     # Общие названия водителя: контекст, который сам по себе не доказывает тяжёлый транспорт.

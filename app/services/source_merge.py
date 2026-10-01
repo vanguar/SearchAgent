@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 
-from app.services.deduper import VacancyDeduper
+from app.services.deduper import VacancyDeduper, ba_employer_reference, record_employer_references
 from app.services.hashers import combine_hash_parts
 from app.services.normalization_models import (
     CanonicalVacancyGroup,
@@ -100,6 +100,8 @@ class _MutableCanonicalGroup:
     is_seeded: bool = False
     title_tokens: tuple[str, ...] = ()
     content_tokens: tuple[str, ...] = ()
+    employer_references: set[str] = field(default_factory=set)
+    ba_reference_ids: set[str] = field(default_factory=set)
 
     @classmethod
     def from_snapshot(cls, snapshot: CanonicalVacancySnapshot) -> _MutableCanonicalGroup:
@@ -115,6 +117,8 @@ class _MutableCanonicalGroup:
             is_seeded=True,
             title_tokens=snapshot.title_tokens,
             content_tokens=snapshot.content_tokens,
+            employer_references=set(snapshot.employer_references),
+            ba_reference_ids=set(snapshot.ba_reference_ids),
         )
 
     @classmethod
@@ -137,6 +141,9 @@ class _MutableCanonicalGroup:
     def add_record(self, record: NormalizedVacancyRecord) -> None:
         self.source_records.append(record)
         self.provenance.add(record.source_record_key)
+        self.employer_references.update(record_employer_references(record))
+        if reference := ba_employer_reference(record):
+            self.ba_reference_ids.add(reference)
         self.normalized_title = _pick_canonical_text(self.normalized_title, record.normalized_title)
         self.company_name = _pick_canonical_text(self.company_name, record.normalized_company)
         self.location_text = _pick_canonical_text(self.location_text, record.normalized_location.normalized_text)
@@ -163,6 +170,8 @@ class _MutableCanonicalGroup:
             content_tokens=self.content_tokens,
             posted_date=self.posted_date,
             body_text=max((r.body_text or "" for r in self.source_records), key=len, default=""),
+            employer_references=tuple(sorted(self.employer_references)),
+            ba_reference_ids=tuple(sorted(self.ba_reference_ids)),
         )
 
     def to_canonical_group(self) -> CanonicalVacancyGroup:

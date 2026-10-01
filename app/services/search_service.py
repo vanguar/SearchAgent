@@ -671,8 +671,8 @@ class SearchService:
         )
         stop_reason = (
             "cancelled" if stop_event is not None and stop_event.is_set()
-            else "source_budget_or_blocked" if not fetch_budget.has_capacity(resolved_source_ids)
             else "sufficient_canonical_results" if _is_enough(accumulated) and explicit_keywords <= executed_queries
+            else "source_budget_or_blocked" if not fetch_budget.has_capacity(resolved_source_ids)
             else "queries_exhausted"
         )
         attempt_records[-1] = dataclasses.replace(attempt_records[-1], reason_continued=None)

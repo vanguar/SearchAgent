@@ -63,9 +63,23 @@ class VacancyDeduper:
         # и в Муггенстурме (700 км) склеивались в одну карточку, и одна из двух
         # реальных вакансий просто исчезала из выдачи.
         locations_conflict = _locations_conflict(record, candidate)
-        left_refs = _employer_references(record.body_text)
-        right_refs = _employer_references(candidate.body_text)
+        left_refs = set(record_employer_references(record))
+        right_refs = set(candidate.employer_references) | _employer_references(candidate.body_text)
         references_conflict = bool(left_refs and right_refs and left_refs.isdisjoint(right_refs))
+        ba_reference = ba_employer_reference(record)
+        ba_reference_match = bool(
+            (ba_reference and ba_reference in right_refs)
+            or (left_refs & set(candidate.ba_reference_ids))
+        )
+        # An exact BA identifier explicitly cited by another source is strong identity
+        # evidence even when publication dates/snippet lengths differ. Keep employer,
+        # role and city safeguards; arbitrary aggregator IDs are not employer references.
+        reference_duplicate = (
+            ba_reference_match and title_similarity >= 0.68
+            and (company_match or _agency_names_match(record.normalized_company, candidate.normalized_company))
+        )
+        if reference_duplicate:
+            reason_codes.append("ba_employer_reference_match")
         # A shortened agency name is safe only with independent textual evidence.
         agency_duplicate = (
             title_similarity >= 0.95 and location_match and posting_date_close
@@ -79,7 +93,7 @@ class VacancyDeduper:
             reason_codes.append("agency_alias_with_content_evidence")
 
         is_duplicate = not locations_conflict and not references_conflict and (
-            agency_duplicate
+            reference_duplicate or agency_duplicate
             or (
                 title_similarity >= 0.82
                 and company_match
@@ -113,6 +127,19 @@ _REFERENCE_RE = re.compile(
 
 def _employer_references(body: str | None) -> set[str]:
     return {match.casefold() for match in _REFERENCE_RE.findall(body or "")}
+
+
+def ba_employer_reference(record: NormalizedVacancyRecord) -> str | None:
+    if record.source_id == "ba" and re.fullmatch(r"\d{5,}-\d{5,}-[a-z]", record.external_id, re.IGNORECASE):
+        return record.external_id.casefold()
+    return None
+
+
+def record_employer_references(record: NormalizedVacancyRecord) -> tuple[str, ...]:
+    references = _employer_references(record.body_text)
+    if reference := ba_employer_reference(record):
+        references.add(reference)
+    return tuple(sorted(references))
 
 
 def _agency_names_match(left: str | None, right: str | None) -> bool:
@@ -246,8 +273,9 @@ def _dates_are_close(left: date | None, right: date | None) -> bool:
     return abs((left - right).days) <= 7
 
 
-def _candidate_rank(candidate: DuplicateCandidate) -> tuple[float, float, int, int]:
+def _candidate_rank(candidate: DuplicateCandidate) -> tuple[int, float, float, int, int]:
     return (
+        int("ba_employer_reference_match" in candidate.reason_codes),
         candidate.title_similarity,
         candidate.content_similarity,
         int(candidate.company_match) + int(candidate.location_match),

@@ -36,6 +36,10 @@ class SummaryService:
         translated_title_ru: str | None = None,
         use_llm: bool = True,
     ) -> str | None:
+        # A body-only LLM summary (including a cached one) cannot resolve contradictory
+        # salary fields. Report the evidence and the same rate that scoring actually uses.
+        if signals.salary_conflict:
+            return _salary_conflict_summary(signals)
         if use_llm and self.helper is not None and canonical.source_records:
             body_text = canonical.source_records[0].body_text or ""
             if body_text in self._llm_cache:
@@ -78,3 +82,19 @@ class SummaryService:
         if facts:
             return f"{', '.join(facts[:2]).capitalize()}."
         return None
+
+
+def _salary_conflict_summary(signals: VacancySignalSnapshot) -> str:
+    labels = {"title": "заголовок", "body": "описание", "metadata.salary": "метаданные"}
+    periods = {"hour": "ч", "month": "мес", "year": "год"}
+    facts = dict.fromkeys(
+        f"{item.source_record_key.split(':', 1)[0]}, {labels[item.field]}: "
+        f"{item.raw_amount_eur:.2f}".replace(".", ",")
+        + f" €/{periods[item.period]}" + (" нетто" if item.is_net else "")
+        for item in signals.salary_evidence
+    )
+    summary = "Оплата требует уточнения: " + "; ".join(facts) + "."
+    if signals.salary_hourly_eur is not None:
+        amount = f"{signals.salary_hourly_eur:.2f}".replace(".", ",")
+        summary += f" Расчётная ставка для оценки: {amount} €/ч; сумма не подтверждена."
+    return summary

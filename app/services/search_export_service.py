@@ -14,6 +14,7 @@ from datetime import date, datetime
 from typing import Any
 
 from app.services.normalization_models import NormalizedVacancyRecord
+from app.services.salary_signal_extractor import SalaryEvidence
 from app.services.search_models import (
     HiddenFilteredItem,
     RuleHit,
@@ -262,7 +263,7 @@ def _signals(signals: VacancySignalSnapshot, *, full: bool) -> dict[str, Any]:
         if isinstance(value, tuple) and value and isinstance(value[0], RuleHit):
             serialized[field.name] = _rule_hits(value, full=full)
         elif isinstance(value, tuple):
-            serialized[field.name] = list(value)
+            serialized[field.name] = [dataclasses.asdict(item) if isinstance(item, SalaryEvidence) else item for item in value]
         elif not full and value in (False, None):
             continue
         else:

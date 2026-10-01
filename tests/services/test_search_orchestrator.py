@@ -5,6 +5,7 @@ import itertools
 from dataclasses import replace
 from unittest.mock import MagicMock
 
+import pytest
 from app.services.profile_parser import DRIVER_B_FERNVERKEHR_SEARCH_TERMS
 from app.services.role_family import RoleFamily
 from app.services.search_fallback import (
@@ -925,6 +926,47 @@ def test_budget_capacity_preserves_overall_limit_and_source_blocking():
     blocked.block("ba")
     assert not blocked.has_capacity(("ba",))
     assert blocked.has_capacity(("ba", "adzuna"))
+
+
+@pytest.mark.parametrize("calls_per_query", [1, 16])
+def test_sufficient_explicit_plan_wins_over_exhausted_budget_and_one_blocked_source(calls_per_query):
+    from app.services.search_export_service import _attempts_section
+
+    svc = _make_service([])
+    svc._resolve_source_ids = MagicMock(return_value=("ba", "adzuna", "careerjet", "jooble"))
+    svc.get_profile_context = MagicMock(return_value=_make_profile(
+        search_query_terms=("lager", "lagermitarbeiter", "kommissionierer"),
+    ))
+
+    def fetched(**kwargs):
+        budget = kwargs["fetch_budget"]
+        budget.block("jooble")
+        # All three healthy sources succeed; the third explicit query also uses
+        # the last adapter call. Sufficiency, not the incidental budget, stops auto.
+        for index in range(calls_per_query):
+            assert budget.consume(("ba", "adzuna", "careerjet")[index % 3])
+        return _make_result(maybe=1)
+
+    svc.search.side_effect = fetched
+    result = svc.orchestrated_search(search_input=_make_search_input())
+    exported = _attempts_section(result.attempt_summary)
+    assert svc.search.call_count == 3
+    assert exported["stop_reason"] == "sufficient_canonical_results"
+    assert exported["attempts"][-1]["reason_continued"] is None
+
+
+def test_budget_stop_is_retained_when_explicit_plan_is_not_complete_despite_enough_results():
+    svc = _make_service([])
+    svc.get_profile_context = MagicMock(return_value=_make_profile(search_query_terms=("lager", "kommissionierer")))
+
+    def fetched(**kwargs):
+        assert all(kwargs["fetch_budget"].consume("ba") for _ in range(24))
+        return _make_result(maybe=3)
+
+    svc.search.side_effect = fetched
+    result = svc.orchestrated_search(search_input=_make_search_input())
+    assert svc.search.call_count == 1
+    assert result.attempt_summary.stop_reason == "source_budget_or_blocked"
 
 
 def test_primary_attempt_record_reason_set_when_insufficient() -> None:
