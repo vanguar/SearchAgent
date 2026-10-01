@@ -4,7 +4,7 @@ import dataclasses
 import re
 import threading
 from collections import Counter
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING
 
@@ -12,6 +12,7 @@ from app.core.config import Settings
 from app.core.logging import logger
 from app.services.ai_tools_profile import AI_TOOLS_WESTERN_QUERY_TRANSLATIONS
 from app.services.filter_engine import FilterEngine, is_b_only_driving_profile
+from app.services.geo_distance import place_weight
 from app.services.hashers import normalize_text_for_fingerprint
 from app.services.match_explainer import MatchExplainer
 from app.services.normalization_models import CanonicalVacancyGroup, NormalizedVacancyRecord
@@ -31,10 +32,13 @@ from app.services.search_fallback import (
     ENOUGH_NON_REJECTED,
     LOW_LANGUAGE_FALLBACK,
     MAX_LLM_STAGES,
+    VEHICLE_QUERY_GROUPS,
     get_fallback_keywords,
     get_intent_fallback_keywords,
     get_profile_fallback_keywords,
+    get_vehicle_query_representatives,
     is_low_language_profile,
+    vehicle_query_family,
 )
 from app.services.search_models import (
     DedupPreviewItem,
@@ -91,11 +95,33 @@ _DISPLAYED_BUCKETS: frozenset[SearchBucket] = frozenset({"hot", "maybe"})
 class _FetchBudget:
     """Per-run request bound and circuit breaker, shared by fallback attempts."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, vehicle_diversity: bool = False) -> None:
         self._lock = threading.Lock()
         self._total = 0
         self._counts: Counter[str] = Counter()
         self._blocked: set[str] = set()
+        self.vehicle_diversity = vehicle_diversity
+        self._vehicle_families: set[str] = set()
+        self._empty_arbeitnow_queries: set[str] = set()
+
+    def record_response(self, source_id: str, query: str, *, empty: bool) -> None:
+        if not self.vehicle_diversity:
+            return
+        with self._lock:
+            family = vehicle_query_family(query)
+            if family is not None:
+                self._vehicle_families.add(family)
+            if source_id == "arbeitnow":
+                if empty:
+                    self._empty_arbeitnow_queries.add(query.casefold())
+                    if len(self._empty_arbeitnow_queries) >= 2:
+                        self._blocked.add(source_id)
+                else:
+                    self._empty_arbeitnow_queries.clear()
+
+    def diversity_ready(self) -> bool:
+        with self._lock:
+            return not self.vehicle_diversity or len(self._vehicle_families) >= len(VEHICLE_QUERY_GROUPS)
 
     def consume(self, source_id: str) -> bool:
         with self._lock:
@@ -193,7 +219,15 @@ class SearchService:
             repeated_source_ids = ()
         fetch_budget = fetch_budget or _FetchBudget()
         outcomes: dict[str, tuple[AdapterSearchResponse | None, SearchSourceState | None]] = {}
-        if active_source_ids:
+        if active_source_ids and fetch_budget.vehicle_diversity:
+            # Stable priority matters when the last few budget slots are contested.
+            priority = {"ba": 0, "adzuna": 1, "careerjet": 2}
+            for source_id in sorted(active_source_ids, key=lambda sid: priority.get(sid, 3)):
+                if stop_event is not None and stop_event.is_set():
+                    break
+                if fetch_budget.has_capacity((source_id,)):
+                    outcomes[source_id] = self._fetch_source(source_id, search_input, stop_event, fetch_budget)
+        elif active_source_ids:
             max_workers = min(len(active_source_ids), _MAX_FETCH_WORKERS)
             running_total = 0
             with ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="src-fetch") as pool:
@@ -427,7 +461,27 @@ class SearchService:
         # 16 терминов AI-профиля дают одну пару рубрик), и без этой памяти конвейер
         # разбирал бы один и тот же фид на каждой попытке.
         served_requests: set[str] = set()
-        fetch_budget = _FetchBudget()
+        vehicle_diversity = (
+            query_family is RoleFamily.VEHICLE_LOGISTICS
+            and not _uses_only_russian_language_sources(resolved_source_ids)
+        )
+        vehicle_locations: Iterator[str | None] = iter(())
+        vehicle_min_legs = 0
+        if vehicle_diversity:
+            queries = get_vehicle_query_representatives(effective_primary_query, profile_terms)
+            cities = search_cities or (search_input.location,)
+            # The largest requested city (GeoNames postal-code count, form order on ties)
+            # gets every query family first; the smaller cities share what budget remains.
+            anchor = max(cities, key=place_weight)
+            legs = tuple((query, anchor) for query in queries) + tuple(
+                (query, city) for query in queries for city in cities if city != anchor
+            )
+            # Every family in the anchor city, then the primary query once per other city,
+            # so an empty city section always means "searched", never "skipped".
+            vehicle_min_legs = len(queries) + len(cities) - 1
+            fallback_keywords = tuple(query for query, _ in legs[1:])
+            vehicle_locations = iter(city for _, city in legs)
+        fetch_budget = _FetchBudget(vehicle_diversity=vehicle_diversity)
 
         def _merge_attempts(results: list[SearchRunResult]) -> SearchRunResult:
             return self._merge_and_rescore_attempts(
@@ -462,6 +516,10 @@ class SearchService:
         def _run(query: str) -> SearchRunResult:
             if progress_callback is not None:
                 progress_callback("attempt", 0, None, query)
+            if vehicle_diversity:
+                city = next(vehicle_locations)
+                result = _run_one(query, city)
+                return _tag_results_with_city(result, city) if city else result
             if not search_cities:
                 return _run_one(query, search_input.location)
 
@@ -485,7 +543,9 @@ class SearchService:
             return len(r.hot_results) + len(r.maybe_results)
 
         def _is_enough(r: SearchRunResult) -> bool:
-            return _sufficient_canonical_count(r, resolved_profile) >= ENOUGH_NON_REJECTED
+            if len(attempt_results) < vehicle_min_legs:
+                return False
+            return fetch_budget.diversity_ready() and _sufficient_canonical_count(r, resolved_profile) >= ENOUGH_NON_REJECTED
 
         def _is_better(a: SearchRunResult, b: SearchRunResult | None) -> bool:
             if b is None:
@@ -561,7 +621,7 @@ class SearchService:
         _log_attempt_result(primary_rec, resolved_source_ids, profile_id)
         _publish_partial()
 
-        explicit_keywords = {term.strip().casefold() for term in profile_terms}
+        explicit_keywords = set() if vehicle_diversity else {term.strip().casefold() for term in profile_terms}
 
         best_result: SearchRunResult = r0
         # winning_query tracks the query that produced best_result — updated only when best_result is updated
@@ -581,7 +641,9 @@ class SearchService:
                 break
             attempt_records[-1] = dataclasses.replace(
                 attempt_records[-1], reason_continued=(
-                    "Выполняются явные поисковые термины профиля."
+                    "Проверяются разные семейства запросов и города автомобильной логистики."
+                    if vehicle_diversity
+                    else "Выполняются явные поисковые термины профиля."
                     if kw.strip().casefold() in explicit_keywords
                     else "Недостаточно уникальных подходящих вакансий; автоматическое расширение."
                 ),
@@ -614,6 +676,7 @@ class SearchService:
         # --- LLM-assisted stage (last resort only) ---
         if (
             not _is_enough(accumulated)
+            and not vehicle_diversity
             and not (stop_event is not None and stop_event.is_set())
             and fetch_budget.has_capacity(resolved_source_ids)
             and self._llm_client is not None
@@ -666,7 +729,7 @@ class SearchService:
         result_for_summary = self._enrich_run_result(result_for_summary)
         executed_queries = {attempt.query_used.strip().casefold() for attempt in attempt_records}
         query_label = (
-            "all profile queries" if profile_terms and explicit_keywords <= executed_queries
+            "all profile queries" if profile_terms and not vehicle_diversity and explicit_keywords <= executed_queries
             else "executed queries"
         )
         stop_reason = (
@@ -1056,7 +1119,8 @@ class SearchService:
         seen: set[str] = set()
         warnings: list[str] = []
         first: AdapterSearchResponse | None = None
-        for offset in range(min(4, max(1, self._max_pages))):
+        page_limit = 1 if budget.vehicle_diversity else min(4, max(1, self._max_pages))
+        for offset in range(page_limit):
             if stop_event is not None and stop_event.is_set():
                 break
             if not budget.consume(adapter.source_id):
@@ -1065,7 +1129,10 @@ class SearchService:
             try:
                 response = adapter.search(dataclasses.replace(search_input, page=search_input.page + offset))
             except Exception as exc:
-                if getattr(exc, "status_code", None) in {403, 429}:
+                status = getattr(exc, "status_code", None)
+                if status is None and budget.vehicle_diversity:
+                    status = getattr(exc.__cause__, "status_code", None)
+                if status in {403, 429}:
                     budget.block(adapter.source_id)
                 if first is None:
                     raise
@@ -1073,6 +1140,7 @@ class SearchService:
                                adapter.source_id, search_input.page + offset)
                 warnings.append("Не удалось загрузить следующую страницу; показана полученная часть выдачи.")
                 break
+            budget.record_response(adapter.source_id, search_input.query, empty=not response.records)
             if first is None:
                 first = response
             new_records = []
@@ -1093,7 +1161,7 @@ class SearchService:
                 families = [classify_vacancy_de(normalize_text_for_fingerprint(r.title)) for r in new_records]
                 if all(is_specific_family(f) and not families_are_compatible(intent.family, f) for f in families):
                     break
-            if offset + 1 == min(4, max(1, self._max_pages)):
+            if offset + 1 == page_limit:
                 warnings.append("Достигнут лимит страниц; выдача источника может быть неполной.")
         if first is None:
             return AdapterSearchResponse(

@@ -5,6 +5,7 @@ Expands query candidates only — never touches scoring or filtering.
 from __future__ import annotations
 
 from app.services._role_intent_lexicon import RoleIntent
+from app.services.hashers import normalize_text_for_fingerprint
 from app.services.role_family import (
     RoleFamily,
     classify_query_ru,
@@ -233,6 +234,38 @@ MAX_LLM_STAGES: int = 1
 # Stop condition: at least N unique, visible, relevant canonical vacancies.
 # A reviewable snippet need not be HOT to make automatic expansion unnecessary.
 ENOUGH_NON_REJECTED: int = 3
+
+# External queries use one representative per meaning, not every spelling in the lexicon.
+# Specific groups precede the generic transfer forms when recognizing profile terms.
+VEHICLE_QUERY_GROUPS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
+    ("rental", "Mietwagenüberführer", ("mietwagen", "autovermietung")),
+    ("collection", "Hol- und Bringfahrer", ("hol und bring", "werkstattfahrer")),
+    ("fleet", "Fuhrparkfahrer", ("fleet driver", "fuhrpark", "flottenfahrer", "dienstwagenfahrer")),
+    ("logistics", "Fahrzeuglogistik Fahrer", ("fahrzeuglogistik", "kfz logistik", "pkw logistik", "autologistik", "umsetz", "rangier")),
+    ("pkw", "PKW-Überführung", ("pkw",)),
+    ("transfer_driver", "Überführungsfahrer", ("uberfuhrungsfahrer",)),
+    ("transfer", "Transferfahrer", ("transfer", "carmover", "fahrzeugzustell", "fahrzeugausliefer", "auslieferungsfahrer")),
+    ("vehicle", "Fahrzeugüberführer", ("uberfuhr", "verbringung", "ruckfuhr")),
+)
+_VEHICLE_QUERY_ORDER = ("vehicle", "transfer", "collection", "rental", "fleet", "pkw", "logistics", "transfer_driver")
+
+
+def vehicle_query_family(query: str) -> str | None:
+    normalized = normalize_text_for_fingerprint(query)
+    return next((key for key, _, tokens in VEHICLE_QUERY_GROUPS if any(token in normalized for token in tokens)), None)
+
+
+def get_vehicle_query_representatives(primary: str, profile_terms: tuple[str, ...]) -> tuple[str, ...]:
+    """Keep the submitted query, collapse known aliases, and fill missing meanings."""
+    representatives = {key: representative for key, representative, _ in VEHICLE_QUERY_GROUPS}
+    unknown: list[str] = []
+    for term in (primary, *profile_terms):
+        family = vehicle_query_family(term)
+        if family is None and term.strip() and term != primary:
+            unknown.append(term)
+    primary_family = vehicle_query_family(primary)
+    candidates = tuple(representatives[key] for key in _VEHICLE_QUERY_ORDER if key != primary_family)
+    return (primary, *_finalize_fallback_keywords(candidates + tuple(unknown), primary_query=primary, limit=None))
 
 
 def get_fallback_keywords(
