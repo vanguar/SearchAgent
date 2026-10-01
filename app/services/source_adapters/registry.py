@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import atexit
+import threading
 from collections.abc import Sequence
 
 from app.core.config import Settings
@@ -17,6 +19,8 @@ from app.services.source_adapters.hh_adapter import HHAdapter
 from app.services.source_adapters.http import (
     DEFAULT_GET_CACHE_TTL_SECONDS,
     HttpJsonTransport,
+    KeepAliveHttpJsonTransport,
+    RetryPolicy,
     UrllibHttpJsonTransport,
 )
 from app.services.source_adapters.jooble_adapter import JoobleAdapter
@@ -24,6 +28,27 @@ from app.services.source_adapters.lever_adapter import LeverAdapter
 from app.services.source_adapters.models import SourceAdapterDescriptor
 from app.services.source_adapters.remotejobs_adapter import RemoteJobsOrgAdapter
 from app.services.source_adapters.remotive_adapter import RemotiveAdapter
+
+_ba_transport: KeepAliveHttpJsonTransport | None = None
+_ba_transport_lock = threading.Lock()
+
+
+def shared_ba_transport() -> KeepAliveHttpJsonTransport:
+    """One keep-alive BA client per process.
+
+    A registry is built per search request, so a per-registry client would pay BA's slow
+    TLS handshake on every search. Two attempts: a 30 s handshake makes a third one rarely
+    useful and only stretches the worst case. BA announces `Keep-Alive: timeout=15`; idle
+    connections are dropped just before that, never reused after the server closed them.
+    """
+    global _ba_transport
+    with _ba_transport_lock:
+        if _ba_transport is None:
+            _ba_transport = KeepAliveHttpJsonTransport(
+                connect_timeout_seconds=30.0, keepalive_expiry_seconds=14.0, retry_policy=RetryPolicy(max_retries=1)
+            )
+            atexit.register(_ba_transport.close)
+        return _ba_transport
 
 
 class SourceAdapterRegistry:
@@ -45,7 +70,7 @@ class SourceAdapterRegistry:
                 cache_ttl_seconds=DEFAULT_GET_CACHE_TTL_SECONDS
             )
             adapters = (
-                BAAdapter(settings=resolved_settings, http_transport=resolved_transport),
+                BAAdapter(settings=resolved_settings, http_transport=http_transport or shared_ba_transport()),
                 CareerjetAdapter(settings=resolved_settings, http_transport=resolved_transport),
                 EURESAdapter(settings=resolved_settings, http_transport=resolved_transport),
                 RemotiveAdapter(settings=resolved_settings, http_transport=resolved_transport),

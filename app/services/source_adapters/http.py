@@ -11,6 +11,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+import httpx
+
 from app.core.logging import logger
 from app.services.source_adapters.errors import HttpDecodeError, HttpTransportError
 from app.services.source_adapters.models import RawPayload
@@ -196,6 +198,110 @@ class UrllibHttpJsonTransport:
         request = Request(full_url, data=encoded_body, headers=request_headers, method="POST")
         status_code, response_body = _execute_with_retries(request, full_url, timeout_seconds, self._retry_policy)
         return _decode_json(full_url, status_code, response_body)
+
+
+class KeepAliveHttpJsonTransport:
+    """JSON transport over one pooled keep-alive client, for hosts with very slow TLS handshakes.
+
+    urllib opens a new TLS connection for every attempt. BA answers a new handshake in
+    9–30 s, so most attempts died at the 10 s timeout and each retry paid the same cost.
+    Reusing the connection pays the handshake once; later requests take ~0.2 s. Only the
+    connect phase (TCP + TLS) gets the longer limit — reads keep the caller's timeout.
+    """
+
+    def __init__(
+        self,
+        *,
+        connect_timeout_seconds: float = 30.0,
+        keepalive_expiry_seconds: float = 5.0,
+        retry_policy: RetryPolicy | None = None,
+        user_agent: str = DEFAULT_USER_AGENT,
+        client: httpx.Client | None = None,
+    ) -> None:
+        # TLS verification stays at httpx's default (on).
+        self._client = client or httpx.Client(
+            headers={"User-Agent": user_agent},
+            follow_redirects=True,
+            limits=httpx.Limits(keepalive_expiry=keepalive_expiry_seconds),
+        )
+        self._connect_timeout_seconds = connect_timeout_seconds
+        self._keepalive_expiry_seconds = keepalive_expiry_seconds
+        self._retry_policy = retry_policy or _DEFAULT_RETRY_POLICY
+
+    def get_json(
+        self,
+        url: str,
+        *,
+        params: Mapping[str, Any] | None = None,
+        headers: Mapping[str, str] | None = None,
+        timeout_seconds: float = 10.0,
+    ) -> HttpJsonResponse:
+        return self._request("GET", url, params=params, headers=headers, timeout_seconds=timeout_seconds)
+
+    def post_json(
+        self,
+        url: str,
+        *,
+        body: Any | None = None,
+        params: Mapping[str, Any] | None = None,
+        headers: Mapping[str, str] | None = None,
+        timeout_seconds: float = 10.0,
+    ) -> HttpJsonResponse:
+        return self._request(
+            "POST", url, params=params, headers=headers, timeout_seconds=timeout_seconds,
+            body=json.dumps(body if body is not None else {}).encode("utf-8"),
+        )
+
+    def close(self) -> None:
+        self._client.close()
+
+    def _request(
+        self,
+        method: str,
+        url: str,
+        *,
+        params: Mapping[str, Any] | None,
+        headers: Mapping[str, str] | None,
+        timeout_seconds: float,
+        body: bytes | None = None,
+    ) -> HttpJsonResponse:
+        full_url = _build_url(url, params)
+        request_headers = {"Accept": "application/json"}
+        if body is not None:
+            request_headers["Content-Type"] = "application/json"
+        if headers:
+            request_headers.update(dict(headers))
+        timeout = httpx.Timeout(timeout_seconds, connect=self._connect_timeout_seconds)
+
+        last_error: HttpTransportError | None = None
+        for attempt in range(1, self._retry_policy.max_retries + 2):
+            retry_after: float | None = None
+            try:
+                response = self._client.request(method, full_url, headers=request_headers, content=body, timeout=timeout)
+            except httpx.TransportError as exc:
+                # The pool drops a broken connection, so the next attempt reconnects.
+                message = "Request timed out." if isinstance(exc, httpx.TimeoutException) else (str(exc) or type(exc).__name__)
+                last_error = HttpTransportError(url=full_url, message=message, status_code=None)
+            else:
+                if response.status_code < 400:
+                    return _decode_json(full_url, response.status_code, response.content)
+                detail = _short_detail(response.text.strip() or response.reason_phrase)
+                last_error = HttpTransportError(url=full_url, message=detail, status_code=response.status_code)
+                if response.status_code not in _RETRYABLE_STATUS_CODES:
+                    raise last_error
+                retry_after = _parse_retry_after(response.headers.get("Retry-After"))
+
+            if attempt <= self._retry_policy.max_retries:
+                delay = self._retry_policy.backoff_delay(attempt, retry_after=retry_after)
+                logger.warning(
+                    "http_retry url=%s attempt=%d/%d delay=%.2fs reason=%s",
+                    full_url, attempt, self._retry_policy.max_retries, delay, last_error.message,
+                )
+                self._retry_policy.sleep(delay)
+
+        if last_error is not None:
+            raise last_error
+        raise HttpTransportError(url=full_url, message="Request failed without a recorded error.", status_code=None)
 
 
 class UrllibHttpTextTransport:
