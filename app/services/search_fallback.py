@@ -80,6 +80,20 @@ FAMILY_SYNONYMS: dict[RoleFamily, tuple[str, ...]] = {
         # Одна и та же работа называется в объявлениях по-разному, и все формы —
         # внутри направления: ни одного термина доставки посылок здесь нет.
         "Fahrzeugüberführer", "Überführungsfahrer", "Fahrzeugüberführung", "Fahrzeugverbringung",
+        # Сначала разные названия работы: варианты написания не занимают весь лимит запросов.
+        "Transferfahrer", "Fleet Driver", "Flottenfahrer", "Fahrer Fuhrpark",
+        "Mietwagenüberführer", "Fahrzeugzusteller", "Carmover", "Fahrzeugtransfer",
+        "Fahrzeugüberführerin", "Fahrzeugüberführungen", "Überführungsfahrer PKW",
+        "PKW Überführer", "PKW-Überführer", "PKW Überführung", "PKW-Überführung",
+        "Fahrer Fahrzeugüberführung", "Fahrer für Fahrzeugüberführung", "Fahrer für Fahrzeugüberführungen",
+        "Fahrer für PKW-Überführung", "Fahrer für PKW-Überführungen", "Fahrzeugtransfers",
+        "Fahrer Fahrzeugtransfer", "Fahrer in der Fahrzeuglogistik", "Fahrzeuglogistik Fahrer",
+        "KFZ Logistik Fahrer", "Kfz-Logistik Fahrer", "PKW Logistik Fahrer", "Qualified Fleet Driver",
+        "Dienstwagenfahrer", "Hol- und Bringfahrer", "Hol- und Bringdienst Fahrer",
+        "Hol- und Bringservice Fahrzeug", "Fahrer Autohaus Fahrzeuglogistik",
+        "Fahrer Autohaus Hol- und Bringservice", "Fahrer Mietwagen", "Mietwagen Überführung",
+        "Fuhrparkfahrer", "Fahrzeugauslieferung Fahrer", "Auslieferungsfahrer Fahrzeuge",
+        "Auslieferungsfahrer PKW", "Fahrer Fahrzeugauslieferung",
         "Fahrzeugumsetzer", "Umsetzfahrer", "PKW-Rangierer", "Rangierfahrer",
         "Fahrzeuglogistik", "Mitarbeiter Fahrzeuglogistik", "Fahrer Fahrzeuglogistik",
         "Werkstattfahrer", "Fahrer Hol- und Bringservice", "Fahrzeugrückführung",

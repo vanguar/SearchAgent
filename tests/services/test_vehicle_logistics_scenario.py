@@ -20,7 +20,11 @@ from app.services.role_family import RoleFamily, classify_role_text, classify_va
 from app.services.role_intent import normalize_role_intent
 from app.services.rule_catalog import HOT_BUCKET_MIN_SCORE, MAYBE_BUCKET_MIN_SCORE, inspect_vacancy
 from app.services.scorer import VacancyScorer
-from app.services.search_fallback import get_intent_fallback_keywords
+from app.services.search_fallback import (
+    FAMILY_SYNONYMS,
+    get_intent_fallback_keywords,
+    get_profile_fallback_keywords,
+)
 from app.services.search_models import SearchProfileContext
 from app.services.source_adapters.models import SourceRecordPreview
 from app.services.source_merge import SourceMergeService
@@ -139,9 +143,34 @@ def test_fallback_keywords_stay_inside_vehicle_logistics() -> None:
     )
 
     assert keywords, "план расширения не должен быть пустым"
-    forbidden = ("zusteller", "paketzusteller", "helfer", "kurier", "lagerhelfer", "reinigungskraft")
-    for keyword in keywords:
-        assert not any(token in keyword.casefold() for token in forbidden), keyword
+    forbidden = {
+        "fahrer", "auslieferungsfahrer", "logistik", "aushilfe", "zusteller",
+        "paketzusteller", "helfer", "kurier", "lagerhelfer", "reinigungskraft",
+    }
+    for keyword in (*keywords, *FAMILY_SYNONYMS[RoleFamily.VEHICLE_LOGISTICS]):
+        assert keyword.casefold() not in forbidden, keyword
+
+
+@pytest.mark.parametrize("query", FAMILY_SYNONYMS[RoleFamily.VEHICLE_LOGISTICS])
+def test_vehicle_synonyms_are_classified_in_the_same_family(query: str) -> None:
+    assert classify_role_text(query) is RoleFamily.VEHICLE_LOGISTICS
+
+
+def test_new_vehicle_titles_reach_both_automatic_search_plans() -> None:
+    intent = normalize_role_intent("Fahrzeugüberführer")
+    assert intent is not None
+    plans = (
+        get_intent_fallback_keywords(
+            intent=intent, primary_query=intent.primary_de, low_language=True, light_vehicle_only=True,
+        ),
+        get_profile_fallback_keywords(
+            profile_terms=("Fahrzeugüberführer", "Überführungsfahrer"),
+            family=intent.family, role_primary_de=intent.primary_de, broaden=True, light_vehicle_only=True,
+        ),
+    )
+    for keywords in plans:
+        assert {"Transferfahrer", "Fleet Driver", "Mietwagenüberführer", "Carmover"} <= set(keywords)
+        assert len(keywords) <= 12
 
 
 @pytest.mark.parametrize(

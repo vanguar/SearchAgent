@@ -155,6 +155,10 @@ _TITLE_DE_TOKENS: list[tuple[RoleFamily, tuple[str, ...]]] = [
         # работодателя, и "Sachbearbeiter Autovermietung" остаётся офисной работой.
         "fahrer autovermietung", "mitarbeiter autovermietung",
         "fahrzeugtransport", "autotransport", "fahrzeugzustellung", "fahrzeugtransfer", "uberfuhrer",
+        "transferfahrer", "fleet driver", "flottenfahrer", "dienstwagenfahrer",
+        "kfz logistik fahrer", "pkw logistik fahrer", "fahrer mietwagen",
+        "fahrer fuhrpark", "fuhrparkfahrer", "fahrzeugzusteller", "fahrzeugauslieferung",
+        "auslieferungsfahrer fahrzeuge", "auslieferungsfahrer pkw", "carmover",
     )),
     (RoleFamily.DRIVING, (
         "kraftfahrer", "lieferfahrer", "zusteller", "kurier",
