@@ -96,10 +96,15 @@ _HEAVY_QUALIFICATION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ),
 )
 
-_HEAVY_MASS_RE = re.compile(r"\b(?P<mass>7\s+5|12|18|40)\s*(?:t|tonnen?|tonner)\b")
+# Масса выше 3,5 т — это уже категория C1/C. "7,49 t" — та же граница, что
+# "7,5 t". Точка в "7.5" после нормализации превращается в "; ".
+_HEAVY_MASS_RE = re.compile(r"\b(?P<mass>7;?\s+(?:49|5)|12|18|40)\s*(?:t|tonnen?|tonner)\b")
+# Контекст водителя — и составные названия доставки: "Paketzusteller bis 7,5t"
+# говорит о машине так же ясно, как "Fahrer bis 7,5t".
 _DRIVER_OR_VEHICLE_CONTEXT_RE = re.compile(
     r"\b(?:fahrer|fahrerin|kraftfahrer|berufskraftfahrer|fahrzeug|fahrzeuge|fahrzeugen|"
     r"lkw|lastwagen|transporter|tonner|zugmaschine)\w*\b"
+    r"|\b\w+(?:fahrer|zusteller)\w*\b"
 )
 
 
@@ -121,7 +126,7 @@ def extract_vehicle_class_signals(text: str | None) -> VehicleClassSignals:
             if _is_negated_heavy_match(normalized, match):
                 continue
             raw_mass = match.group("mass")
-            mass = "7,5" if raw_mass == "7 5" else raw_mass
+            mass = re.sub(r";?\s+", ",", raw_mass)
             label = f"{mass} t"
             if label not in heavy_vehicle:
                 heavy_vehicle.append(label)
