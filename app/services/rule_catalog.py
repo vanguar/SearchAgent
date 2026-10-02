@@ -19,6 +19,11 @@ from app.services.language_signal_extractor import (
     ENGLISH_PREFERRED_PATTERNS,
     ENGLISH_REQUIRED_PATTERNS,
 )
+from app.services.light_goods_transport import (
+    employment_evidence_text,
+    mandatory_vehicle_evidence_text,
+    match_light_goods_transport,
+)
 from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.role_family import (
     RoleFamily,
@@ -753,18 +758,35 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
     # reintroduce the delivery family that the positive-role gate already removed.
     desired_role_hits = _keep_profile_relevant_role_hits(desired_role_hits, profile)
     desired_role_hits_in_title = _keep_profile_relevant_role_hits(desired_role_hits_in_title, profile)
+    light_match = None
+    if classify_role_families(profile.desired_roles or profile.search_query_terms) == frozenset({RoleFamily.LIGHT_GOODS_TRANSPORT}):
+        light_match = match_light_goods_transport(
+            canonical.normalized_title, "\n".join(record.body_text or "" for record in canonical.source_records),
+        )
+        if title_family not in {RoleFamily.GENERIC, RoleFamily.DRIVING, RoleFamily.LIGHT_GOODS_TRANSPORT}:
+            light_match = "none"
+        hit = RuleHit(code="light_goods_transport_family", label_ru="перевозка грузов на лёгком автомобиле")
+        positive_role_hits = (hit,) if light_match != "none" else ()
+        positive_role_hits_in_title = (hit,) if light_match == "target" else ()
+        desired_role_hits = positive_role_hits
+        desired_role_hits_in_title = positive_role_hits_in_title
     excluded_role_hits = _match_excluded_profile_roles(
         title_text=title_text,
         combined_text=combined_text,
         raw_roles=profile.excluded_roles,
     )
-    driver_license_requirement = extract_driver_license_requirements(build_driver_license_text(canonical))
-    vehicle_class_signals = extract_vehicle_class_signals(build_vehicle_class_text(canonical))
+    license_text = build_driver_license_text(canonical)
+    vehicle_text = build_vehicle_class_text(canonical)
+    if light_match is not None:
+        license_text = mandatory_vehicle_evidence_text(license_text)
+        vehicle_text = mandatory_vehicle_evidence_text(vehicle_text)
+    driver_license_requirement = extract_driver_license_requirements(license_text)
+    vehicle_class_signals = extract_vehicle_class_signals(vehicle_text)
     # Форма занятости, самозанятость и нагрузка читаются по ИСХОДНОМУ тексту:
     # combined_text уже свёрнут для поиска слов, а извлекателям нужны свои
     # нормализации (и оригинальная пунктуация — для суммы вида "15,50 €").
     raw_text = build_raw_analysis_text(canonical)
-    employment_signals = extract_employment_signals(raw_text)
+    employment_signals = extract_employment_signals(employment_evidence_text(raw_text) if light_match is not None else raw_text)
     salary_signals = extract_canonical_salary_signals(canonical, analysis_text=raw_text)
     location_match, location_hits = _match_profile_locations(canonical, profile)
     distance_from_home = _measure_home_distance(canonical, profile)
@@ -816,6 +838,7 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         and not strong_german_required
     )
     return VacancySignalSnapshot(
+        light_goods_transport_match=light_match,
         combined_text=combined_text,
         positive_role_hits=positive_role_hits,
         positive_role_hits_in_title=positive_role_hits_in_title,

@@ -27,6 +27,7 @@ _LIGHT_COMMERCIAL_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("PKW", re.compile(r"\bpkw\b")),
     ("bis 3,5 t", re.compile(r"\bbis\s+3\s+5\s*(?:t|tonnen?)\b")),
     ("3,5-Tonner", re.compile(r"\b3\s+5\s+tonner\b")),
+    ("3,5 t", re.compile(r"\b3\s+5\s*(?:t|tonnen?)\b")),
     ("Klasse B", re.compile(r"\b(?:fuhrerschein\s+)?klasse\s+b\b")),
 )
 

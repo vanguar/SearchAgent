@@ -5,6 +5,7 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Literal
 
+from app.services.light_goods_transport import LightTransportMatch
 from app.services.normalization_models import CanonicalVacancyGroup, NormalizedVacancyRecord
 from app.services.salary_signal_extractor import SalaryEvidence
 
@@ -194,6 +195,7 @@ class SearchProfileContext:
 @dataclass(frozen=True, slots=True)
 class VacancySignalSnapshot:
     combined_text: str
+    light_goods_transport_match: LightTransportMatch | None = None
     positive_role_hits: tuple[RuleHit, ...] = ()
     # Те же попадания, но найденные в ЗАГОЛОВКЕ, а не где-то в теле объявления.
     # Заголовок называет саму работу; тело может упоминать соседний отдел или

@@ -115,6 +115,15 @@ class FilterEngine:
         rejection_hits: list[RuleHit] = []
         review_hits: list[RuleHit] = []
 
+        if resolved_signals.light_goods_transport_match == "none":
+            rejection_hits.append(RuleHit(
+                code="light_goods_transport_mismatch", label_ru="нет подтверждения перевозки товаров на лёгком автомобиле",
+            ))
+        elif resolved_signals.light_goods_transport_match == "adjacent":
+            review_hits.append(RuleHit(
+                code="light_goods_transport_review", label_ru="перевозка товаров подтверждается обязанностями: проверить основную работу",
+            ))
+
         if resolved_signals.excluded_role_hits:
             rejection_hits.append(RuleHit(code="excluded_role", label_ru="роль исключена профилем"))
 
@@ -131,7 +140,10 @@ class FilterEngine:
         if heavy_vehicle_mismatch is not None:
             rejection_hits.append(heavy_vehicle_mismatch)
 
-        family_mismatch = _check_profession_family_mismatch(canonical, profile)
+        family_mismatch = (
+            resolved_signals.light_goods_transport_match not in {"target", "adjacent"}
+            and _check_profession_family_mismatch(canonical, profile)
+        )
         if family_mismatch:
             rejection_hits.append(RuleHit(
                 code="profession_family_mismatch",
@@ -427,6 +439,14 @@ def _driver_license_mismatch_hit(
         for category in signals.mentioned_driver_license_categories
         if category != "B" and category not in signals.negated_driver_license_categories
     )
+    if signals.light_goods_transport_match is not None:
+        # The new specialization distinguishes mandatory requirements from explicit alternatives/preferences.
+        # Existing profiles retain their established policy.
+        incompatible_categories = tuple(
+            category for category in incompatible_categories
+            if category not in signals.optional_driver_license_categories
+            and not ("B" in signals.allowed_driver_license_categories and category in signals.allowed_driver_license_categories)
+        )
     if not incompatible_categories:
         return None
 
@@ -463,6 +483,14 @@ def _heavy_vehicle_mismatch_hit(
         return None
 
     detected = signals.heavy_vehicle_signals or signals.heavy_driver_qualification_signals
+    if (
+        signals.light_goods_transport_match in {"target", "adjacent"}
+        and signals.heavy_vehicle_signals == ("LKW",)
+        and not signals.heavy_driver_qualification_signals
+        and any(label in signals.light_commercial_vehicle_signals for label in ("3,5 t", "bis 3,5 t", "3,5-Tonner"))
+    ):
+        # Some light commercial ads say "3,5t LKW". Actual heavy mass/classes still win.
+        detected = ()
     if not detected and _generic_driver_title_reads_as_heavy(signals, canonical):
         # A "Kraftfahrer"/"Berufskraftfahrer" title with no light vehicle, no class B and
         # no delivery or transfer role: in that silence the ad is truck work.

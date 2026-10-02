@@ -1,0 +1,137 @@
+[
+  {
+    "timestamp": "2026-10-02T10:15:46.520229+00:00",
+    "city": "Berlin",
+    "radius_km": 50,
+    "source_results": [
+      {
+        "query": "Sprinterfahrer",
+        "source": "ba",
+        "status": "AdapterRequestError",
+        "raw": 0
+      },
+      {
+        "query": "Sprinterfahrer",
+        "source": "adzuna",
+        "status": "ok",
+        "raw": 0
+      },
+      {
+        "query": "Sprinterfahrer",
+        "source": "careerjet",
+        "status": "ok",
+        "raw": 1
+      }
+    ],
+    "evaluations": [
+      {
+        "title": "auslieferungsfahrer fahrer klasse b tagestouren friesack bei berlin",
+        "location": "friesack",
+        "final_decision": "hard_hidden",
+        "hard_reject": true,
+        "hard_reject_reason": [
+          "outside_requested_cities"
+        ],
+        "score": 35,
+        "matched_terms": [
+          "light_goods_transport_family",
+          "priority_role",
+          "desired_role_match",
+          "entry_level_signal",
+          "posting_freshness",
+          "salary_stated"
+        ],
+        "negative_matches": [],
+        "language_reason": {
+          "strong_german_required": false,
+          "german_any_required": false,
+          "low_language_signal": false,
+          "english_required_signal": false,
+          "english_preferred_signal": false,
+          "english_requirement_unknown": true
+        },
+        "role_family_reason": {
+          "detected_role_family": "light_goods_transport",
+          "positive_role_hits": [
+            "light_goods_transport_family"
+          ],
+          "desired_role_hits": [
+            "light_goods_transport_family"
+          ],
+          "excluded_role_hits": [],
+          "review_hits": []
+        }
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-10-02T10:16:41.690663+00:00",
+    "city": "Neustrelitz",
+    "radius_km": 50,
+    "source_results": [
+      {
+        "query": "Sprinterfahrer",
+        "source": "ba",
+        "status": "AdapterRequestError",
+        "raw": 0
+      },
+      {
+        "query": "Sprinterfahrer",
+        "source": "adzuna",
+        "status": "ok",
+        "raw": 0
+      },
+      {
+        "query": "Sprinterfahrer",
+        "source": "careerjet",
+        "status": "ok",
+        "raw": 0
+      },
+      {
+        "query": "Transporterfahrer",
+        "source": "ba",
+        "status": "AdapterRequestError",
+        "raw": 0
+      },
+      {
+        "query": "Transporterfahrer",
+        "source": "adzuna",
+        "status": "ok",
+        "raw": 0
+      },
+      {
+        "query": "Transporterfahrer",
+        "source": "careerjet",
+        "status": "ok",
+        "raw": 0
+      }
+    ],
+    "evaluations": []
+  },
+  {
+    "timestamp": "2026-10-02T10:25:42.980452+00:00",
+    "city": "Neustrelitz",
+    "radius_km": 50,
+    "source_results": [
+      {
+        "query": "Fahrer Klasse B Transporter",
+        "source": "ba",
+        "status": "AdapterRequestError",
+        "raw": 0
+      },
+      {
+        "query": "Fahrer Klasse B Transporter",
+        "source": "adzuna",
+        "status": "ok",
+        "raw": 0
+      },
+      {
+        "query": "Fahrer Klasse B Transporter",
+        "source": "careerjet",
+        "status": "ok",
+        "raw": 0
+      }
+    ],
+    "evaluations": []
+  }
+]

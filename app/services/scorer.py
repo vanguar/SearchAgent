@@ -361,6 +361,7 @@ _ROLE_FAMILY_LABELS: dict[str, str] = {
     "helper_family": "простая вспомогательная роль",
     "delivery_driving_family": "роль в доставке или вождении",
     "vehicle_logistics_family": "роль в автомобильной логистике",
+    "light_goods_transport_family": "перевозка грузов на лёгком автомобиле",
 }
 
 

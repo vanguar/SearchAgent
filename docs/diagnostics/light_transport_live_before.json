@@ -1,0 +1,5280 @@
+{
+  "input_sha256": "1d41f32f234ff3d1b3d28aa101db60addff5ecbcfe0abc9840432a35f94d27e8",
+  "timestamp": "2026-10-02T10:03:19.648936+00:00",
+  "city": "Berlin",
+  "page_size": 25,
+  "canonical_total": 97,
+  "raw_total": 117,
+  "query_metrics": [
+    {
+      "query": "Sprinterfahrer",
+      "raw": 1,
+      "canonical": 1,
+      "relevant": 1,
+      "unique_relevant": 0,
+      "noise_or_unconfirmed": 0,
+      "relevant_ids": [
+        0
+      ],
+      "sources": [
+        {
+          "source": "ba",
+          "status": "AdapterRequestError",
+          "raw": 0
+        },
+        {
+          "source": "adzuna",
+          "status": "ok",
+          "raw": 0
+        },
+        {
+          "source": "careerjet",
+          "status": "ok",
+          "raw": 1
+        }
+      ]
+    },
+    {
+      "query": "Transporterfahrer",
+      "raw": 1,
+      "canonical": 1,
+      "relevant": 0,
+      "unique_relevant": 0,
+      "noise_or_unconfirmed": 1,
+      "relevant_ids": [],
+      "sources": [
+        {
+          "source": "ba",
+          "status": "ok",
+          "raw": 1
+        },
+        {
+          "source": "adzuna",
+          "status": "ok",
+          "raw": 0
+        },
+        {
+          "source": "careerjet",
+          "status": "ok",
+          "raw": 0
+        }
+      ]
+    },
+    {
+      "query": "Fahrer Klasse B Transporter",
+      "raw": 24,
+      "canonical": 19,
+      "relevant": 7,
+      "unique_relevant": 6,
+      "noise_or_unconfirmed": 12,
+      "relevant_ids": [
+        0,
+        2,
+        8,
+        11,
+        16,
+        17,
+        18
+      ],
+      "sources": [
+        {
+          "source": "ba",
+          "status": "ok",
+          "raw": 6
+        },
+        {
+          "source": "adzuna",
+          "status": "ok",
+          "raw": 0
+        },
+        {
+          "source": "careerjet",
+          "status": "ok",
+          "raw": 18
+        }
+      ]
+    },
+    {
+      "query": "Fahrer bis 3,5 t",
+      "raw": 25,
+      "canonical": 25,
+      "relevant": 1,
+      "unique_relevant": 1,
+      "noise_or_unconfirmed": 24,
+      "relevant_ids": [
+        40
+      ],
+      "sources": [
+        {
+          "source": "ba",
+          "status": "ok",
+          "raw": 25
+        },
+        {
+          "source": "adzuna",
+          "status": "ok",
+          "raw": 0
+        },
+        {
+          "source": "careerjet",
+          "status": "ok",
+          "raw": 0
+        }
+      ]
+    },
+    {
+      "query": "Fahrer Nahverkehr Klasse B",
+      "raw": 25,
+      "canonical": 20,
+      "relevant": 0,
+      "unique_relevant": 0,
+      "noise_or_unconfirmed": 20,
+      "relevant_ids": [],
+      "sources": [
+        {
+          "source": "ba",
+          "status": "AdapterRequestError",
+          "raw": 0
+        },
+        {
+          "source": "adzuna",
+          "status": "ok",
+          "raw": 0
+        },
+        {
+          "source": "careerjet",
+          "status": "ok",
+          "raw": 25
+        }
+      ]
+    },
+    {
+      "query": "Fahrer Werksverkehr",
+      "raw": 26,
+      "canonical": 19,
+      "relevant": 0,
+      "unique_relevant": 0,
+      "noise_or_unconfirmed": 19,
+      "relevant_ids": [],
+      "sources": [
+        {
+          "source": "ba",
+          "status": "ok",
+          "raw": 14
+        },
+        {
+          "source": "adzuna",
+          "status": "ok",
+          "raw": 5
+        },
+        {
+          "source": "careerjet",
+          "status": "ok",
+          "raw": 7
+        }
+      ]
+    },
+    {
+      "query": "Fahrer Direktfahrten",
+      "raw": 0,
+      "canonical": 0,
+      "relevant": 0,
+      "unique_relevant": 0,
+      "noise_or_unconfirmed": 0,
+      "relevant_ids": [],
+      "sources": [
+        {
+          "source": "ba",
+          "status": "ok",
+          "raw": 0
+        },
+        {
+          "source": "adzuna",
+          "status": "ok",
+          "raw": 0
+        },
+        {
+          "source": "careerjet",
+          "status": "ok",
+          "raw": 0
+        }
+      ]
+    },
+    {
+      "query": "Fahrer Sonderfahrten",
+      "raw": 1,
+      "canonical": 1,
+      "relevant": 0,
+      "unique_relevant": 0,
+      "noise_or_unconfirmed": 1,
+      "relevant_ids": [],
+      "sources": [
+        {
+          "source": "ba",
+          "status": "ok",
+          "raw": 1
+        },
+        {
+          "source": "adzuna",
+          "status": "ok",
+          "raw": 0
+        },
+        {
+          "source": "careerjet",
+          "status": "ok",
+          "raw": 0
+        }
+      ]
+    },
+    {
+      "query": "Kleintransporter Fahrer",
+      "raw": 7,
+      "canonical": 7,
+      "relevant": 0,
+      "unique_relevant": 0,
+      "noise_or_unconfirmed": 7,
+      "relevant_ids": [],
+      "sources": [
+        {
+          "source": "ba",
+          "status": "ok",
+          "raw": 4
+        },
+        {
+          "source": "adzuna",
+          "status": "ok",
+          "raw": 2
+        },
+        {
+          "source": "careerjet",
+          "status": "ok",
+          "raw": 1
+        }
+      ]
+    },
+    {
+      "query": "Gütertransport Fahrer Klasse B",
+      "raw": 7,
+      "canonical": 7,
+      "relevant": 0,
+      "unique_relevant": 0,
+      "noise_or_unconfirmed": 7,
+      "relevant_ids": [],
+      "sources": [
+        {
+          "source": "ba",
+          "status": "ok",
+          "raw": 3
+        },
+        {
+          "source": "adzuna",
+          "status": "ok",
+          "raw": 0
+        },
+        {
+          "source": "careerjet",
+          "status": "ok",
+          "raw": 4
+        }
+      ]
+    }
+  ],
+  "label_counts": {
+    "TARGET": 8,
+    "UNKNOWN": 25,
+    "NOISE": 59,
+    "ADJACENT": 5
+  },
+  "evaluations": {
+    "light_goods_transport": [
+      {
+        "id": 0,
+        "label": "TARGET",
+        "title": "auslieferungsfahrer fahrer klasse b tagestouren friesack bei berlin",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 1,
+        "label": "UNKNOWN",
+        "title": "transportfahrer transportfahrerin i festanstellung",
+        "final_decision": "rejected",
+        "score": 43,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 2,
+        "label": "TARGET",
+        "title": "fahrer transporter klasse b renault master mit planenaufbau",
+        "final_decision": "maybe",
+        "score": 73,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 3,
+        "label": "UNKNOWN",
+        "title": "botenfahrer fahrer",
+        "final_decision": "maybe",
+        "score": 61,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 4,
+        "label": "NOISE",
+        "title": "postzustellung fs b vollzeitanstellung",
+        "final_decision": "rejected",
+        "score": 35,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 5,
+        "label": "UNKNOWN",
+        "title": "service fahrer fur supermarktwerbung",
+        "final_decision": "rejected",
+        "score": 43,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 6,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer in fur die poststelle mehrere stellen",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 7,
+        "label": "UNKNOWN",
+        "title": "lieferfahrer spedition jugendbucher",
+        "final_decision": "maybe",
+        "score": 57,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 8,
+        "label": "TARGET",
+        "title": "fahrer driver kuhltransport 16 h good bank",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 9,
+        "label": "NOISE",
+        "title": "werkstudent uberfuhrungsfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 10,
+        "label": "ADJACENT",
+        "title": "mobelpacker fahrer ab 17 h sehr gutes trinkgeld deutschlandweite touren",
+        "final_decision": "maybe",
+        "score": 68,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 11,
+        "label": "TARGET",
+        "title": "fahrer fur baustellenlogistik transporter berlin",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 12,
+        "label": "NOISE",
+        "title": "servicefahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch"
+        ]
+      },
+      {
+        "id": 13,
+        "label": "ADJACENT",
+        "title": "fahrer w d m potsdam 30h woche auf 6 monate befristet auslieferungsfahrer nicht verkaufsfahrer",
+        "final_decision": "hot",
+        "score": 70,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 14,
+        "label": "NOISE",
+        "title": "selbststandiger fahrer freelance driver kuhltransport good bank",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 15,
+        "label": "ADJACENT",
+        "title": "fahrer w d m potsdam 30h woche auf 6 monate befristet",
+        "final_decision": "maybe",
+        "score": 66,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 16,
+        "label": "TARGET",
+        "title": "lieferfahrer konditorei fruhschicht",
+        "final_decision": "maybe",
+        "score": 65,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 17,
+        "label": "TARGET",
+        "title": "eventfahrer in oder",
+        "final_decision": "hot",
+        "score": 91,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 18,
+        "label": "TARGET",
+        "title": "auslieferungsfahrer 3 5t lkw attraktivem gehalt in berlin",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 19,
+        "label": "NOISE",
+        "title": "service kraftfahrer c ce im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 6,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "strong_german_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 20,
+        "label": "NOISE",
+        "title": "lkw fahrer in im galabau ab 7 5 t",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 21,
+        "label": "NOISE",
+        "title": "kraftfahrer fur 7 5 t oder 12 t lkw",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 22,
+        "label": "NOISE",
+        "title": "berufskraftfahrer fur lkw ab 7 5 t fur containerstellungen",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 23,
+        "label": "NOISE",
+        "title": "lkw fahrer 7 5 t c1 2835 brutto 14 netto tag spesen",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 24,
+        "label": "NOISE",
+        "title": "lkw fahrer 7 5 t c1 2835 brutto 14 netto tag spesen",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 25,
+        "label": "NOISE",
+        "title": "kraftfahrer fur lkw bis max 7 49 t fur containerdienst",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 26,
+        "label": "UNKNOWN",
+        "title": "fahrer getrankeauslieferung",
+        "final_decision": "maybe",
+        "score": 63,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 27,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 28,
+        "label": "NOISE",
+        "title": "kraftfahrer lkw fahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 29,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer fur den gerustbau",
+        "final_decision": "hard_hidden",
+        "score": 25,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 30,
+        "label": "UNKNOWN",
+        "title": "berufskraftfahrer eventbau festvertrag",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 31,
+        "label": "UNKNOWN",
+        "title": "berufskraftfahrer pflanzen gewachshausaufzucht",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 32,
+        "label": "NOISE",
+        "title": "berufskraftfahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 33,
+        "label": "NOISE",
+        "title": "kraftfahrer mit c1 alt 3 fuhrerschein",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 34,
+        "label": "UNKNOWN",
+        "title": "fahrer von spezialfahrzeugen",
+        "final_decision": "maybe",
+        "score": 57,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 35,
+        "label": "NOISE",
+        "title": "auszubildender zum berufskraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 36,
+        "label": "NOISE",
+        "title": "lkw fahrer berufskraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 37,
+        "label": "NOISE",
+        "title": "kraftfahrer stuckgut c1 gute bezahlung",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 38,
+        "label": "UNKNOWN",
+        "title": "berufskraftfahrer pflanzen gartenelemente mitte",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 39,
+        "label": "NOISE",
+        "title": "ausbildung berufskraftfahrer fur 2027",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 40,
+        "label": "TARGET",
+        "title": "fahrer transportfahrer 3 5t nahverkehr warenlogistik",
+        "final_decision": "maybe",
+        "score": 61,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 41,
+        "label": "NOISE",
+        "title": "berufskraftfahrer klasse c1 mit ladetatigkeit",
+        "final_decision": "hard_hidden",
+        "score": 25,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 42,
+        "label": "NOISE",
+        "title": "berufskraftfahrer m w x",
+        "final_decision": "hard_hidden",
+        "score": 25,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 43,
+        "label": "NOISE",
+        "title": "spedition sucht kraftfahrer bis 7 5t",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 44,
+        "label": "UNKNOWN",
+        "title": "zuverlassiger kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 45,
+        "label": "NOISE",
+        "title": "berufskraftfahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 46,
+        "label": "NOISE",
+        "title": "berufskraftfahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 47,
+        "label": "NOISE",
+        "title": "kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 48,
+        "label": "NOISE",
+        "title": "kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 49,
+        "label": "NOISE",
+        "title": "busfahrer linienverkehr oranienburg",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 50,
+        "label": "NOISE",
+        "title": "busfahrer personenverkehr im teltow flaming",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 51,
+        "label": "NOISE",
+        "title": "busfahrer ovg oranienburg",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 52,
+        "label": "NOISE",
+        "title": "lkw fahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 34,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 53,
+        "label": "NOISE",
+        "title": "lkw fahrer ce ludwigsfelde",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 54,
+        "label": "NOISE",
+        "title": "lkw fahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 34,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 55,
+        "label": "NOISE",
+        "title": "lkw fahrer ce c1 nahverkehr lkw fahrer com",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 56,
+        "label": "NOISE",
+        "title": "lkw fahrer im nahverkehr ce",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 57,
+        "label": "NOISE",
+        "title": "kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 58,
+        "label": "NOISE",
+        "title": "lkw fahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 59,
+        "label": "NOISE",
+        "title": "berufskraftfahrer lkw fahrer ab 3 437 46",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 60,
+        "label": "NOISE",
+        "title": "lkw fahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 61,
+        "label": "NOISE",
+        "title": "berufskraftfahrer containerunternehmen",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 62,
+        "label": "NOISE",
+        "title": "lkw fahrer fur 4 achs fahrmischer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 63,
+        "label": "NOISE",
+        "title": "lkw fahrer c ce 18 00 20 00 h berlin",
+        "final_decision": "hard_hidden",
+        "score": 29,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "strong_german_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 64,
+        "label": "NOISE",
+        "title": "berufskraftfahrer im werksverkehr fernverkehr",
+        "final_decision": "hard_hidden",
+        "score": 12,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 65,
+        "label": "NOISE",
+        "title": "gewerblicher mitarbeiter fuhrpark berufskraftfahrer im werksverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 66,
+        "label": "NOISE",
+        "title": "busfahrer im reisedienst schienenersatzverkehr schulertransport werksverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 67,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer im lagerverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 68,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 69,
+        "label": "NOISE",
+        "title": "lkw fahrer berlin",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 70,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer abenddienst von 16 00 bis 00 30 uhr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 71,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer aus dem raum hamburg fur weissenseer familienunternehmen",
+        "final_decision": "hard_hidden",
+        "score": 25,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 72,
+        "label": "NOISE",
+        "title": "lkw fahrer nachtdienst von 23 00 bis 07 30 uhr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 73,
+        "label": "NOISE",
+        "title": "lkw fahrer in berlin fuhrerschein kl c",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 74,
+        "label": "NOISE",
+        "title": "lkw fahrer c werksverkehr lkw fahrer com",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 75,
+        "label": "NOISE",
+        "title": "lkw fahrer in berlin fuhrerschein kl c",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 76,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer betriebsinnendienst tagschicht 18 00 bis 20 00",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 77,
+        "label": "NOISE",
+        "title": "fahrer schulerbeforderung potsdam und umland",
+        "final_decision": "maybe",
+        "score": 67,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 78,
+        "label": "NOISE",
+        "title": "lkw fahrer in berlin fuhrerschein kl c",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 79,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer im lagerverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 80,
+        "label": "NOISE",
+        "title": "sicherheitsmitarbeiter werkschutz automobilhersteller 15 90 std in berlin id 25911",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 81,
+        "label": "ADJACENT",
+        "title": "staplerfahrer mit werksverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 82,
+        "label": "NOISE",
+        "title": "busfahrer bus driver gigafactory berlin brandenburg",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 83,
+        "label": "UNKNOWN",
+        "title": "fahrer",
+        "final_decision": "rejected",
+        "score": 43,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 84,
+        "label": "UNKNOWN",
+        "title": "fahrer",
+        "final_decision": "maybe",
+        "score": 61,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 85,
+        "label": "UNKNOWN",
+        "title": "fahrer quereinsteiger",
+        "final_decision": "maybe",
+        "score": 69,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 86,
+        "label": "UNKNOWN",
+        "title": "kurier servicefahrer",
+        "final_decision": "maybe",
+        "score": 57,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 87,
+        "label": "UNKNOWN",
+        "title": "fahrer",
+        "final_decision": "hot",
+        "score": 75,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 88,
+        "label": "UNKNOWN",
+        "title": "wir suchen aktuell fahrer in stahnsdorf",
+        "final_decision": "hot",
+        "score": 74,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 89,
+        "label": "ADJACENT",
+        "title": "kurier servicefahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 90,
+        "label": "NOISE",
+        "title": "ausbildung zum berufskraftfahrer gutertransport 2027",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 91,
+        "label": "NOISE",
+        "title": "top ausbildungsbetrieb der ihk schulerpraktikum moglich",
+        "final_decision": "rejected",
+        "score": 31,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 92,
+        "label": "NOISE",
+        "title": "paketzusteller fahrer in werder havel quereinsteiger willkommen starten",
+        "final_decision": "rejected",
+        "score": 43,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 93,
+        "label": "NOISE",
+        "title": "lkw fahrer ce fur eine 2 tages runde nachtschicht",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 94,
+        "label": "NOISE",
+        "title": "lkw fahrer ce bdf tandem tagtour ab wustermark",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 95,
+        "label": "NOISE",
+        "title": "kurier paketfahrer ab wustermark",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 96,
+        "label": "NOISE",
+        "title": "kraftfahrer ce bdf tandem tagtour",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      }
+    ],
+    "courier": [
+      {
+        "id": 0,
+        "label": "TARGET",
+        "title": "auslieferungsfahrer fahrer klasse b tagestouren friesack bei berlin",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 1,
+        "label": "UNKNOWN",
+        "title": "transportfahrer transportfahrerin i festanstellung",
+        "final_decision": "maybe",
+        "score": 53,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 2,
+        "label": "TARGET",
+        "title": "fahrer transporter klasse b renault master mit planenaufbau",
+        "final_decision": "maybe",
+        "score": 83,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 3,
+        "label": "UNKNOWN",
+        "title": "botenfahrer fahrer",
+        "final_decision": "hot",
+        "score": 71,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 4,
+        "label": "NOISE",
+        "title": "postzustellung fs b vollzeitanstellung",
+        "final_decision": "rejected",
+        "score": 35,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 5,
+        "label": "UNKNOWN",
+        "title": "service fahrer fur supermarktwerbung",
+        "final_decision": "maybe",
+        "score": 53,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 6,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer in fur die poststelle mehrere stellen",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 7,
+        "label": "UNKNOWN",
+        "title": "lieferfahrer spedition jugendbucher",
+        "final_decision": "maybe",
+        "score": 67,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 8,
+        "label": "TARGET",
+        "title": "fahrer driver kuhltransport 16 h good bank",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 9,
+        "label": "NOISE",
+        "title": "werkstudent uberfuhrungsfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 10,
+        "label": "ADJACENT",
+        "title": "mobelpacker fahrer ab 17 h sehr gutes trinkgeld deutschlandweite touren",
+        "final_decision": "hot",
+        "score": 78,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 11,
+        "label": "TARGET",
+        "title": "fahrer fur baustellenlogistik transporter berlin",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 12,
+        "label": "NOISE",
+        "title": "servicefahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch"
+        ]
+      },
+      {
+        "id": 13,
+        "label": "ADJACENT",
+        "title": "fahrer w d m potsdam 30h woche auf 6 monate befristet auslieferungsfahrer nicht verkaufsfahrer",
+        "final_decision": "hot",
+        "score": 80,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 14,
+        "label": "NOISE",
+        "title": "selbststandiger fahrer freelance driver kuhltransport good bank",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 15,
+        "label": "ADJACENT",
+        "title": "fahrer w d m potsdam 30h woche auf 6 monate befristet",
+        "final_decision": "hot",
+        "score": 76,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 16,
+        "label": "TARGET",
+        "title": "lieferfahrer konditorei fruhschicht",
+        "final_decision": "hot",
+        "score": 75,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 17,
+        "label": "TARGET",
+        "title": "eventfahrer in oder",
+        "final_decision": "hot",
+        "score": 91,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 18,
+        "label": "TARGET",
+        "title": "auslieferungsfahrer 3 5t lkw attraktivem gehalt in berlin",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 19,
+        "label": "NOISE",
+        "title": "service kraftfahrer c ce im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 16,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "strong_german_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 20,
+        "label": "NOISE",
+        "title": "lkw fahrer in im galabau ab 7 5 t",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 21,
+        "label": "NOISE",
+        "title": "kraftfahrer fur 7 5 t oder 12 t lkw",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 22,
+        "label": "NOISE",
+        "title": "berufskraftfahrer fur lkw ab 7 5 t fur containerstellungen",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 23,
+        "label": "NOISE",
+        "title": "lkw fahrer 7 5 t c1 2835 brutto 14 netto tag spesen",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 24,
+        "label": "NOISE",
+        "title": "lkw fahrer 7 5 t c1 2835 brutto 14 netto tag spesen",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 25,
+        "label": "NOISE",
+        "title": "kraftfahrer fur lkw bis max 7 49 t fur containerdienst",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 26,
+        "label": "UNKNOWN",
+        "title": "fahrer getrankeauslieferung",
+        "final_decision": "hot",
+        "score": 73,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 27,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 28,
+        "label": "NOISE",
+        "title": "kraftfahrer lkw fahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 29,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer fur den gerustbau",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 30,
+        "label": "UNKNOWN",
+        "title": "berufskraftfahrer eventbau festvertrag",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 31,
+        "label": "UNKNOWN",
+        "title": "berufskraftfahrer pflanzen gewachshausaufzucht",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 32,
+        "label": "NOISE",
+        "title": "berufskraftfahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 33,
+        "label": "NOISE",
+        "title": "kraftfahrer mit c1 alt 3 fuhrerschein",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 34,
+        "label": "UNKNOWN",
+        "title": "fahrer von spezialfahrzeugen",
+        "final_decision": "maybe",
+        "score": 67,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 35,
+        "label": "NOISE",
+        "title": "auszubildender zum berufskraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 36,
+        "label": "NOISE",
+        "title": "lkw fahrer berufskraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 37,
+        "label": "NOISE",
+        "title": "kraftfahrer stuckgut c1 gute bezahlung",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 38,
+        "label": "UNKNOWN",
+        "title": "berufskraftfahrer pflanzen gartenelemente mitte",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 39,
+        "label": "NOISE",
+        "title": "ausbildung berufskraftfahrer fur 2027",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 40,
+        "label": "TARGET",
+        "title": "fahrer transportfahrer 3 5t nahverkehr warenlogistik",
+        "final_decision": "hot",
+        "score": 71,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 41,
+        "label": "NOISE",
+        "title": "berufskraftfahrer klasse c1 mit ladetatigkeit",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 42,
+        "label": "NOISE",
+        "title": "berufskraftfahrer m w x",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 43,
+        "label": "NOISE",
+        "title": "spedition sucht kraftfahrer bis 7 5t",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 44,
+        "label": "UNKNOWN",
+        "title": "zuverlassiger kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 45,
+        "label": "NOISE",
+        "title": "berufskraftfahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 46,
+        "label": "NOISE",
+        "title": "berufskraftfahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 47,
+        "label": "NOISE",
+        "title": "kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 48,
+        "label": "NOISE",
+        "title": "kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 49,
+        "label": "NOISE",
+        "title": "busfahrer linienverkehr oranienburg",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 50,
+        "label": "NOISE",
+        "title": "busfahrer personenverkehr im teltow flaming",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 51,
+        "label": "NOISE",
+        "title": "busfahrer ovg oranienburg",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 52,
+        "label": "NOISE",
+        "title": "lkw fahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 53,
+        "label": "NOISE",
+        "title": "lkw fahrer ce ludwigsfelde",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 54,
+        "label": "NOISE",
+        "title": "lkw fahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 55,
+        "label": "NOISE",
+        "title": "lkw fahrer ce c1 nahverkehr lkw fahrer com",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 56,
+        "label": "NOISE",
+        "title": "lkw fahrer im nahverkehr ce",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 57,
+        "label": "NOISE",
+        "title": "kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 58,
+        "label": "NOISE",
+        "title": "lkw fahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 59,
+        "label": "NOISE",
+        "title": "berufskraftfahrer lkw fahrer ab 3 437 46",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 60,
+        "label": "NOISE",
+        "title": "lkw fahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 61,
+        "label": "NOISE",
+        "title": "berufskraftfahrer containerunternehmen",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 62,
+        "label": "NOISE",
+        "title": "lkw fahrer fur 4 achs fahrmischer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 63,
+        "label": "NOISE",
+        "title": "lkw fahrer c ce 18 00 20 00 h berlin",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "strong_german_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 64,
+        "label": "NOISE",
+        "title": "berufskraftfahrer im werksverkehr fernverkehr",
+        "final_decision": "hard_hidden",
+        "score": 22,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 65,
+        "label": "NOISE",
+        "title": "gewerblicher mitarbeiter fuhrpark berufskraftfahrer im werksverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 66,
+        "label": "NOISE",
+        "title": "busfahrer im reisedienst schienenersatzverkehr schulertransport werksverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 67,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer im lagerverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 68,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 69,
+        "label": "NOISE",
+        "title": "lkw fahrer berlin",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 70,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer abenddienst von 16 00 bis 00 30 uhr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 71,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer aus dem raum hamburg fur weissenseer familienunternehmen",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 72,
+        "label": "NOISE",
+        "title": "lkw fahrer nachtdienst von 23 00 bis 07 30 uhr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 73,
+        "label": "NOISE",
+        "title": "lkw fahrer in berlin fuhrerschein kl c",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 74,
+        "label": "NOISE",
+        "title": "lkw fahrer c werksverkehr lkw fahrer com",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 75,
+        "label": "NOISE",
+        "title": "lkw fahrer in berlin fuhrerschein kl c",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 76,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer betriebsinnendienst tagschicht 18 00 bis 20 00",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 77,
+        "label": "NOISE",
+        "title": "fahrer schulerbeforderung potsdam und umland",
+        "final_decision": "hot",
+        "score": 77,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 78,
+        "label": "NOISE",
+        "title": "lkw fahrer in berlin fuhrerschein kl c",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 79,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer im lagerverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 80,
+        "label": "NOISE",
+        "title": "sicherheitsmitarbeiter werkschutz automobilhersteller 15 90 std in berlin id 25911",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 81,
+        "label": "ADJACENT",
+        "title": "staplerfahrer mit werksverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 82,
+        "label": "NOISE",
+        "title": "busfahrer bus driver gigafactory berlin brandenburg",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 83,
+        "label": "UNKNOWN",
+        "title": "fahrer",
+        "final_decision": "maybe",
+        "score": 53,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 84,
+        "label": "UNKNOWN",
+        "title": "fahrer",
+        "final_decision": "hot",
+        "score": 71,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 85,
+        "label": "UNKNOWN",
+        "title": "fahrer quereinsteiger",
+        "final_decision": "hot",
+        "score": 79,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 86,
+        "label": "UNKNOWN",
+        "title": "kurier servicefahrer",
+        "final_decision": "maybe",
+        "score": 67,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 87,
+        "label": "UNKNOWN",
+        "title": "fahrer",
+        "final_decision": "hot",
+        "score": 85,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 88,
+        "label": "UNKNOWN",
+        "title": "wir suchen aktuell fahrer in stahnsdorf",
+        "final_decision": "hot",
+        "score": 84,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 89,
+        "label": "ADJACENT",
+        "title": "kurier servicefahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 90,
+        "label": "NOISE",
+        "title": "ausbildung zum berufskraftfahrer gutertransport 2027",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 91,
+        "label": "NOISE",
+        "title": "top ausbildungsbetrieb der ihk schulerpraktikum moglich",
+        "final_decision": "rejected",
+        "score": 31,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 92,
+        "label": "NOISE",
+        "title": "paketzusteller fahrer in werder havel quereinsteiger willkommen starten",
+        "final_decision": "maybe",
+        "score": 53,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 93,
+        "label": "NOISE",
+        "title": "lkw fahrer ce fur eine 2 tages runde nachtschicht",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 94,
+        "label": "NOISE",
+        "title": "lkw fahrer ce bdf tandem tagtour ab wustermark",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 95,
+        "label": "NOISE",
+        "title": "kurier paketfahrer ab wustermark",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 96,
+        "label": "NOISE",
+        "title": "kraftfahrer ce bdf tandem tagtour",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      }
+    ],
+    "fahrer_b": [
+      {
+        "id": 0,
+        "label": "TARGET",
+        "title": "auslieferungsfahrer fahrer klasse b tagestouren friesack bei berlin",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 1,
+        "label": "UNKNOWN",
+        "title": "transportfahrer transportfahrerin i festanstellung",
+        "final_decision": "maybe",
+        "score": 53,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 2,
+        "label": "TARGET",
+        "title": "fahrer transporter klasse b renault master mit planenaufbau",
+        "final_decision": "maybe",
+        "score": 83,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 3,
+        "label": "UNKNOWN",
+        "title": "botenfahrer fahrer",
+        "final_decision": "hot",
+        "score": 71,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 4,
+        "label": "NOISE",
+        "title": "postzustellung fs b vollzeitanstellung",
+        "final_decision": "rejected",
+        "score": 35,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 5,
+        "label": "UNKNOWN",
+        "title": "service fahrer fur supermarktwerbung",
+        "final_decision": "maybe",
+        "score": 53,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 6,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer in fur die poststelle mehrere stellen",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 7,
+        "label": "UNKNOWN",
+        "title": "lieferfahrer spedition jugendbucher",
+        "final_decision": "maybe",
+        "score": 67,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 8,
+        "label": "TARGET",
+        "title": "fahrer driver kuhltransport 16 h good bank",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 9,
+        "label": "NOISE",
+        "title": "werkstudent uberfuhrungsfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 10,
+        "label": "ADJACENT",
+        "title": "mobelpacker fahrer ab 17 h sehr gutes trinkgeld deutschlandweite touren",
+        "final_decision": "hot",
+        "score": 78,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 11,
+        "label": "TARGET",
+        "title": "fahrer fur baustellenlogistik transporter berlin",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 12,
+        "label": "NOISE",
+        "title": "servicefahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch"
+        ]
+      },
+      {
+        "id": 13,
+        "label": "ADJACENT",
+        "title": "fahrer w d m potsdam 30h woche auf 6 monate befristet auslieferungsfahrer nicht verkaufsfahrer",
+        "final_decision": "hot",
+        "score": 80,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 14,
+        "label": "NOISE",
+        "title": "selbststandiger fahrer freelance driver kuhltransport good bank",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 15,
+        "label": "ADJACENT",
+        "title": "fahrer w d m potsdam 30h woche auf 6 monate befristet",
+        "final_decision": "hot",
+        "score": 76,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 16,
+        "label": "TARGET",
+        "title": "lieferfahrer konditorei fruhschicht",
+        "final_decision": "hot",
+        "score": 75,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 17,
+        "label": "TARGET",
+        "title": "eventfahrer in oder",
+        "final_decision": "hot",
+        "score": 91,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 18,
+        "label": "TARGET",
+        "title": "auslieferungsfahrer 3 5t lkw attraktivem gehalt in berlin",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 19,
+        "label": "NOISE",
+        "title": "service kraftfahrer c ce im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 16,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "strong_german_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 20,
+        "label": "NOISE",
+        "title": "lkw fahrer in im galabau ab 7 5 t",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 21,
+        "label": "NOISE",
+        "title": "kraftfahrer fur 7 5 t oder 12 t lkw",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 22,
+        "label": "NOISE",
+        "title": "berufskraftfahrer fur lkw ab 7 5 t fur containerstellungen",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 23,
+        "label": "NOISE",
+        "title": "lkw fahrer 7 5 t c1 2835 brutto 14 netto tag spesen",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 24,
+        "label": "NOISE",
+        "title": "lkw fahrer 7 5 t c1 2835 brutto 14 netto tag spesen",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 25,
+        "label": "NOISE",
+        "title": "kraftfahrer fur lkw bis max 7 49 t fur containerdienst",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 26,
+        "label": "UNKNOWN",
+        "title": "fahrer getrankeauslieferung",
+        "final_decision": "hot",
+        "score": 73,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 27,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 28,
+        "label": "NOISE",
+        "title": "kraftfahrer lkw fahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 29,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer fur den gerustbau",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 30,
+        "label": "UNKNOWN",
+        "title": "berufskraftfahrer eventbau festvertrag",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 31,
+        "label": "UNKNOWN",
+        "title": "berufskraftfahrer pflanzen gewachshausaufzucht",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 32,
+        "label": "NOISE",
+        "title": "berufskraftfahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 33,
+        "label": "NOISE",
+        "title": "kraftfahrer mit c1 alt 3 fuhrerschein",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 34,
+        "label": "UNKNOWN",
+        "title": "fahrer von spezialfahrzeugen",
+        "final_decision": "maybe",
+        "score": 67,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 35,
+        "label": "NOISE",
+        "title": "auszubildender zum berufskraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 36,
+        "label": "NOISE",
+        "title": "lkw fahrer berufskraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 37,
+        "label": "NOISE",
+        "title": "kraftfahrer stuckgut c1 gute bezahlung",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 38,
+        "label": "UNKNOWN",
+        "title": "berufskraftfahrer pflanzen gartenelemente mitte",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 39,
+        "label": "NOISE",
+        "title": "ausbildung berufskraftfahrer fur 2027",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 40,
+        "label": "TARGET",
+        "title": "fahrer transportfahrer 3 5t nahverkehr warenlogistik",
+        "final_decision": "hot",
+        "score": 71,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 41,
+        "label": "NOISE",
+        "title": "berufskraftfahrer klasse c1 mit ladetatigkeit",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 42,
+        "label": "NOISE",
+        "title": "berufskraftfahrer m w x",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 43,
+        "label": "NOISE",
+        "title": "spedition sucht kraftfahrer bis 7 5t",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 44,
+        "label": "UNKNOWN",
+        "title": "zuverlassiger kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 45,
+        "label": "NOISE",
+        "title": "berufskraftfahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 46,
+        "label": "NOISE",
+        "title": "berufskraftfahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 47,
+        "label": "NOISE",
+        "title": "kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 48,
+        "label": "NOISE",
+        "title": "kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 49,
+        "label": "NOISE",
+        "title": "busfahrer linienverkehr oranienburg",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 50,
+        "label": "NOISE",
+        "title": "busfahrer personenverkehr im teltow flaming",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 51,
+        "label": "NOISE",
+        "title": "busfahrer ovg oranienburg",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 52,
+        "label": "NOISE",
+        "title": "lkw fahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 53,
+        "label": "NOISE",
+        "title": "lkw fahrer ce ludwigsfelde",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 54,
+        "label": "NOISE",
+        "title": "lkw fahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 55,
+        "label": "NOISE",
+        "title": "lkw fahrer ce c1 nahverkehr lkw fahrer com",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 56,
+        "label": "NOISE",
+        "title": "lkw fahrer im nahverkehr ce",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 57,
+        "label": "NOISE",
+        "title": "kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 58,
+        "label": "NOISE",
+        "title": "lkw fahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 59,
+        "label": "NOISE",
+        "title": "berufskraftfahrer lkw fahrer ab 3 437 46",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 60,
+        "label": "NOISE",
+        "title": "lkw fahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 61,
+        "label": "NOISE",
+        "title": "berufskraftfahrer containerunternehmen",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 62,
+        "label": "NOISE",
+        "title": "lkw fahrer fur 4 achs fahrmischer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 63,
+        "label": "NOISE",
+        "title": "lkw fahrer c ce 18 00 20 00 h berlin",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "strong_german_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 64,
+        "label": "NOISE",
+        "title": "berufskraftfahrer im werksverkehr fernverkehr",
+        "final_decision": "hard_hidden",
+        "score": 22,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 65,
+        "label": "NOISE",
+        "title": "gewerblicher mitarbeiter fuhrpark berufskraftfahrer im werksverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 66,
+        "label": "NOISE",
+        "title": "busfahrer im reisedienst schienenersatzverkehr schulertransport werksverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 67,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer im lagerverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 68,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 69,
+        "label": "NOISE",
+        "title": "lkw fahrer berlin",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 70,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer abenddienst von 16 00 bis 00 30 uhr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 71,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer aus dem raum hamburg fur weissenseer familienunternehmen",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 72,
+        "label": "NOISE",
+        "title": "lkw fahrer nachtdienst von 23 00 bis 07 30 uhr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 73,
+        "label": "NOISE",
+        "title": "lkw fahrer in berlin fuhrerschein kl c",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 74,
+        "label": "NOISE",
+        "title": "lkw fahrer c werksverkehr lkw fahrer com",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 75,
+        "label": "NOISE",
+        "title": "lkw fahrer in berlin fuhrerschein kl c",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 76,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer betriebsinnendienst tagschicht 18 00 bis 20 00",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 77,
+        "label": "NOISE",
+        "title": "fahrer schulerbeforderung potsdam und umland",
+        "final_decision": "hot",
+        "score": 77,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 78,
+        "label": "NOISE",
+        "title": "lkw fahrer in berlin fuhrerschein kl c",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 79,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer im lagerverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 80,
+        "label": "NOISE",
+        "title": "sicherheitsmitarbeiter werkschutz automobilhersteller 15 90 std in berlin id 25911",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 81,
+        "label": "ADJACENT",
+        "title": "staplerfahrer mit werksverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 82,
+        "label": "NOISE",
+        "title": "busfahrer bus driver gigafactory berlin brandenburg",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 83,
+        "label": "UNKNOWN",
+        "title": "fahrer",
+        "final_decision": "maybe",
+        "score": 53,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 84,
+        "label": "UNKNOWN",
+        "title": "fahrer",
+        "final_decision": "hot",
+        "score": 71,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 85,
+        "label": "UNKNOWN",
+        "title": "fahrer quereinsteiger",
+        "final_decision": "hot",
+        "score": 79,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 86,
+        "label": "UNKNOWN",
+        "title": "kurier servicefahrer",
+        "final_decision": "maybe",
+        "score": 67,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 87,
+        "label": "UNKNOWN",
+        "title": "fahrer",
+        "final_decision": "hot",
+        "score": 85,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 88,
+        "label": "UNKNOWN",
+        "title": "wir suchen aktuell fahrer in stahnsdorf",
+        "final_decision": "hot",
+        "score": 84,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 89,
+        "label": "ADJACENT",
+        "title": "kurier servicefahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 90,
+        "label": "NOISE",
+        "title": "ausbildung zum berufskraftfahrer gutertransport 2027",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 91,
+        "label": "NOISE",
+        "title": "top ausbildungsbetrieb der ihk schulerpraktikum moglich",
+        "final_decision": "rejected",
+        "score": 31,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 92,
+        "label": "NOISE",
+        "title": "paketzusteller fahrer in werder havel quereinsteiger willkommen starten",
+        "final_decision": "maybe",
+        "score": 53,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 93,
+        "label": "NOISE",
+        "title": "lkw fahrer ce fur eine 2 tages runde nachtschicht",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 94,
+        "label": "NOISE",
+        "title": "lkw fahrer ce bdf tandem tagtour ab wustermark",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      },
+      {
+        "id": 95,
+        "label": "NOISE",
+        "title": "kurier paketfahrer ab wustermark",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 96,
+        "label": "NOISE",
+        "title": "kraftfahrer ce bdf tandem tagtour",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch"
+        ]
+      }
+    ],
+    "vehicle_logistics": [
+      {
+        "id": 0,
+        "label": "TARGET",
+        "title": "auslieferungsfahrer fahrer klasse b tagestouren friesack bei berlin",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 1,
+        "label": "UNKNOWN",
+        "title": "transportfahrer transportfahrerin i festanstellung",
+        "final_decision": "hard_hidden",
+        "score": 17,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 2,
+        "label": "TARGET",
+        "title": "fahrer transporter klasse b renault master mit planenaufbau",
+        "final_decision": "hard_hidden",
+        "score": 33,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 3,
+        "label": "UNKNOWN",
+        "title": "botenfahrer fahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 4,
+        "label": "NOISE",
+        "title": "postzustellung fs b vollzeitanstellung",
+        "final_decision": "rejected",
+        "score": 35,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 5,
+        "label": "UNKNOWN",
+        "title": "service fahrer fur supermarktwerbung",
+        "final_decision": "hard_hidden",
+        "score": 17,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 6,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer in fur die poststelle mehrere stellen",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 7,
+        "label": "UNKNOWN",
+        "title": "lieferfahrer spedition jugendbucher",
+        "final_decision": "hard_hidden",
+        "score": 31,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 8,
+        "label": "TARGET",
+        "title": "fahrer driver kuhltransport 16 h good bank",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 9,
+        "label": "NOISE",
+        "title": "werkstudent uberfuhrungsfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 10,
+        "label": "ADJACENT",
+        "title": "mobelpacker fahrer ab 17 h sehr gutes trinkgeld deutschlandweite touren",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 11,
+        "label": "TARGET",
+        "title": "fahrer fur baustellenlogistik transporter berlin",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 12,
+        "label": "NOISE",
+        "title": "servicefahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 13,
+        "label": "ADJACENT",
+        "title": "fahrer w d m potsdam 30h woche auf 6 monate befristet auslieferungsfahrer nicht verkaufsfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 14,
+        "label": "NOISE",
+        "title": "selbststandiger fahrer freelance driver kuhltransport good bank",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 15,
+        "label": "ADJACENT",
+        "title": "fahrer w d m potsdam 30h woche auf 6 monate befristet",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 16,
+        "label": "TARGET",
+        "title": "lieferfahrer konditorei fruhschicht",
+        "final_decision": "hard_hidden",
+        "score": 15,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 17,
+        "label": "TARGET",
+        "title": "eventfahrer in oder",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 18,
+        "label": "TARGET",
+        "title": "auslieferungsfahrer 3 5t lkw attraktivem gehalt in berlin",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 19,
+        "label": "NOISE",
+        "title": "service kraftfahrer c ce im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 0,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch",
+          "strong_german_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 20,
+        "label": "NOISE",
+        "title": "lkw fahrer in im galabau ab 7 5 t",
+        "final_decision": "hard_hidden",
+        "score": 31,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 21,
+        "label": "NOISE",
+        "title": "kraftfahrer fur 7 5 t oder 12 t lkw",
+        "final_decision": "hard_hidden",
+        "score": 17,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 22,
+        "label": "NOISE",
+        "title": "berufskraftfahrer fur lkw ab 7 5 t fur containerstellungen",
+        "final_decision": "hard_hidden",
+        "score": 17,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 23,
+        "label": "NOISE",
+        "title": "lkw fahrer 7 5 t c1 2835 brutto 14 netto tag spesen",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 24,
+        "label": "NOISE",
+        "title": "lkw fahrer 7 5 t c1 2835 brutto 14 netto tag spesen",
+        "final_decision": "hard_hidden",
+        "score": 31,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 25,
+        "label": "NOISE",
+        "title": "kraftfahrer fur lkw bis max 7 49 t fur containerdienst",
+        "final_decision": "hard_hidden",
+        "score": 17,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 26,
+        "label": "UNKNOWN",
+        "title": "fahrer getrankeauslieferung",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 27,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 17,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 28,
+        "label": "NOISE",
+        "title": "kraftfahrer lkw fahrer",
+        "final_decision": "hard_hidden",
+        "score": 23,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 29,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer fur den gerustbau",
+        "final_decision": "hard_hidden",
+        "score": 0,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 30,
+        "label": "UNKNOWN",
+        "title": "berufskraftfahrer eventbau festvertrag",
+        "final_decision": "hard_hidden",
+        "score": 31,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 31,
+        "label": "UNKNOWN",
+        "title": "berufskraftfahrer pflanzen gewachshausaufzucht",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 32,
+        "label": "NOISE",
+        "title": "berufskraftfahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 23,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 33,
+        "label": "NOISE",
+        "title": "kraftfahrer mit c1 alt 3 fuhrerschein",
+        "final_decision": "hard_hidden",
+        "score": 23,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 34,
+        "label": "UNKNOWN",
+        "title": "fahrer von spezialfahrzeugen",
+        "final_decision": "hard_hidden",
+        "score": 31,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 35,
+        "label": "NOISE",
+        "title": "auszubildender zum berufskraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 9,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 36,
+        "label": "NOISE",
+        "title": "lkw fahrer berufskraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 31,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 37,
+        "label": "NOISE",
+        "title": "kraftfahrer stuckgut c1 gute bezahlung",
+        "final_decision": "hard_hidden",
+        "score": 34,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 38,
+        "label": "UNKNOWN",
+        "title": "berufskraftfahrer pflanzen gartenelemente mitte",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 39,
+        "label": "NOISE",
+        "title": "ausbildung berufskraftfahrer fur 2027",
+        "final_decision": "hard_hidden",
+        "score": 27,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 40,
+        "label": "TARGET",
+        "title": "fahrer transportfahrer 3 5t nahverkehr warenlogistik",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 41,
+        "label": "NOISE",
+        "title": "berufskraftfahrer klasse c1 mit ladetatigkeit",
+        "final_decision": "hard_hidden",
+        "score": 0,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 42,
+        "label": "NOISE",
+        "title": "berufskraftfahrer m w x",
+        "final_decision": "hard_hidden",
+        "score": 0,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 43,
+        "label": "NOISE",
+        "title": "spedition sucht kraftfahrer bis 7 5t",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 44,
+        "label": "UNKNOWN",
+        "title": "zuverlassiger kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 27,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 45,
+        "label": "NOISE",
+        "title": "berufskraftfahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 46,
+        "label": "NOISE",
+        "title": "berufskraftfahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 47,
+        "label": "NOISE",
+        "title": "kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 48,
+        "label": "NOISE",
+        "title": "kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 49,
+        "label": "NOISE",
+        "title": "busfahrer linienverkehr oranienburg",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 50,
+        "label": "NOISE",
+        "title": "busfahrer personenverkehr im teltow flaming",
+        "final_decision": "hard_hidden",
+        "score": 9,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 51,
+        "label": "NOISE",
+        "title": "busfahrer ovg oranienburg",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 52,
+        "label": "NOISE",
+        "title": "lkw fahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 8,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 53,
+        "label": "NOISE",
+        "title": "lkw fahrer ce ludwigsfelde",
+        "final_decision": "hard_hidden",
+        "score": 16,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 54,
+        "label": "NOISE",
+        "title": "lkw fahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 8,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 55,
+        "label": "NOISE",
+        "title": "lkw fahrer ce c1 nahverkehr lkw fahrer com",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 56,
+        "label": "NOISE",
+        "title": "lkw fahrer im nahverkehr ce",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 57,
+        "label": "NOISE",
+        "title": "kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 9,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 58,
+        "label": "NOISE",
+        "title": "lkw fahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 24,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 59,
+        "label": "NOISE",
+        "title": "berufskraftfahrer lkw fahrer ab 3 437 46",
+        "final_decision": "hard_hidden",
+        "score": 31,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 60,
+        "label": "NOISE",
+        "title": "lkw fahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 61,
+        "label": "NOISE",
+        "title": "berufskraftfahrer containerunternehmen",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 62,
+        "label": "NOISE",
+        "title": "lkw fahrer fur 4 achs fahrmischer",
+        "final_decision": "hard_hidden",
+        "score": 5,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 63,
+        "label": "NOISE",
+        "title": "lkw fahrer c ce 18 00 20 00 h berlin",
+        "final_decision": "hard_hidden",
+        "score": 3,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch",
+          "strong_german_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 64,
+        "label": "NOISE",
+        "title": "berufskraftfahrer im werksverkehr fernverkehr",
+        "final_decision": "hard_hidden",
+        "score": 0,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 65,
+        "label": "NOISE",
+        "title": "gewerblicher mitarbeiter fuhrpark berufskraftfahrer im werksverkehr",
+        "final_decision": "hard_hidden",
+        "score": 17,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 66,
+        "label": "NOISE",
+        "title": "busfahrer im reisedienst schienenersatzverkehr schulertransport werksverkehr",
+        "final_decision": "hard_hidden",
+        "score": 9,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 67,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer im lagerverkehr",
+        "final_decision": "hard_hidden",
+        "score": 17,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 68,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 31,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 69,
+        "label": "NOISE",
+        "title": "lkw fahrer berlin",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 70,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer abenddienst von 16 00 bis 00 30 uhr",
+        "final_decision": "hard_hidden",
+        "score": 31,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 71,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer aus dem raum hamburg fur weissenseer familienunternehmen",
+        "final_decision": "hard_hidden",
+        "score": 0,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 72,
+        "label": "NOISE",
+        "title": "lkw fahrer nachtdienst von 23 00 bis 07 30 uhr",
+        "final_decision": "hard_hidden",
+        "score": 31,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 73,
+        "label": "NOISE",
+        "title": "lkw fahrer in berlin fuhrerschein kl c",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 74,
+        "label": "NOISE",
+        "title": "lkw fahrer c werksverkehr lkw fahrer com",
+        "final_decision": "hard_hidden",
+        "score": 15,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 75,
+        "label": "NOISE",
+        "title": "lkw fahrer in berlin fuhrerschein kl c",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 76,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer betriebsinnendienst tagschicht 18 00 bis 20 00",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 77,
+        "label": "NOISE",
+        "title": "fahrer schulerbeforderung potsdam und umland",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 78,
+        "label": "NOISE",
+        "title": "lkw fahrer in berlin fuhrerschein kl c",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 79,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer im lagerverkehr",
+        "final_decision": "hard_hidden",
+        "score": 23,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 80,
+        "label": "NOISE",
+        "title": "sicherheitsmitarbeiter werkschutz automobilhersteller 15 90 std in berlin id 25911",
+        "final_decision": "hard_hidden",
+        "score": 27,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 81,
+        "label": "ADJACENT",
+        "title": "staplerfahrer mit werksverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 82,
+        "label": "NOISE",
+        "title": "busfahrer bus driver gigafactory berlin brandenburg",
+        "final_decision": "hard_hidden",
+        "score": 17,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 83,
+        "label": "UNKNOWN",
+        "title": "fahrer",
+        "final_decision": "hard_hidden",
+        "score": 17,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 84,
+        "label": "UNKNOWN",
+        "title": "fahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 85,
+        "label": "UNKNOWN",
+        "title": "fahrer quereinsteiger",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 86,
+        "label": "UNKNOWN",
+        "title": "kurier servicefahrer",
+        "final_decision": "hard_hidden",
+        "score": 31,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 87,
+        "label": "UNKNOWN",
+        "title": "fahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 88,
+        "label": "UNKNOWN",
+        "title": "wir suchen aktuell fahrer in stahnsdorf",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 89,
+        "label": "ADJACENT",
+        "title": "kurier servicefahrer",
+        "final_decision": "hard_hidden",
+        "score": 0,
+        "hard_reject_reason": [
+          "profession_family_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 90,
+        "label": "NOISE",
+        "title": "ausbildung zum berufskraftfahrer gutertransport 2027",
+        "final_decision": "hard_hidden",
+        "score": 27,
+        "hard_reject_reason": [
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 91,
+        "label": "NOISE",
+        "title": "top ausbildungsbetrieb der ihk schulerpraktikum moglich",
+        "final_decision": "rejected",
+        "score": 31,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 92,
+        "label": "NOISE",
+        "title": "paketzusteller fahrer in werder havel quereinsteiger willkommen starten",
+        "final_decision": "hard_hidden",
+        "score": 17,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 93,
+        "label": "NOISE",
+        "title": "lkw fahrer ce fur eine 2 tages runde nachtschicht",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 94,
+        "label": "NOISE",
+        "title": "lkw fahrer ce bdf tandem tagtour ab wustermark",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 95,
+        "label": "NOISE",
+        "title": "kurier paketfahrer ab wustermark",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 96,
+        "label": "NOISE",
+        "title": "kraftfahrer ce bdf tandem tagtour",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "heavy_vehicle_mismatch",
+          "profession_family_mismatch"
+        ]
+      }
+    ],
+    "warehouse": [
+      {
+        "id": 0,
+        "label": "TARGET",
+        "title": "auslieferungsfahrer fahrer klasse b tagestouren friesack bei berlin",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 1,
+        "label": "UNKNOWN",
+        "title": "transportfahrer transportfahrerin i festanstellung",
+        "final_decision": "hard_hidden",
+        "score": 17,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 2,
+        "label": "TARGET",
+        "title": "fahrer transporter klasse b renault master mit planenaufbau",
+        "final_decision": "hard_hidden",
+        "score": 10,
+        "hard_reject_reason": [
+          "profession_family_mismatch",
+          "degree_mismatch"
+        ]
+      },
+      {
+        "id": 3,
+        "label": "UNKNOWN",
+        "title": "botenfahrer fahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 4,
+        "label": "NOISE",
+        "title": "postzustellung fs b vollzeitanstellung",
+        "final_decision": "rejected",
+        "score": 35,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 5,
+        "label": "UNKNOWN",
+        "title": "service fahrer fur supermarktwerbung",
+        "final_decision": "hard_hidden",
+        "score": 17,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 6,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer in fur die poststelle mehrere stellen",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 7,
+        "label": "UNKNOWN",
+        "title": "lieferfahrer spedition jugendbucher",
+        "final_decision": "hard_hidden",
+        "score": 31,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 8,
+        "label": "TARGET",
+        "title": "fahrer driver kuhltransport 16 h good bank",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 9,
+        "label": "NOISE",
+        "title": "werkstudent uberfuhrungsfahrer",
+        "final_decision": "hard_hidden",
+        "score": 28,
+        "hard_reject_reason": [
+          "profession_family_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 10,
+        "label": "ADJACENT",
+        "title": "mobelpacker fahrer ab 17 h sehr gutes trinkgeld deutschlandweite touren",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 11,
+        "label": "TARGET",
+        "title": "fahrer fur baustellenlogistik transporter berlin",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 12,
+        "label": "NOISE",
+        "title": "servicefahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 13,
+        "label": "ADJACENT",
+        "title": "fahrer w d m potsdam 30h woche auf 6 monate befristet auslieferungsfahrer nicht verkaufsfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 14,
+        "label": "NOISE",
+        "title": "selbststandiger fahrer freelance driver kuhltransport good bank",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 15,
+        "label": "ADJACENT",
+        "title": "fahrer w d m potsdam 30h woche auf 6 monate befristet",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 16,
+        "label": "TARGET",
+        "title": "lieferfahrer konditorei fruhschicht",
+        "final_decision": "hard_hidden",
+        "score": 15,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 17,
+        "label": "TARGET",
+        "title": "eventfahrer in oder",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 18,
+        "label": "TARGET",
+        "title": "auslieferungsfahrer 3 5t lkw attraktivem gehalt in berlin",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 19,
+        "label": "NOISE",
+        "title": "service kraftfahrer c ce im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 0,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch",
+          "strong_german_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 20,
+        "label": "NOISE",
+        "title": "lkw fahrer in im galabau ab 7 5 t",
+        "final_decision": "hard_hidden",
+        "score": 31,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 21,
+        "label": "NOISE",
+        "title": "kraftfahrer fur 7 5 t oder 12 t lkw",
+        "final_decision": "hard_hidden",
+        "score": 17,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 22,
+        "label": "NOISE",
+        "title": "berufskraftfahrer fur lkw ab 7 5 t fur containerstellungen",
+        "final_decision": "hard_hidden",
+        "score": 17,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 23,
+        "label": "NOISE",
+        "title": "lkw fahrer 7 5 t c1 2835 brutto 14 netto tag spesen",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 24,
+        "label": "NOISE",
+        "title": "lkw fahrer 7 5 t c1 2835 brutto 14 netto tag spesen",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 25,
+        "label": "NOISE",
+        "title": "kraftfahrer fur lkw bis max 7 49 t fur containerdienst",
+        "final_decision": "hard_hidden",
+        "score": 17,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 26,
+        "label": "UNKNOWN",
+        "title": "fahrer getrankeauslieferung",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 27,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 17,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 28,
+        "label": "NOISE",
+        "title": "kraftfahrer lkw fahrer",
+        "final_decision": "hard_hidden",
+        "score": 23,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 29,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer fur den gerustbau",
+        "final_decision": "hard_hidden",
+        "score": 0,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 30,
+        "label": "UNKNOWN",
+        "title": "berufskraftfahrer eventbau festvertrag",
+        "final_decision": "hard_hidden",
+        "score": 31,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 31,
+        "label": "UNKNOWN",
+        "title": "berufskraftfahrer pflanzen gewachshausaufzucht",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 32,
+        "label": "NOISE",
+        "title": "berufskraftfahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 23,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 33,
+        "label": "NOISE",
+        "title": "kraftfahrer mit c1 alt 3 fuhrerschein",
+        "final_decision": "hard_hidden",
+        "score": 23,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 34,
+        "label": "UNKNOWN",
+        "title": "fahrer von spezialfahrzeugen",
+        "final_decision": "hard_hidden",
+        "score": 31,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 35,
+        "label": "NOISE",
+        "title": "auszubildender zum berufskraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 9,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 36,
+        "label": "NOISE",
+        "title": "lkw fahrer berufskraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 37,
+        "label": "NOISE",
+        "title": "kraftfahrer stuckgut c1 gute bezahlung",
+        "final_decision": "hard_hidden",
+        "score": 34,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 38,
+        "label": "UNKNOWN",
+        "title": "berufskraftfahrer pflanzen gartenelemente mitte",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 39,
+        "label": "NOISE",
+        "title": "ausbildung berufskraftfahrer fur 2027",
+        "final_decision": "hard_hidden",
+        "score": 27,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 40,
+        "label": "TARGET",
+        "title": "fahrer transportfahrer 3 5t nahverkehr warenlogistik",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 41,
+        "label": "NOISE",
+        "title": "berufskraftfahrer klasse c1 mit ladetatigkeit",
+        "final_decision": "hard_hidden",
+        "score": 0,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 42,
+        "label": "NOISE",
+        "title": "berufskraftfahrer m w x",
+        "final_decision": "hard_hidden",
+        "score": 0,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 43,
+        "label": "NOISE",
+        "title": "spedition sucht kraftfahrer bis 7 5t",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 44,
+        "label": "UNKNOWN",
+        "title": "zuverlassiger kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 27,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 45,
+        "label": "NOISE",
+        "title": "berufskraftfahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 46,
+        "label": "NOISE",
+        "title": "berufskraftfahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 47,
+        "label": "NOISE",
+        "title": "kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 48,
+        "label": "NOISE",
+        "title": "kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 49,
+        "label": "NOISE",
+        "title": "busfahrer linienverkehr oranienburg",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 50,
+        "label": "NOISE",
+        "title": "busfahrer personenverkehr im teltow flaming",
+        "final_decision": "hard_hidden",
+        "score": 9,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 51,
+        "label": "NOISE",
+        "title": "busfahrer ovg oranienburg",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 52,
+        "label": "NOISE",
+        "title": "lkw fahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 20,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 53,
+        "label": "NOISE",
+        "title": "lkw fahrer ce ludwigsfelde",
+        "final_decision": "hard_hidden",
+        "score": 16,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 54,
+        "label": "NOISE",
+        "title": "lkw fahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 20,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 55,
+        "label": "NOISE",
+        "title": "lkw fahrer ce c1 nahverkehr lkw fahrer com",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 56,
+        "label": "NOISE",
+        "title": "lkw fahrer im nahverkehr ce",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 57,
+        "label": "NOISE",
+        "title": "kraftfahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 58,
+        "label": "NOISE",
+        "title": "lkw fahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 59,
+        "label": "NOISE",
+        "title": "berufskraftfahrer lkw fahrer ab 3 437 46",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 60,
+        "label": "NOISE",
+        "title": "lkw fahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 61,
+        "label": "NOISE",
+        "title": "berufskraftfahrer containerunternehmen",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 62,
+        "label": "NOISE",
+        "title": "lkw fahrer fur 4 achs fahrmischer",
+        "final_decision": "hard_hidden",
+        "score": 0,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 63,
+        "label": "NOISE",
+        "title": "lkw fahrer c ce 18 00 20 00 h berlin",
+        "final_decision": "hard_hidden",
+        "score": 15,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch",
+          "strong_german_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 64,
+        "label": "NOISE",
+        "title": "berufskraftfahrer im werksverkehr fernverkehr",
+        "final_decision": "hard_hidden",
+        "score": 0,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 65,
+        "label": "NOISE",
+        "title": "gewerblicher mitarbeiter fuhrpark berufskraftfahrer im werksverkehr",
+        "final_decision": "hard_hidden",
+        "score": 17,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 66,
+        "label": "NOISE",
+        "title": "busfahrer im reisedienst schienenersatzverkehr schulertransport werksverkehr",
+        "final_decision": "hard_hidden",
+        "score": 9,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 67,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer im lagerverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 68,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer im nahverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 69,
+        "label": "NOISE",
+        "title": "lkw fahrer berlin",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 70,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer abenddienst von 16 00 bis 00 30 uhr",
+        "final_decision": "hard_hidden",
+        "score": 31,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 71,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer aus dem raum hamburg fur weissenseer familienunternehmen",
+        "final_decision": "hard_hidden",
+        "score": 0,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 72,
+        "label": "NOISE",
+        "title": "lkw fahrer nachtdienst von 23 00 bis 07 30 uhr",
+        "final_decision": "hard_hidden",
+        "score": 31,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 73,
+        "label": "NOISE",
+        "title": "lkw fahrer in berlin fuhrerschein kl c",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 74,
+        "label": "NOISE",
+        "title": "lkw fahrer c werksverkehr lkw fahrer com",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 75,
+        "label": "NOISE",
+        "title": "lkw fahrer in berlin fuhrerschein kl c",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 76,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer betriebsinnendienst tagschicht 18 00 bis 20 00",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 77,
+        "label": "NOISE",
+        "title": "fahrer schulerbeforderung potsdam und umland",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 78,
+        "label": "NOISE",
+        "title": "lkw fahrer in berlin fuhrerschein kl c",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 79,
+        "label": "UNKNOWN",
+        "title": "kraftfahrer im lagerverkehr",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 80,
+        "label": "NOISE",
+        "title": "sicherheitsmitarbeiter werkschutz automobilhersteller 15 90 std in berlin id 25911",
+        "final_decision": "hard_hidden",
+        "score": 27,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 81,
+        "label": "ADJACENT",
+        "title": "staplerfahrer mit werksverkehr",
+        "final_decision": "hot",
+        "score": 77,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 82,
+        "label": "NOISE",
+        "title": "busfahrer bus driver gigafactory berlin brandenburg",
+        "final_decision": "hard_hidden",
+        "score": 17,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 83,
+        "label": "UNKNOWN",
+        "title": "fahrer",
+        "final_decision": "hard_hidden",
+        "score": 17,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 84,
+        "label": "UNKNOWN",
+        "title": "fahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 85,
+        "label": "UNKNOWN",
+        "title": "fahrer quereinsteiger",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 86,
+        "label": "UNKNOWN",
+        "title": "kurier servicefahrer",
+        "final_decision": "hard_hidden",
+        "score": 31,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 87,
+        "label": "UNKNOWN",
+        "title": "fahrer",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 88,
+        "label": "UNKNOWN",
+        "title": "wir suchen aktuell fahrer in stahnsdorf",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 89,
+        "label": "ADJACENT",
+        "title": "kurier servicefahrer",
+        "final_decision": "hard_hidden",
+        "score": 0,
+        "hard_reject_reason": [
+          "profession_family_mismatch",
+          "strong_german_mismatch"
+        ]
+      },
+      {
+        "id": 90,
+        "label": "NOISE",
+        "title": "ausbildung zum berufskraftfahrer gutertransport 2027",
+        "final_decision": "hard_hidden",
+        "score": 27,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 91,
+        "label": "NOISE",
+        "title": "top ausbildungsbetrieb der ihk schulerpraktikum moglich",
+        "final_decision": "rejected",
+        "score": 31,
+        "hard_reject_reason": []
+      },
+      {
+        "id": 92,
+        "label": "NOISE",
+        "title": "paketzusteller fahrer in werder havel quereinsteiger willkommen starten",
+        "final_decision": "hard_hidden",
+        "score": 17,
+        "hard_reject_reason": [
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 93,
+        "label": "NOISE",
+        "title": "lkw fahrer ce fur eine 2 tages runde nachtschicht",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 94,
+        "label": "NOISE",
+        "title": "lkw fahrer ce bdf tandem tagtour ab wustermark",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch"
+        ]
+      },
+      {
+        "id": 95,
+        "label": "NOISE",
+        "title": "kurier paketfahrer ab wustermark",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "profession_family_mismatch",
+          "self_employment_mismatch"
+        ]
+      },
+      {
+        "id": 96,
+        "label": "NOISE",
+        "title": "kraftfahrer ce bdf tandem tagtour",
+        "final_decision": "hard_hidden",
+        "score": 35,
+        "hard_reject_reason": [
+          "driver_license_mismatch",
+          "profession_family_mismatch"
+        ]
+      }
+    ]
+  }
+}

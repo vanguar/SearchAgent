@@ -27,3 +27,6 @@ venv/
 
 # Local assistant/tool settings
 .claude/settings.local.json
+
+# Local diagnostic captures, baseline exports and test logs (never application data).
+.scratch/

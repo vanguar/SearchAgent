@@ -1,0 +1,34 @@
+{
+  "status": "PROPOSAL_ONLY_NOT_SAVED",
+  "name": "Перевозка грузов — Sprinter / Transporter B",
+  "desired_roles": ["Transporter / Sprinter Klasse B"],
+  "search_query_terms": [
+    "Sprinterfahrer",
+    "Fahrer Klasse B Transporter",
+    "Fahrer bis 3,5 t",
+    "Transporterfahrer",
+    "Fahrer Direktfahrten",
+    "Fahrer Sonderfahrten"
+  ],
+  "excluded_roles": [
+    "Müllfahrer", "Abfallfahrer", "Baggerfahrer", "Staplerfahrer", "Gabelstaplerfahrer",
+    "Radladerfahrer", "Kranfahrer", "Maschinenfahrer", "Busfahrer", "Taxifahrer",
+    "Lokführer", "Triebfahrzeugführer", "Sicherheitskraft", "Redakteur", "Paketzusteller", "Paketbote"
+  ],
+  "driver_license": "B",
+  "german_level": "A1",
+  "english_level": "нет",
+  "no_german_required": false,
+  "employment_types": ["full_time", "part_time", "mini_job", "temporary"],
+  "shift_ok": true,
+  "self_employment_ok": false,
+  "legal_status": "§24; Erwerbstätigkeit erlaubt",
+  "work_authorized": true,
+  "section24_interpreted": true,
+  "preferred_locations": ["Berlin", "Neustrelitz", "Neubrandenburg", "Rostock"],
+  "search_radius_km": 50,
+  "home_city": null,
+  "relocation_ready": null,
+  "physical_work_ok": null,
+  "notes": "Права с 2006 года, большой опыт вождения, ранее работа в доставке. Без собственного Gewerbe. Допустимы Aushilfe и Zeitarbeit. Радиус 50 км — предложенная настройка; место проживания, переезд и ограничения физической нагрузки не подтверждены."
+}

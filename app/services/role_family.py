@@ -11,6 +11,7 @@ from enum import Enum
 from functools import lru_cache
 
 from app.services.hashers import normalize_text_for_fingerprint
+from app.services.light_goods_transport import has_light_transport_title, is_light_transport_role
 
 
 class RoleFamily(str, Enum):
@@ -25,6 +26,7 @@ class RoleFamily(str, Enum):
     SALES = "sales"
     HEALTHCARE = "healthcare"
     DRIVING = "driving"
+    LIGHT_GOODS_TRANSPORT = "light_goods_transport"
     # Автомобильная логистика: перегон и перестановка автомобилей, работа на
     # площадке автологистического центра. Отдельно от DRIVING,
     # потому что это НЕ дорожные перевозки груза: транспорт здесь — сам товар, а
@@ -45,6 +47,7 @@ _FAMILY_PROHIBITS_BROAD_FALLBACK: frozenset[RoleFamily] = frozenset({
     RoleFamily.SECURITY,
     RoleFamily.KITCHEN,
     RoleFamily.DRIVING,  # delivery/driving stays in its own family, not generic labor
+    RoleFamily.LIGHT_GOODS_TRANSPORT,
     # Перегон автомобилей — узкое направление: расширять его до «helfer» значит
     # подменять запрос на другую работу.
     RoleFamily.VEHICLE_LOGISTICS,
@@ -53,6 +56,8 @@ _FAMILY_PROHIBITS_BROAD_FALLBACK: frozenset[RoleFamily] = frozenset({
 # Undirected cross-family compatibility pairs (excluding self-compatibility and GENERIC).
 # Symmetric by construction: frozenset({A, B}) == frozenset({B, A}).
 _COMPATIBLE_SPECIFIC_PAIRS: frozenset[frozenset[RoleFamily]] = frozenset({
+    # Shared road-driving taxonomy; light-goods profiles additionally require their semantic gate.
+    frozenset({RoleFamily.DRIVING, RoleFamily.LIGHT_GOODS_TRANSPORT}),
     frozenset({RoleFamily.IT, RoleFamily.OFFICE}),
     frozenset({RoleFamily.WAREHOUSE, RoleFamily.PRODUCTION}),
     frozenset({RoleFamily.PRODUCTION, RoleFamily.CONSTRUCTION}),
@@ -69,6 +74,7 @@ _COMPATIBLE_SPECIFIC_PAIRS: frozenset[frozenset[RoleFamily]] = frozenset({
 # категории прав и отсечение тяжёлого транспорта. Перегон сюда входит — человек
 # с категорией B не сможет перегонять седельный тягач.
 DRIVING_LIKE_FAMILIES: frozenset[RoleFamily] = frozenset({
+    RoleFamily.LIGHT_GOODS_TRANSPORT,
     RoleFamily.DRIVING,
     RoleFamily.VEHICLE_LOGISTICS,
 })
@@ -270,6 +276,8 @@ def classify_vacancy_de(normalized_title: str) -> RoleFamily:
         earliest = min(positions)
         if best_position is None or earliest < best_position:
             best_position, best_family = earliest, family
+    if best_family in {RoleFamily.DRIVING, RoleFamily.GENERIC} and has_light_transport_title(normalized_title):
+        return RoleFamily.LIGHT_GOODS_TRANSPORT
     return best_family
 
 
@@ -288,6 +296,8 @@ def classify_role_text(text: str) -> RoleFamily:
     if not normalized:
         return RoleFamily.GENERIC
 
+    if is_light_transport_role(text):
+        return RoleFamily.LIGHT_GOODS_TRANSPORT
     russian_family = classify_query_ru(normalized)
     if is_specific_family(russian_family):
         return russian_family

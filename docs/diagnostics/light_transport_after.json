@@ -1,0 +1,1020 @@
+[
+  {
+    "label": "GOOD",
+    "title": "Sprinterfahrer Klasse B",
+    "final_decision": "hot",
+    "hard_reject": false,
+    "hard_reject_reason": [],
+    "score": 73,
+    "matched_terms": [
+      "light_goods_transport_family",
+      "priority_role",
+      "desired_role_match",
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "light_goods_transport",
+      "positive_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "desired_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "GOOD",
+    "title": "Transporterfahrer bis 3,5 t",
+    "final_decision": "hot",
+    "hard_reject": false,
+    "hard_reject_reason": [],
+    "score": 73,
+    "matched_terms": [
+      "light_goods_transport_family",
+      "priority_role",
+      "desired_role_match",
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "light_goods_transport",
+      "positive_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "desired_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "GOOD",
+    "title": "Fahrer Klasse B Transporter",
+    "final_decision": "hot",
+    "hard_reject": false,
+    "hard_reject_reason": [],
+    "score": 73,
+    "matched_terms": [
+      "light_goods_transport_family",
+      "priority_role",
+      "desired_role_match",
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "light_goods_transport",
+      "positive_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "desired_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "GOOD",
+    "title": "Sprinterfahrer Nahverkehr",
+    "final_decision": "hot",
+    "hard_reject": false,
+    "hard_reject_reason": [],
+    "score": 73,
+    "matched_terms": [
+      "light_goods_transport_family",
+      "priority_role",
+      "desired_role_match",
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "light_goods_transport",
+      "positive_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "desired_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "GOOD",
+    "title": "Fahrer Werksverkehr mit Sprinter",
+    "final_decision": "hot",
+    "hard_reject": false,
+    "hard_reject_reason": [],
+    "score": 73,
+    "matched_terms": [
+      "light_goods_transport_family",
+      "priority_role",
+      "desired_role_match",
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "light_goods_transport",
+      "positive_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "desired_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "GOOD",
+    "title": "Fahrer Direktfahrten Klasse B",
+    "final_decision": "hot",
+    "hard_reject": false,
+    "hard_reject_reason": [],
+    "score": 73,
+    "matched_terms": [
+      "light_goods_transport_family",
+      "priority_role",
+      "desired_role_match",
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "light_goods_transport",
+      "positive_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "desired_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "GOOD",
+    "title": "Fahrer Sonderfahrten Transporter",
+    "final_decision": "hot",
+    "hard_reject": false,
+    "hard_reject_reason": [],
+    "score": 73,
+    "matched_terms": [
+      "light_goods_transport_family",
+      "priority_role",
+      "desired_role_match",
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "light_goods_transport",
+      "positive_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "desired_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "GOOD",
+    "title": "Fahrer 3,5 t",
+    "final_decision": "hot",
+    "hard_reject": false,
+    "hard_reject_reason": [],
+    "score": 73,
+    "matched_terms": [
+      "light_goods_transport_family",
+      "priority_role",
+      "desired_role_match",
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "light_goods_transport",
+      "positive_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "desired_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "GOOD",
+    "title": "Berufskraftfahrer 3,5 t Klasse B",
+    "final_decision": "hot",
+    "hard_reject": false,
+    "hard_reject_reason": [],
+    "score": 73,
+    "matched_terms": [
+      "light_goods_transport_family",
+      "priority_role",
+      "desired_role_match",
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "light_goods_transport",
+      "positive_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "desired_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "GOOD",
+    "title": "Kraftfahrer 3,5 t Klasse B",
+    "final_decision": "hot",
+    "hard_reject": false,
+    "hard_reject_reason": [],
+    "score": 73,
+    "matched_terms": [
+      "light_goods_transport_family",
+      "priority_role",
+      "desired_role_match",
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "light_goods_transport",
+      "positive_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "desired_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "GOOD",
+    "title": "Transporterfahrer",
+    "final_decision": "hot",
+    "hard_reject": false,
+    "hard_reject_reason": [],
+    "score": 73,
+    "matched_terms": [
+      "light_goods_transport_family",
+      "priority_role",
+      "desired_role_match",
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "light_goods_transport",
+      "positive_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "desired_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "BAD",
+    "title": "LKW-Fahrer CE",
+    "final_decision": "hard_hidden",
+    "hard_reject": true,
+    "hard_reject_reason": [
+      "light_goods_transport_mismatch",
+      "heavy_vehicle_mismatch"
+    ],
+    "score": 35,
+    "matched_terms": [
+      "search_term_match",
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "driving",
+      "positive_role_hits": [],
+      "desired_role_hits": [],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "BAD",
+    "title": "Berufskraftfahrer Fernverkehr",
+    "final_decision": "hard_hidden",
+    "hard_reject": true,
+    "hard_reject_reason": [
+      "light_goods_transport_mismatch",
+      "heavy_vehicle_mismatch"
+    ],
+    "score": 35,
+    "matched_terms": [
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "driving",
+      "positive_role_hits": [],
+      "desired_role_hits": [],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "BAD",
+    "title": "Kraftfahrer 40 Tonner",
+    "final_decision": "hard_hidden",
+    "hard_reject": true,
+    "hard_reject_reason": [
+      "light_goods_transport_mismatch",
+      "heavy_vehicle_mismatch"
+    ],
+    "score": 35,
+    "matched_terms": [
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "driving",
+      "positive_role_hits": [],
+      "desired_role_hits": [],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "BAD",
+    "title": "Müllfahrer",
+    "final_decision": "hard_hidden",
+    "hard_reject": true,
+    "hard_reject_reason": [
+      "light_goods_transport_mismatch"
+    ],
+    "score": 35,
+    "matched_terms": [
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "driving",
+      "positive_role_hits": [],
+      "desired_role_hits": [],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "BAD",
+    "title": "Baggerfahrer",
+    "final_decision": "hard_hidden",
+    "hard_reject": true,
+    "hard_reject_reason": [
+      "light_goods_transport_mismatch"
+    ],
+    "score": 35,
+    "matched_terms": [
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "driving",
+      "positive_role_hits": [],
+      "desired_role_hits": [],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "BAD",
+    "title": "Staplerfahrer",
+    "final_decision": "hard_hidden",
+    "hard_reject": true,
+    "hard_reject_reason": [
+      "light_goods_transport_mismatch",
+      "profession_family_mismatch"
+    ],
+    "score": 35,
+    "matched_terms": [
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "warehouse",
+      "positive_role_hits": [],
+      "desired_role_hits": [],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "BAD",
+    "title": "Busfahrer",
+    "final_decision": "hard_hidden",
+    "hard_reject": true,
+    "hard_reject_reason": [
+      "light_goods_transport_mismatch",
+      "heavy_vehicle_mismatch"
+    ],
+    "score": 35,
+    "matched_terms": [
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "driving",
+      "positive_role_hits": [],
+      "desired_role_hits": [],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "BAD",
+    "title": "Taxifahrer",
+    "final_decision": "hard_hidden",
+    "hard_reject": true,
+    "hard_reject_reason": [
+      "light_goods_transport_mismatch"
+    ],
+    "score": 35,
+    "matched_terms": [
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "driving",
+      "positive_role_hits": [],
+      "desired_role_hits": [],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "BAD",
+    "title": "Sicherheitskraft",
+    "final_decision": "hard_hidden",
+    "hard_reject": true,
+    "hard_reject_reason": [
+      "light_goods_transport_mismatch"
+    ],
+    "score": 35,
+    "matched_terms": [
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "generic",
+      "positive_role_hits": [],
+      "desired_role_hits": [],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "BAD",
+    "title": "Redakteur",
+    "final_decision": "hard_hidden",
+    "hard_reject": true,
+    "hard_reject_reason": [
+      "light_goods_transport_mismatch"
+    ],
+    "score": 35,
+    "matched_terms": [
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "generic",
+      "positive_role_hits": [],
+      "desired_role_hits": [],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "BAD",
+    "title": "Paketzusteller Amazon",
+    "final_decision": "hard_hidden",
+    "hard_reject": true,
+    "hard_reject_reason": [
+      "light_goods_transport_mismatch"
+    ],
+    "score": 35,
+    "matched_terms": [
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "driving",
+      "positive_role_hits": [],
+      "desired_role_hits": [],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "BAD",
+    "title": "Selbständiger Transporterfahrer mit Gewerbeschein",
+    "final_decision": "hard_hidden",
+    "hard_reject": true,
+    "hard_reject_reason": [
+      "self_employment_mismatch"
+    ],
+    "score": 35,
+    "matched_terms": [
+      "light_goods_transport_family",
+      "priority_role",
+      "desired_role_match",
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "light_goods_transport",
+      "positive_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "desired_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "BAD",
+    "title": "Fahrzeugüberführer Klasse B",
+    "final_decision": "hard_hidden",
+    "hard_reject": true,
+    "hard_reject_reason": [
+      "light_goods_transport_mismatch",
+      "profession_family_mismatch"
+    ],
+    "score": 35,
+    "matched_terms": [
+      "posting_freshness"
+    ],
+    "negative_matches": [
+      "incomplete_requirements_review"
+    ],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "vehicle_logistics",
+      "positive_role_hits": [],
+      "desired_role_hits": [],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "AMBIG",
+    "title": "Servicefahrer",
+    "final_decision": "hard_hidden",
+    "hard_reject": true,
+    "hard_reject_reason": [
+      "light_goods_transport_mismatch"
+    ],
+    "score": 35,
+    "matched_terms": [
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "driving",
+      "positive_role_hits": [],
+      "desired_role_hits": [],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "AMBIG",
+    "title": "Shuttlefahrer",
+    "final_decision": "hard_hidden",
+    "hard_reject": true,
+    "hard_reject_reason": [
+      "light_goods_transport_mismatch"
+    ],
+    "score": 35,
+    "matched_terms": [
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "driving",
+      "positive_role_hits": [],
+      "desired_role_hits": [],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "AMBIG",
+    "title": "Auslieferungsfahrer",
+    "final_decision": "hard_hidden",
+    "hard_reject": true,
+    "hard_reject_reason": [
+      "light_goods_transport_mismatch"
+    ],
+    "score": 35,
+    "matched_terms": [
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "driving",
+      "positive_role_hits": [],
+      "desired_role_hits": [],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "AMBIG",
+    "title": "Fahrer im Regionalverkehr",
+    "final_decision": "hard_hidden",
+    "hard_reject": true,
+    "hard_reject_reason": [
+      "light_goods_transport_mismatch"
+    ],
+    "score": 35,
+    "matched_terms": [
+      "search_term_match",
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "driving",
+      "positive_role_hits": [],
+      "desired_role_hits": [],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "BAD",
+    "title": "Lagermitarbeiter",
+    "final_decision": "hard_hidden",
+    "hard_reject": true,
+    "hard_reject_reason": [
+      "light_goods_transport_mismatch",
+      "profession_family_mismatch"
+    ],
+    "score": 35,
+    "matched_terms": [
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "warehouse",
+      "positive_role_hits": [],
+      "desired_role_hits": [],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "GOOD",
+    "title": "Mitarbeiter Logistik",
+    "final_decision": "maybe",
+    "hard_reject": false,
+    "hard_reject_reason": [],
+    "score": 49,
+    "matched_terms": [
+      "light_goods_transport_family",
+      "related_role_mention",
+      "desired_role_match",
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "generic",
+      "positive_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "desired_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "excluded_role_hits": [],
+      "review_hits": [
+        "light_goods_transport_review"
+      ]
+    }
+  },
+  {
+    "label": "BAD",
+    "title": "Redakteur",
+    "final_decision": "hard_hidden",
+    "hard_reject": true,
+    "hard_reject_reason": [
+      "light_goods_transport_mismatch"
+    ],
+    "score": 35,
+    "matched_terms": [
+      "search_term_match",
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": false,
+      "low_language_signal": false,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "generic",
+      "positive_role_hits": [],
+      "desired_role_hits": [],
+      "excluded_role_hits": [],
+      "review_hits": []
+    }
+  },
+  {
+    "label": "GOOD",
+    "title": "Fahrer Klasse B im Nahverkehr",
+    "final_decision": "maybe",
+    "hard_reject": false,
+    "hard_reject_reason": [],
+    "score": 61,
+    "matched_terms": [
+      "light_goods_transport_family",
+      "basic_german_signal",
+      "related_role_mention",
+      "desired_role_match",
+      "low_language_signal",
+      "posting_freshness"
+    ],
+    "negative_matches": [],
+    "language_reason": {
+      "strong_german_required": false,
+      "german_any_required": true,
+      "low_language_signal": true,
+      "english_required_signal": false,
+      "english_preferred_signal": false,
+      "english_requirement_unknown": true
+    },
+    "role_family_reason": {
+      "detected_role_family": "driving",
+      "positive_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "desired_role_hits": [
+        "light_goods_transport_family"
+      ],
+      "excluded_role_hits": [],
+      "review_hits": [
+        "light_goods_transport_review"
+      ]
+    }
+  }
+]

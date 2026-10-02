@@ -35,6 +35,7 @@ from app.services.search_fallback import (
     VEHICLE_QUERY_GROUPS,
     get_fallback_keywords,
     get_intent_fallback_keywords,
+    get_light_transport_query_representatives,
     get_profile_fallback_keywords,
     get_vehicle_query_representatives,
     is_low_language_profile,
@@ -99,7 +100,7 @@ _DISPLAYED_BUCKETS: frozenset[SearchBucket] = frozenset({"hot", "maybe"})
 class _FetchBudget:
     """Per-run request bound and circuit breaker, shared by fallback attempts."""
 
-    def __init__(self, *, vehicle_diversity: bool = False) -> None:
+    def __init__(self, *, vehicle_diversity: bool = False, diversity_queries: tuple[str, ...] = ()) -> None:
         self._lock = threading.Lock()
         self._total = 0
         self._counts: Counter[str] = Counter()
@@ -107,12 +108,13 @@ class _FetchBudget:
         self.vehicle_diversity = vehicle_diversity
         self._vehicle_families: set[str] = set()
         self._empty_arbeitnow_queries: set[str] = set()
+        self._required_queries = frozenset(normalize_text_for_fingerprint(q) for q in diversity_queries)
 
     def record_response(self, source_id: str, query: str, *, empty: bool) -> None:
         if not self.vehicle_diversity:
             return
         with self._lock:
-            family = vehicle_query_family(query)
+            family = normalize_text_for_fingerprint(query) if self._required_queries else vehicle_query_family(query)
             if family is not None:
                 self._vehicle_families.add(family)
             if source_id == "arbeitnow":
@@ -125,6 +127,8 @@ class _FetchBudget:
 
     def diversity_ready(self) -> bool:
         with self._lock:
+            if self._required_queries:
+                return self._required_queries <= self._vehicle_families
             return not self.vehicle_diversity or len(self._vehicle_families) >= len(VEHICLE_QUERY_GROUPS)
 
     def consume(self, source_id: str) -> bool:
@@ -465,27 +469,39 @@ class SearchService:
         # 16 терминов AI-профиля дают одну пару рубрик), и без этой памяти конвейер
         # разбирал бы один и тот же фид на каждой попытке.
         served_requests: set[str] = set()
+        light_transport = (
+            query_family is RoleFamily.LIGHT_GOODS_TRANSPORT
+            or classify_role_families(resolved_profile.desired_roles) == frozenset({RoleFamily.LIGHT_GOODS_TRANSPORT})
+        )
         vehicle_diversity = (
-            query_family is RoleFamily.VEHICLE_LOGISTICS
+            (query_family is RoleFamily.VEHICLE_LOGISTICS or light_transport)
             and not _uses_only_russian_language_sources(resolved_source_ids)
         )
         vehicle_locations: Iterator[str | None] = iter(())
         vehicle_min_legs = 0
         if vehicle_diversity:
-            queries = get_vehicle_query_representatives(effective_primary_query, profile_terms)
+            queries = (
+                get_light_transport_query_representatives(effective_primary_query) if light_transport
+                else get_vehicle_query_representatives(effective_primary_query, profile_terms)
+            )
+            effective_primary_query = queries[0]
             cities = search_cities or (search_input.location,)
             # The largest requested city (GeoNames postal-code count, form order on ties)
             # gets every query family first; the smaller cities share what budget remains.
             anchor = max(cities, key=place_weight)
+            secondary_queries = get_light_transport_query_representatives("Sprinterfahrer") if light_transport else queries
             legs = tuple((query, anchor) for query in queries) + tuple(
-                (query, city) for query in queries for city in cities if city != anchor
+                (query, city) for query in secondary_queries for city in cities if city != anchor
             )
-            # Every family in the anchor city, then the primary query once per other city,
-            # so an empty city section always means "searched", never "skipped".
-            vehicle_min_legs = len(queries) + len(cities) - 1
+            # Cover the anchor, then one transfer query or two light-goods queries per other city.
+            # The shared call budget remains the upper bound for unusually large city lists.
+            vehicle_min_legs = len(queries) + (2 if light_transport else 1) * (len(cities) - 1)
             fallback_keywords = tuple(query for query, _ in legs[1:])
             vehicle_locations = iter(city for _, city in legs)
-        fetch_budget = _FetchBudget(vehicle_diversity=vehicle_diversity)
+        fetch_budget = _FetchBudget(
+            vehicle_diversity=vehicle_diversity,
+            diversity_queries=queries if vehicle_diversity and light_transport else (),
+        )
 
         def _merge_attempts(results: list[SearchRunResult]) -> SearchRunResult:
             return self._merge_and_rescore_attempts(

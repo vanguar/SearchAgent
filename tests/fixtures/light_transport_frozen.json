@@ -1,0 +1,546 @@
+[
+  {
+    "label": "GOOD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-0",
+      "source_reference": null,
+      "title": "Sprinterfahrer Klasse B",
+      "company": "Fixture 0",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/0",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "GOOD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-1",
+      "source_reference": null,
+      "title": "Transporterfahrer bis 3,5 t",
+      "company": "Fixture 1",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/1",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "GOOD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-2",
+      "source_reference": null,
+      "title": "Fahrer Klasse B Transporter",
+      "company": "Fixture 2",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/2",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "GOOD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-3",
+      "source_reference": null,
+      "title": "Sprinterfahrer Nahverkehr",
+      "company": "Fixture 3",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/3",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "GOOD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-4",
+      "source_reference": null,
+      "title": "Fahrer Werksverkehr mit Sprinter",
+      "company": "Fixture 4",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/4",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "GOOD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-5",
+      "source_reference": null,
+      "title": "Fahrer Direktfahrten Klasse B",
+      "company": "Fixture 5",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/5",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "GOOD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-6",
+      "source_reference": null,
+      "title": "Fahrer Sonderfahrten Transporter",
+      "company": "Fixture 6",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/6",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "GOOD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-7",
+      "source_reference": null,
+      "title": "Fahrer 3,5 t",
+      "company": "Fixture 7",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/7",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "GOOD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-8",
+      "source_reference": null,
+      "title": "Berufskraftfahrer 3,5 t Klasse B",
+      "company": "Fixture 8",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/8",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "GOOD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-9",
+      "source_reference": null,
+      "title": "Kraftfahrer 3,5 t Klasse B",
+      "company": "Fixture 9",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/9",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "GOOD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-10",
+      "source_reference": null,
+      "title": "Transporterfahrer",
+      "company": "Fixture 10",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/10",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "BAD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-11",
+      "source_reference": null,
+      "title": "LKW-Fahrer CE",
+      "company": "Fixture 11",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/11",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "BAD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-12",
+      "source_reference": null,
+      "title": "Berufskraftfahrer Fernverkehr",
+      "company": "Fixture 12",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/12",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "BAD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-13",
+      "source_reference": null,
+      "title": "Kraftfahrer 40 Tonner",
+      "company": "Fixture 13",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/13",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "BAD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-14",
+      "source_reference": null,
+      "title": "Müllfahrer",
+      "company": "Fixture 14",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/14",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "BAD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-15",
+      "source_reference": null,
+      "title": "Baggerfahrer",
+      "company": "Fixture 15",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/15",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "BAD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-16",
+      "source_reference": null,
+      "title": "Staplerfahrer",
+      "company": "Fixture 16",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/16",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "BAD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-17",
+      "source_reference": null,
+      "title": "Busfahrer",
+      "company": "Fixture 17",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/17",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "BAD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-18",
+      "source_reference": null,
+      "title": "Taxifahrer",
+      "company": "Fixture 18",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/18",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "BAD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-19",
+      "source_reference": null,
+      "title": "Sicherheitskraft",
+      "company": "Fixture 19",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/19",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "BAD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-20",
+      "source_reference": null,
+      "title": "Redakteur",
+      "company": "Fixture 20",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/20",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "BAD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-21",
+      "source_reference": null,
+      "title": "Paketzusteller Amazon",
+      "company": "Fixture 21",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/21",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "BAD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-22",
+      "source_reference": null,
+      "title": "Selbständiger Transporterfahrer mit Gewerbeschein",
+      "company": "Fixture 22",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/22",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "BAD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-23",
+      "source_reference": null,
+      "title": "Fahrzeugüberführer Klasse B",
+      "company": "Fixture 23",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/23",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "AMBIG",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-24",
+      "source_reference": null,
+      "title": "Servicefahrer",
+      "company": "Fixture 24",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/24",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "AMBIG",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-25",
+      "source_reference": null,
+      "title": "Shuttlefahrer",
+      "company": "Fixture 25",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/25",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "AMBIG",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-26",
+      "source_reference": null,
+      "title": "Auslieferungsfahrer",
+      "company": "Fixture 26",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/26",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "AMBIG",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-27",
+      "source_reference": null,
+      "title": "Fahrer im Regionalverkehr",
+      "company": "Fixture 27",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/27",
+      "raw_payload": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "label": "BAD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-28",
+      "source_reference": null,
+      "title": "Lagermitarbeiter",
+      "company": "Fixture 28",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/28",
+      "raw_payload": {
+        "description": "Gelegentlich fahren Sie einen Transporter. Waren im Lager kommissionieren."
+      }
+    }
+  },
+  {
+    "label": "GOOD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-29",
+      "source_reference": null,
+      "title": "Mitarbeiter Logistik",
+      "company": "Fixture 29",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/29",
+      "raw_payload": {
+        "description": "Sie transportieren täglich Waren mit einem Sprinter zwischen unseren drei Standorten."
+      }
+    }
+  },
+  {
+    "label": "BAD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-30",
+      "source_reference": null,
+      "title": "Redakteur",
+      "company": "Fixture 30",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/30",
+      "raw_payload": {
+        "description": "Wir berichten über Fahrer, Kurier und Sprinterfahrer Klasse B im Gütertransport."
+      }
+    }
+  },
+  {
+    "label": "GOOD",
+    "record": {
+      "source_id": "ba",
+      "source_name": "BA",
+      "external_id": "frozen-31",
+      "source_reference": null,
+      "title": "Fahrer Klasse B im Nahverkehr",
+      "company": "Fixture 31",
+      "location": "Berlin",
+      "posted_at": "2026-10-02",
+      "detail_url": "https://example.org/frozen/31",
+      "raw_payload": {
+        "description": "Sie liefern täglich Waren an unsere Filialen. Grundkenntnisse Deutsch."
+      }
+    }
+  }
+]

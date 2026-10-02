@@ -65,6 +65,18 @@ LOW_LANGUAGE_FALLBACK: tuple[str, ...] = (
 # distinct trades (an electrician search must not pull bricklayer/painter jobs).
 # All German terms were verified to return live results on the BA jobs API.
 FAMILY_SYNONYMS: dict[RoleFamily, tuple[str, ...]] = {
+    RoleFamily.LIGHT_GOODS_TRANSPORT: (
+        "Sprinterfahrer", "Transporterfahrer", "Fahrer Klasse B Transporter", "Fahrer bis 3,5 t",
+        "Kleintransporter Fahrer", "Fahrer Nahverkehr Klasse B", "Fahrer Direktfahrten", "Fahrer Sonderfahrten",
+        "Sprinter-Fahrer", "Sprinter Fahrer", "Sprinterfahrer Klasse B", "Sprinter-Fahrer Klasse B",
+        "Sprinter Fahrer Klasse B", "Transporter-Fahrer", "Transporter Fahrer", "Fahrer Transporter",
+        "Fahrer für Transporter", "Fahrer Klasse B Sprinter", "Fahrer bis 3,5t", "Fahrer 3,5 t", "Fahrer 3,5t",
+        "Sprinterfahrer bis 3,5 t", "Transporterfahrer bis 3,5 t", "Sprinterfahrer Nahverkehr",
+        "Transporterfahrer Nahverkehr", "Fahrer im Nahverkehr Klasse B", "Fahrer Werksverkehr mit Sprinter",
+        "Fahrer Direktfahrten Klasse B", "Fahrer für Direktfahrten Klasse B", "Fahrer Sonderfahrten Transporter",
+        "Kurierfahrer Sonderfahrten Klasse B", "Shuttlefahrer Warenverkehr Klasse B", "Kastenwagen Fahrer",
+        "Fahrer 3,5-Tonner", "Fahrer 3,5 Tonner",
+    ),
     RoleFamily.WAREHOUSE: (
         "lager", "lagermitarbeiter", "lagerhelfer", "kommissionierer", "fachlagerist",
         "verpacker", "staplerfahrer", "transportarbeiter", "versandmitarbeiter", "wareneingang",
@@ -248,6 +260,22 @@ VEHICLE_QUERY_GROUPS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("vehicle", "Fahrzeugüberführer", ("uberfuhr", "verbringung", "ruckfuhr")),
 )
 _VEHICLE_QUERY_ORDER = ("vehicle", "transfer", "collection", "rental", "fleet", "pkw", "logistics", "transfer_driver")
+
+# Measured independently: the first two serve the smaller cities as well.
+# Broad Werksverkehr/Nahverkehr/Gütertransport and Kleintransporter added no confirmed target.
+# Direct/special runs retain two bounded discovery slots, supported by employer terminology.
+LIGHT_TRANSPORT_QUERIES = (
+    "Sprinterfahrer", "Fahrer Klasse B Transporter", "Fahrer bis 3,5 t",
+    "Transporterfahrer", "Fahrer Direktfahrten", "Fahrer Sonderfahrten",
+)
+
+
+def get_light_transport_query_representatives(primary: str) -> tuple[str, ...]:
+    normalized = normalize_text_for_fingerprint(primary).replace(" ", "")
+    for representative in LIGHT_TRANSPORT_QUERIES:
+        if normalized == normalize_text_for_fingerprint(representative).replace(" ", ""):
+            return (representative, *(query for query in LIGHT_TRANSPORT_QUERIES if query != representative))
+    return LIGHT_TRANSPORT_QUERIES
 
 
 def vehicle_query_family(query: str) -> str | None:

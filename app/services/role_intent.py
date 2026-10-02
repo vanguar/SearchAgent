@@ -32,6 +32,8 @@ from app.services._role_intent_lexicon import (  # noqa: F401  (re-export RoleIn
     SORTED_INTENT_KEYS,
     RoleIntent,
 )
+from app.services.light_goods_transport import is_light_transport_role
+from app.services.role_family import RoleFamily
 
 __all__ = ["RoleIntent", "normalize_role_intent"]
 
@@ -132,6 +134,14 @@ def normalize_role_intent(query: str) -> RoleIntent | None:
     """
     if not query.strip():
         return None
+
+    if is_light_transport_role(query):
+        return RoleIntent(
+            RoleFamily.LIGHT_GOODS_TRANSPORT,
+            "Sprinterfahrer" if _CYRILLIC_RE.search(query) or "fahrer" not in _fold(query) else query.strip(),
+            ("Sprinterfahrer", "Transporterfahrer", "Fahrer bis 3,5 t"),
+            canonical_de="Sprinterfahrer",
+        )
 
     forms = _query_forms(query)
     if not forms:
