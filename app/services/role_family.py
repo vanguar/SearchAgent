@@ -144,7 +144,7 @@ _TITLE_DE_TOKENS: list[tuple[RoleFamily, tuple[str, ...]]] = [
     # профиль принимал бы его за свою вакансию.
     (RoleFamily.WAREHOUSE, (
         "gabelstaplerfahrer", "schubmaststaplerfahrer", "staplerfahrer",
-        "hochregalstaplerfahrer", "stapler", "hubwagen",
+        "hochregalstaplerfahrer", "stapler", "hubwagen", "schubmast",
     )),
     # Автомобильная логистика. Записи стоят ДО водительской, потому что в этих
     # заголовках "-fahrer" — лишь хвост композита, а само занятие называет его
@@ -186,7 +186,10 @@ _TITLE_DE_TOKENS: list[tuple[RoleFamily, tuple[str, ...]]] = [
         "fahrzeugaufbereit", "fahrzeugpfleg", "autoaufbereit",
         "reinigungskraft", "hausreinigung", "reinigung", "housekeeping",
     )),
-    (RoleFamily.AGRICULTURE, ("landwirtschaft", "gartner", "ernte", "garten")),
+    (RoleFamily.AGRICULTURE, (
+        "landwirtschaft", "gartner", "ernte", "garten",
+        "traktorfahrer", "schlepperfahrer", "mahdrescherfahrer",
+    )),
     (RoleFamily.SECURITY, (
         "sicherheitsmitarbeiter", "sicherheitsdienst", "security", "wachschutz", "bewachung",
     )),
@@ -200,6 +203,11 @@ _TITLE_DE_TOKENS: list[tuple[RoleFamily, tuple[str, ...]]] = [
     )),
     (RoleFamily.CONSTRUCTION, (
         "bauhelfer", "baustelle", "zimmerer", "maurer", "elektriker", "schlosser", "monteur", "trockenbau",
+        # Операторы строительной техники: в "Baggerfahrer" занятие называет
+        # начало композита, а "-fahrer" — лишь хвост. Запись начинается раньше
+        # "fahrer" и поэтому побеждает его.
+        "baggerfahrer", "radladerfahrer", "kranfahrer", "walzenfahrer", "raupenfahrer",
+        "tiefbau", "strassenbau",
     )),
     (RoleFamily.WAREHOUSE, (
         "lagermitarbeiter", "lagerhelfer", "lagerist", "kommissionier",
@@ -212,7 +220,7 @@ _TITLE_DE_TOKENS: list[tuple[RoleFamily, tuple[str, ...]]] = [
         "lager",  # short token after compound forms
     )),
     (RoleFamily.PRODUCTION, (
-        "produktionsmitarbeiter", "produktionshelfer", "maschinenbediener", "maschinenfuhrer",
+        "produktionsmitarbeiter", "produktionshelfer", "maschinenbediener", "maschinenfuhrer", "maschinenfahrer",
         "produktion", "fertigung",
     )),
 ]

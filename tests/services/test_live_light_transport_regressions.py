@@ -32,6 +32,18 @@ def test_target_recall_and_noise_protection_on_captured_api_records():
             assert decision != "hot", group.normalized_title
 
 
+# Намеренные изменения после исправления курьерского шума; всё остальное обязано
+# совпадать с BEFORE до балла. Метки корпуса оценивают перевозку грузов, а не
+# доставку: для курьера "Postzustellung / FS B" — профильная работа, которую
+# раньше не узнавал заголовок. Охранник остаётся скрытым и лишь теряет бонус за
+# водительские слова из тела.
+_INTENDED_COURIER_NOISE_FIX = {
+    "postzustellung fs b vollzeitanstellung": ("hot", 71),
+    "sicherheitsmitarbeiter werkschutz automobilhersteller 15 90 std in berlin id 25911": ("hard_hidden", 27),
+}
+_INTENDED_CHANGES = {"courier": _INTENDED_COURIER_NOISE_FIX, "fahrer_b": _INTENDED_COURIER_NOISE_FIX}
+
+
 @pytest.mark.parametrize("name,role,term", [
     ("courier", "Курьер", "Kurier"),
     ("fahrer_b", "Fahrer B", "Fahrer Klasse B"),
@@ -40,6 +52,8 @@ def test_target_recall_and_noise_protection_on_captured_api_records():
 ])
 def test_existing_profiles_preserve_frozen_decisions_and_scores(name, role, term):
     profile = replace(PROFILE, desired_roles=(role,), search_query_terms=(term,))
+    intended = _INTENDED_CHANGES.get(name, {})
     for expected, group in zip(BEFORE["evaluations"][name], GROUPS, strict=True):
         actual = explain_filter_decision(group, profile)
-        assert (actual["final_decision"], actual["score"]) == (expected["final_decision"], expected["score"]), group.normalized_title
+        expected_pair = intended.get(group.normalized_title, (expected["final_decision"], expected["score"]))
+        assert (actual["final_decision"], actual["score"]) == expected_pair, group.normalized_title

@@ -349,6 +349,16 @@ def _employment_type_hit(
 # подтверждает, что вакансия из смежного мира, но не то, что это нужная работа.
 _BODY_ONLY_ROLE_BONUS = 8
 _BODY_ONLY_DESIRED_BONUS = 4
+# Слова доставки в теле не говорят о работе ничего: "Berliner Kurier" — газета
+# в подписи издательства, "Fahrer" — строка в списке профессий для
+# Quereinsteiger, "Kurierfahrten" — побочная обязанность зуботехника. Careerjet
+# к тому же режет описание вокруг поискового слова, и такое упоминание попадает
+# в вырезку гарантированно. Поэтому бонус за тело это семейство не получает.
+_NO_BODY_ONLY_BONUS_CODES = frozenset({"delivery_driving_family"})
+
+
+def _has_body_only_bonus_hit(hits: tuple[RuleHit, ...]) -> bool:
+    return any(hit.code not in _NO_BODY_ONLY_BONUS_CODES for hit in hits)
 
 # Подписи семейств для карточки. Раньше на любое попадание выводилось
 # "целевая складская или производственная роль", и IT-вакансия объясняла себя
@@ -530,7 +540,7 @@ class VacancyScorer:
                     weight=role_bonus,
                 )
             )
-        elif resolved_signals.positive_role_hits:
+        elif _has_body_only_bonus_hit(resolved_signals.positive_role_hits):
             score += _BODY_ONLY_ROLE_BONUS
             positive_hits.append(
                 RuleHit(
@@ -544,15 +554,17 @@ class VacancyScorer:
             # Полный вес — когда профиль узнаётся в самом заголовке вакансии.
             # Совпадение, найденное только в теле, слабее: там профильные слова
             # часто описывают соседний отдел или отрасль работодателя.
-            desired_bonus = (
-                10
-                if (resolved_signals.desired_role_hits_in_title or resolved_signals.positive_role_hits_in_title)
-                else _BODY_ONLY_DESIRED_BONUS
-            )
-            score += desired_bonus
-            positive_hits.append(
-                RuleHit(code="desired_role_match", label_ru="совпадает с профилем поиска", weight=desired_bonus)
-            )
+            if resolved_signals.desired_role_hits_in_title or resolved_signals.positive_role_hits_in_title:
+                desired_bonus = 10
+            elif _has_body_only_bonus_hit(resolved_signals.desired_role_hits):
+                desired_bonus = _BODY_ONLY_DESIRED_BONUS
+            else:
+                desired_bonus = 0
+            if desired_bonus:
+                score += desired_bonus
+                positive_hits.append(
+                    RuleHit(code="desired_role_match", label_ru="совпадает с профилем поиска", weight=desired_bonus)
+                )
         elif (
             profile.search_query_terms
             and not resolved_signals.positive_role_hits

@@ -152,11 +152,21 @@ POSITIVE_ROLE_FAMILIES: tuple[TextRule, ...] = (
         label_ru="роль в доставке или вождении",
         # Погрузчик исключён явно: "Staplerfahrer" кончается на "-fahrer", но это
         # складская работа, а не дорожная. Без исключения водительский профиль
-        # считал бы складские вакансии своими.
+        # считал бы складские вакансии своими. По той же причине исключены
+        # операторы техники: "Baggerfahrer", "Kranfahrer", "Radladerfahrer" водят
+        # машину, которая не выезжает со стройки, поля или площадки.
         patterns=(
-            r"\b(?!\w*stapler)\w*fahrer\w*",
-            r"\bzusteller\w*",
-            r"\bkurier\w*",
+            r"\b(?!\w*(?:stapler|schubmast))"
+            r"(?!\w*(?:bagger|radlader|kran|walzen|raupen|maschinen|traktor|schlepper|mahdrescher)fahrer)"
+            r"\w*fahrer\w*",
+            # Составные названия доставки: "Paketzusteller", "Briefzusteller",
+            # "Expresskurier". С "\b" перед корнем они не находились, и самые
+            # частые курьерские заголовки держались только на словах из тела.
+            r"\b\w*zusteller\w*",
+            r"\b(?:paket|brief|post|zeitungs|express)zustellung\w*",
+            r"\b(?:paket|brief|post)bote\w*",
+            r"\bausliefer\w*",
+            r"\b\w*kurier\w*",
             r"\blieferfahrer\w*",
             r"\bkraftfahrer\w*",
             r"\bfahrzeugfuhrer\w*",
@@ -1050,9 +1060,24 @@ def _match_excluded_profile_roles(
         if _is_physical_domain_exclusion(normalized_role) and _looks_like_it_software_role(combined_text):
             continue
         role_tokens = tuple(token for token in normalized_role.split() if len(token) >= 3)
-        if role_tokens and all(token in title_text for token in role_tokens):
+        if role_tokens and all(_title_names_excluded_token(token, title_text) for token in role_tokens):
             hits.append(RuleHit(code="excluded_role_match", label_ru="роль исключена профилем"))
     return _dedupe_hits(hits)
+
+
+# Исключённая доставка и тот, кто ею занят. Профиль пишет "Paketzustellung",
+# заголовок — "Paketzusteller" или "Postbote", и подстрокой они не совпадают.
+# Перечислены только эти формы: общее отсечение "-ung" превращало бы
+# исключённую "Lieferung" в "liefer" и скрывало бы всех Lieferfahrer.
+_EXCLUDED_ROLE_TITLE_FORMS: dict[str, tuple[str, ...]] = {
+    "paketzustellung": ("paketzusteller",),
+    "briefzustellung": ("briefzusteller",),
+    "postzustellung": ("postzusteller", "postbote"),
+}
+
+
+def _title_names_excluded_token(token: str, title_text: str) -> bool:
+    return any(form in title_text for form in (token, *_EXCLUDED_ROLE_TITLE_FORMS.get(token, ())))
 
 
 def _is_language_requirement_exclusion(normalized_role: str) -> bool:
