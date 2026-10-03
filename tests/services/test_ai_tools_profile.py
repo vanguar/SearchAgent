@@ -137,16 +137,20 @@ def test_english_source_text_without_requirement_is_not_rejected_and_is_high() -
     )
 
 
-def test_explicit_fluent_english_requirement_is_incompatible() -> None:
+def test_explicit_fluent_english_requirement_requires_review() -> None:
     canonical = _canonical(
         title="AI Workflow Specialist",
         body="Automate internal processes with LLM tools. Fluent English required.",
     )
 
-    signals, filter_result, _, _ = _evaluate(canonical)
+    signals, filter_result, score_result, bucket = _evaluate(canonical)
 
     assert signals.english_required_signal is True
-    assert any(hit.code == "english_required_mismatch" for hit in filter_result.rejection_hits)
+    # Owner policy 2026-10-03: language alone demotes to stretch, never hides a job.
+    assert filter_result.hard_reject is False
+    assert any(hit.code == "it_english_review" for hit in filter_result.review_hits)
+    assert bucket == "maybe"
+    assert score_result.score <= 59
 
 
 def test_english_preferred_is_soft_penalty_not_hard_reject() -> None:
@@ -209,8 +213,9 @@ def test_senior_java_algorithms_and_c1_english_is_rejected() -> None:
     _, filter_result, score_result, _ = _evaluate(canonical)
     rejection_codes = {hit.code for hit in filter_result.rejection_hits}
 
-    assert "english_required_mismatch" in rejection_codes
+    assert any(hit.code == "it_english_review" for hit in filter_result.review_hits)
     assert "classic_engineering_mismatch" in rejection_codes
+    assert filter_result.hard_reject is True
     assert score_result.score <= 35
 
 
@@ -401,9 +406,12 @@ def test_cefr_and_worded_english_levels_are_read_as_requirements() -> None:
         "and the ability to work independently in a remote environment.",
     ):
         canonical = _canonical(title="AI Automation Specialist", body=body)
-        signals, filter_result, _, _ = _evaluate(canonical)
+        signals, filter_result, score_result, bucket = _evaluate(canonical)
         assert signals.english_required_signal is True, body
-        assert filter_result.hard_reject is True, body
+        assert filter_result.hard_reject is False, body
+        assert any(hit.code == "it_english_review" for hit in filter_result.review_hits), body
+        assert bucket == "maybe", body
+        assert score_result.score < 70, body
 
 
 def test_english_level_softened_by_nice_to_have_is_not_a_requirement() -> None:

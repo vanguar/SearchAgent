@@ -14,6 +14,7 @@ from app.services.ai_tools_profile import (
 from app.services.employment_signal_extractor import EMPLOYMENT_TYPE_LABELS_RU
 from app.services.filter_engine import FilterEngine, is_b_only_driving_profile
 from app.services.hashers import normalize_text_for_fingerprint
+from app.services.it_candidate_eligibility import inspect_it_eligibility, is_it_candidate_profile
 from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.profile_parser import (
     DRIVER_B_FERNVERKEHR_ROLE,
@@ -449,6 +450,10 @@ class VacancyScorer:
         negative_hits: list[RuleHit] = []
 
         ai_tools_profile = is_ai_tools_profile(profile)
+        eligibility = inspect_it_eligibility(
+            canonical, profile,
+            remote_search=search_mode == "remote_worldwide" or is_remote_worldwide_location(profile.preferred_locations),
+        ) if is_it_candidate_profile(profile) else None
 
         if resolved_signals.ukrainian_welcome_signal:
             score += _UKRAINIAN_WELCOME_BONUS
@@ -460,7 +465,10 @@ class VacancyScorer:
                 )
             )
 
-        if ai_tools_profile and resolved_signals.ai_tools_language_fit_signal:
+        if (
+            ai_tools_profile and resolved_signals.ai_tools_language_fit_signal
+            and not (eligibility and any(h.code == "it_english_review" for h in eligibility.review_hits))
+        ):
             score += _AI_TOOLS_LANGUAGE_FIT_BONUS
             positive_hits.append(
                 RuleHit(
@@ -718,7 +726,7 @@ class VacancyScorer:
             score += penalty
             negative_hits.append(RuleHit(code="vocational_requirement", label_ru="нужен обязательный Ausbildung", weight=penalty))
 
-        if resolved_signals.strong_experience_required and not resolved_signals.entry_level_signal:
+        if not is_it_candidate_profile(profile) and resolved_signals.strong_experience_required and not resolved_signals.entry_level_signal:
             penalty = -18 if profile.low_barrier_focus else -10
             score += penalty
             negative_hits.append(RuleHit(code="experience_requirement", label_ru="просят заметный профильный опыт", weight=penalty))
@@ -809,6 +817,17 @@ class VacancyScorer:
             capped = min(score, HOT_BUCKET_MIN_SCORE - 1)
             negative_hits.append(RuleHit(code=code, label_ru=label, weight=capped - score))
             score = capped
+
+        if eligibility is not None:
+            positive_hits.extend(eligibility.positive_hits)
+            negative_hits.extend(eligibility.negative_hits)
+            score += sum(hit.weight for hit in (*eligibility.positive_hits, *eligibility.negative_hits))
+            if score > eligibility.score_ceiling:
+                negative_hits.append(RuleHit(
+                    code="it_eligibility_cap", label_ru="совпадение технологий не отменяет обязательные требования",
+                    weight=eligibility.score_ceiling - score,
+                ))
+                score = eligibility.score_ceiling
 
         # Defensive hard-reject cap for internal/test callers that invoke score() directly
         # without pre-filtering. In the live search path, hard-rejected items are excluded

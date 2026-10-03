@@ -12,6 +12,7 @@ from app.services.ai_tools_profile import (
 from app.services.driver_license_signal_extractor import extract_profile_driver_license_categories
 from app.services.employment_signal_extractor import EMPLOYMENT_TYPE_LABELS_RU
 from app.services.hashers import normalize_text_for_fingerprint
+from app.services.it_candidate_eligibility import inspect_it_eligibility, is_it_candidate_profile
 from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.profile_condition_review import condition_review_hits
 from app.services.profile_parser import (
@@ -102,6 +103,7 @@ class FilterEngine:
         search_mode: str | None = None,
     ) -> FilterResult:
         resolved_signals = signals or inspect_vacancy(canonical, profile)
+        it_candidate_profile = is_it_candidate_profile(profile)
 
         # Признан ли прогон всемирно-удалённым. Нужен и географии, и языковым правилам:
         # рабочий язык по умолчанию английский именно в этом лейне, а в поиске по
@@ -181,14 +183,14 @@ class FilterEngine:
         ):
             rejection_hits.append(RuleHit(code="german_required_mismatch", label_ru="требуется знание немецкого"))
 
-        if is_ai_tools_profile(profile) and resolved_signals.english_required_signal:
-            rejection_hits.append(
-                RuleHit(
-                    code="english_required_mismatch",
-                    label_ru="английский явно указан как обязательный",
-                )
-            )
-        elif resolved_signals.english_required_signal and profile.no_usable_english:
+        it_english_review = False
+        if it_candidate_profile:
+            eligibility = inspect_it_eligibility(canonical, profile, remote_search=worldwide_search)
+            positive_hits.extend(eligibility.positive_hits)
+            rejection_hits.extend(eligibility.rejection_hits)
+            review_hits.extend(eligibility.review_hits)
+            it_english_review = any(h.code == "it_english_review" for h in eligibility.review_hits)
+        if not it_candidate_profile and resolved_signals.english_required_signal and profile.no_usable_english:
             # Для остальных профилей это не повод прятать вакансию: человек может
             # решить сам. Но молчать нельзя — раньше требование английского просто
             # не доходило до карточки, и вакансия выглядела достижимой.
@@ -200,6 +202,7 @@ class FilterEngine:
             )
         elif (
             resolved_signals.english_requirement_unknown
+            and not it_english_review
             and profile.no_usable_english
             and worldwide_search
             and _vacancy_is_it_family(canonical)
@@ -233,7 +236,7 @@ class FilterEngine:
             target = rejection_hits if profile.low_barrier_focus else review_hits
             target.append(RuleHit(code="vocational_mismatch", label_ru="нужен обязательный Ausbildung"))
 
-        if resolved_signals.strong_experience_required and not resolved_signals.entry_level_signal:
+        if not it_candidate_profile and resolved_signals.strong_experience_required and not resolved_signals.entry_level_signal:
             target = rejection_hits if profile.low_barrier_focus else review_hits
             target.append(RuleHit(code="experience_mismatch", label_ru="просят заметный профильный опыт"))
 

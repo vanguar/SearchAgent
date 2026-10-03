@@ -1,0 +1,870 @@
+[
+  {
+    "profile": {
+      "profile_label": "Lagerarbeiter, Lagermitarbeiter",
+      "profile_source": "saved",
+      "note_ru": null,
+      "legal_status": "section_24",
+      "work_authorized": true,
+      "german_level": "A1",
+      "english_level": "none",
+      "desired_roles": [
+        "Lagerarbeiter",
+        "Lagermitarbeiter"
+      ],
+      "excluded_roles": [],
+      "preferred_locations": [
+        "Rostock"
+      ],
+      "relocation_ready": 1,
+      "shift_ok": 1,
+      "physical_work_ok": 1,
+      "housing_needed": null,
+      "start_availability_text": "Sofort verfügbar",
+      "notes": null,
+      "no_german_required": false,
+      "section24_interpreted": true,
+      "search_query_terms": [],
+      "additional_search_terms": [],
+      "driver_license": null,
+      "car_available": null,
+      "search_radius_km": null,
+      "employment_types": [],
+      "min_salary_eur_per_hour": null,
+      "self_employment_ok": null,
+      "home_city": "Neustrelitz",
+      "search_location": null,
+      "search_cities": [],
+      "run_query_terms": []
+    },
+    "canonical": {
+      "canonical_key": "db-2721",
+      "normalized_title": "lagerhelfer",
+      "company_name": "akzent personaldienstleistungen",
+      "location_text": "rostock, DE",
+      "country_code": "DE",
+      "city": "Rostock",
+      "posted_date": "2026-09-21",
+      "language_signals": {
+        "strong_german_required": false,
+        "german_mentioned": false,
+        "english_mentioned": false,
+        "english_required": false,
+        "english_preferred": false,
+        "low_language_signal": false,
+        "shift_signal": false,
+        "helper_role_signal": true
+      },
+      "source_records": [
+        {
+          "source_id": "ba (bundesagentur fur arbeit)",
+          "source_name": "BA (Bundesagentur fur Arbeit)",
+          "external_id": "14599-DILGIIWGA97PUMGZ-S",
+          "source_reference": "14599-DILGIIWGA97PUMGZ-S",
+          "source_url": "https://www.arbeitsagentur.de/jobsuche/suche?angebotsart=1&id=14599-DILGIIWGA97PUMGZ-S&was=14599-DILGIIWGA97PUMGZ-S",
+          "raw_payload": {},
+          "original_title": "lagerhelfer",
+          "original_company": "akzent personaldienstleistungen",
+          "original_location": "rostock, DE",
+          "original_posted_at": null,
+          "posted_date": "2026-09-21",
+          "normalized_title": "lagerhelfer",
+          "normalized_company": "akzent personaldienstleistungen",
+          "normalized_location": {
+            "raw_text": "rostock, DE",
+            "normalized_text": "rostock, DE",
+            "country_code": "DE",
+            "city": "rostock",
+            "postal_code": null,
+            "tokens": [
+              "rostock",
+              "de"
+            ]
+          },
+          "body_text": "грузчик",
+          "normalized_body_text": "",
+          "title_tokens": [
+            "lagerhelfer"
+          ],
+          "content_tokens": [],
+          "title_fingerprint": "",
+          "content_fingerprint": "",
+          "language_signals": {
+            "strong_german_required": false,
+            "german_mentioned": false,
+            "english_mentioned": false,
+            "english_required": false,
+            "english_preferred": false,
+            "low_language_signal": false,
+            "shift_signal": false,
+            "helper_role_signal": true
+          },
+          "description_complete": null
+        }
+      ],
+      "provenance": [
+        "BA (Bundesagentur fur Arbeit)"
+      ]
+    },
+    "expected": {
+      "score": 69,
+      "bucket": "maybe",
+      "filter": {
+        "decision": "allow",
+        "positive_hits": [
+          {
+            "code": "warehouse_family",
+            "label_ru": "складская роль",
+            "weight": 0
+          },
+          {
+            "code": "location_fit",
+            "label_ru": "локация совпадает с профилем",
+            "weight": 0
+          }
+        ],
+        "rejection_hits": [],
+        "review_hits": []
+      },
+      "scoring": {
+        "score": 69,
+        "positive_hits": [
+          {
+            "code": "priority_role",
+            "label_ru": "складская роль",
+            "weight": 26
+          },
+          {
+            "code": "desired_role_match",
+            "label_ru": "совпадает с профилем поиска",
+            "weight": 10
+          },
+          {
+            "code": "location_match",
+            "label_ru": "локация совпадает с профилем",
+            "weight": 6
+          }
+        ],
+        "negative_hits": [
+          {
+            "code": "commute_distance",
+            "label_ru": "104 км от дома — реально только с переездом",
+            "weight": -8
+          }
+        ]
+      }
+    }
+  },
+  {
+    "profile": {
+      "profile_label": "Доставка / Курьер",
+      "profile_source": "saved",
+      "note_ru": null,
+      "legal_status": "section_24",
+      "work_authorized": true,
+      "german_level": "A1",
+      "english_level": "none",
+      "desired_roles": [
+        "Доставка",
+        "Курьер",
+        "Водитель",
+        "курьер",
+        "доставка воды"
+      ],
+      "excluded_roles": [
+        "амазон",
+        "хермес",
+        "также в доставку воды",
+        "но без знания немецкого",
+        "английского",
+        "Amazon",
+        "Hermes"
+      ],
+      "preferred_locations": [
+        "Rostock",
+        "Stralsund",
+        "Greifswald"
+      ],
+      "relocation_ready": 1,
+      "shift_ok": 1,
+      "physical_work_ok": null,
+      "housing_needed": null,
+      "start_availability_text": null,
+      "notes": null,
+      "no_german_required": true,
+      "section24_interpreted": true,
+      "search_query_terms": [],
+      "additional_search_terms": [],
+      "driver_license": "B",
+      "car_available": null,
+      "search_radius_km": null,
+      "employment_types": [],
+      "min_salary_eur_per_hour": null,
+      "self_employment_ok": null,
+      "home_city": "Neustrelitz",
+      "search_location": null,
+      "search_cities": [],
+      "run_query_terms": []
+    },
+    "canonical": {
+      "canonical_key": "db-849",
+      "normalized_title": "sap consolidation project manager ecc s 4hana context freelance nearshore preferred",
+      "company_name": "sidekick network",
+      "location_text": "hanover",
+      "country_code": null,
+      "city": "Hanover",
+      "posted_date": null,
+      "language_signals": {
+        "strong_german_required": false,
+        "german_mentioned": false,
+        "english_mentioned": false,
+        "english_required": false,
+        "english_preferred": false,
+        "low_language_signal": false,
+        "shift_signal": false,
+        "helper_role_signal": false
+      },
+      "source_records": [
+        {
+          "source_id": "arbeitnow",
+          "source_name": "Arbeitnow",
+          "external_id": "sap-consolidation-project-manager-ecc-s-4hana-context-freelance-remote-nearshore-preferred-hanover-125166",
+          "source_reference": "sap-consolidation-project-manager-ecc-s-4hana-context-freelance-remote-nearshore-preferred-hanover-125166",
+          "source_url": "https://www.arbeitnow.com/jobs/companies/sidekick-network-gmbh-co-kg/sap-consolidation-project-manager-ecc-s-4hana-context-freelance-remote-nearshore-preferred-hanover-125166",
+          "raw_payload": {},
+          "original_title": "sap consolidation project manager ecc s 4hana context freelance nearshore preferred",
+          "original_company": "sidekick network",
+          "original_location": "hanover",
+          "original_posted_at": null,
+          "posted_date": null,
+          "normalized_title": "sap consolidation project manager ecc s 4hana context freelance nearshore preferred",
+          "normalized_company": "sidekick network",
+          "normalized_location": {
+            "raw_text": "hanover",
+            "normalized_text": "hanover",
+            "country_code": null,
+            "city": "hanover",
+            "postal_code": null,
+            "tokens": [
+              "hanover"
+            ]
+          },
+          "body_text": "IT",
+          "normalized_body_text": "it",
+          "title_tokens": [
+            "sap",
+            "consolidation",
+            "project",
+            "manager",
+            "ecc",
+            "4hana",
+            "context",
+            "freelance",
+            "nearshore",
+            "preferred"
+          ],
+          "content_tokens": [
+            "it"
+          ],
+          "title_fingerprint": "",
+          "content_fingerprint": "",
+          "language_signals": {
+            "strong_german_required": false,
+            "german_mentioned": false,
+            "english_mentioned": false,
+            "english_required": false,
+            "english_preferred": false,
+            "low_language_signal": false,
+            "shift_signal": false,
+            "helper_role_signal": false
+          },
+          "description_complete": null
+        }
+      ],
+      "provenance": [
+        "Arbeitnow"
+      ]
+    },
+    "expected": {
+      "score": 0,
+      "bucket": "maybe",
+      "filter": {
+        "decision": "review",
+        "positive_hits": [],
+        "rejection_hits": [],
+        "review_hits": [
+          {
+            "code": "self_employment_review",
+            "label_ru": "оформление не трудовым договором (freelance); в профиле это не задано",
+            "weight": 0
+          }
+        ]
+      },
+      "scoring": {
+        "score": 0,
+        "positive_hits": [],
+        "negative_hits": [
+          {
+            "code": "commute_distance",
+            "label_ru": "249 км от дома — реально только с переездом",
+            "weight": -8
+          },
+          {
+            "code": "self_employment_unknown",
+            "label_ru": "оформление не трудовым договором; в профиле это не задано",
+            "weight": -6
+          },
+          {
+            "code": "title_head_manager",
+            "label_ru": "title выглядит как руководящая роль",
+            "weight": -24
+          }
+        ]
+      }
+    }
+  },
+  {
+    "profile": {
+      "profile_label": "Driver b – fernverkehr",
+      "profile_source": "saved",
+      "note_ru": null,
+      "legal_status": "section_24",
+      "work_authorized": true,
+      "german_level": "A1",
+      "english_level": "none",
+      "desired_roles": [
+        "Driver B – Fernverkehr"
+      ],
+      "excluded_roles": [
+        "Paketzustellung",
+        "Paketbote",
+        "Postzustellung",
+        "Briefzustellung",
+        "Schülerverkehr",
+        "Schülerbeförderung",
+        "Schulbus",
+        "Zeitungszustellung",
+        "Zeitungszusteller",
+        "Prospektverteilung"
+      ],
+      "preferred_locations": [
+        "Deutschland"
+      ],
+      "relocation_ready": 1,
+      "shift_ok": 1,
+      "physical_work_ok": null,
+      "housing_needed": null,
+      "start_availability_text": null,
+      "notes": null,
+      "no_german_required": false,
+      "section24_interpreted": true,
+      "search_query_terms": [
+        "Fahrer Klasse B",
+        "Sprinterfahrer",
+        "Transporterfahrer",
+        "Fahrer bis 3,5 t",
+        "Fahrer Klasse B Fernverkehr",
+        "Sprinterfahrer Fernverkehr",
+        "Transporterfahrer Fernverkehr",
+        "Fernverkehr Fahrer",
+        "Fahrer Klasse B Direktfahrten",
+        "Fahrer Klasse B Sonderfahrten",
+        "Fahrer Klasse B Expressfahrten",
+        "Planensprinter Fahrer",
+        "Koffersprinter Fahrer"
+      ],
+      "additional_search_terms": [],
+      "driver_license": "B",
+      "car_available": null,
+      "search_radius_km": null,
+      "employment_types": [],
+      "min_salary_eur_per_hour": null,
+      "self_employment_ok": null,
+      "home_city": "Neustrelitz",
+      "search_location": null,
+      "search_cities": [],
+      "run_query_terms": []
+    },
+    "canonical": {
+      "canonical_key": "db-3176",
+      "normalized_title": "fahrer",
+      "company_name": "walter fach kraft dresden",
+      "location_text": "dresden, DE",
+      "country_code": "DE",
+      "city": "Dresden",
+      "posted_date": "2026-10-01",
+      "language_signals": {
+        "strong_german_required": false,
+        "german_mentioned": false,
+        "english_mentioned": false,
+        "english_required": false,
+        "english_preferred": false,
+        "low_language_signal": false,
+        "shift_signal": false,
+        "helper_role_signal": false
+      },
+      "source_records": [
+        {
+          "source_id": "ba (bundesagentur fur arbeit)",
+          "source_name": "BA (Bundesagentur fur Arbeit)",
+          "external_id": "12322-X6YM7D79XGZRZL1U-S",
+          "source_reference": "12322-X6YM7D79XGZRZL1U-S",
+          "source_url": "https://www.arbeitsagentur.de/jobsuche/suche?angebotsart=1&id=12322-X6YM7D79XGZRZL1U-S&was=12322-X6YM7D79XGZRZL1U-S",
+          "raw_payload": {},
+          "original_title": "fahrer",
+          "original_company": "walter fach kraft dresden",
+          "original_location": "dresden, DE",
+          "original_posted_at": null,
+          "posted_date": "2026-10-01",
+          "normalized_title": "fahrer",
+          "normalized_company": "walter fach kraft dresden",
+          "normalized_location": {
+            "raw_text": "dresden, DE",
+            "normalized_text": "dresden, DE",
+            "country_code": "DE",
+            "city": "dresden",
+            "postal_code": null,
+            "tokens": [
+              "dresden",
+              "de"
+            ]
+          },
+          "body_text": "водитель",
+          "normalized_body_text": "",
+          "title_tokens": [
+            "fahrer"
+          ],
+          "content_tokens": [],
+          "title_fingerprint": "",
+          "content_fingerprint": "",
+          "language_signals": {
+            "strong_german_required": false,
+            "german_mentioned": false,
+            "english_mentioned": false,
+            "english_required": false,
+            "english_preferred": false,
+            "low_language_signal": false,
+            "shift_signal": false,
+            "helper_role_signal": false
+          },
+          "description_complete": null
+        }
+      ],
+      "provenance": [
+        "BA (Bundesagentur fur Arbeit)"
+      ]
+    },
+    "expected": {
+      "score": 61,
+      "bucket": "maybe",
+      "filter": {
+        "decision": "allow",
+        "positive_hits": [
+          {
+            "code": "delivery_driving_family",
+            "label_ru": "роль в доставке или вождении",
+            "weight": 0
+          },
+          {
+            "code": "location_fit",
+            "label_ru": "локация совпадает с профилем",
+            "weight": 0
+          }
+        ],
+        "rejection_hits": [],
+        "review_hits": []
+      },
+      "scoring": {
+        "score": 61,
+        "positive_hits": [
+          {
+            "code": "priority_role",
+            "label_ru": "роль в доставке или вождении",
+            "weight": 26
+          },
+          {
+            "code": "location_match",
+            "label_ru": "локация совпадает с профилем",
+            "weight": 6
+          },
+          {
+            "code": "posting_freshness",
+            "label_ru": "опубликовано в последние дни",
+            "weight": 2
+          }
+        ],
+        "negative_hits": [
+          {
+            "code": "commute_distance",
+            "label_ru": "260 км от дома — реально только с переездом",
+            "weight": -8
+          }
+        ]
+      }
+    }
+  },
+  {
+    "profile": {
+      "profile_label": "Перегон автомобилей",
+      "profile_source": "saved",
+      "note_ru": null,
+      "legal_status": "section_24",
+      "work_authorized": true,
+      "german_level": "A1",
+      "english_level": "none",
+      "desired_roles": [
+        "Fahrzeugüberführer",
+        "Überführungsfahrer",
+        "Fahrzeugtransfer",
+        "Hol- und Bringfahrer",
+        "PKW-Überführer",
+        "Mietwagenüberführer"
+      ],
+      "excluded_roles": [
+        "LKW-Fahrer",
+        "Berufskraftfahrer",
+        "Paketzusteller",
+        "Kurierfahrer",
+        "Lieferfahrer",
+        "Lagerhelfer",
+        "Kommissionierer",
+        "Fahrzeugaufbereiter",
+        "Werkstudent"
+      ],
+      "preferred_locations": [
+        "Neustrelitz",
+        "Neubrandenburg",
+        "Berlin",
+        "Rostock"
+      ],
+      "relocation_ready": 1,
+      "shift_ok": null,
+      "physical_work_ok": 0,
+      "housing_needed": 0,
+      "start_availability_text": "16.11.2026",
+      "notes": null,
+      "no_german_required": false,
+      "section24_interpreted": true,
+      "search_query_terms": [
+        "Fahrzeugüberführer",
+        "Fahrzeugüberführung",
+        "Überführungsfahrer"
+      ],
+      "additional_search_terms": [],
+      "driver_license": "B",
+      "car_available": null,
+      "search_radius_km": null,
+      "employment_types": [],
+      "min_salary_eur_per_hour": null,
+      "self_employment_ok": null,
+      "home_city": "Neustrelitz",
+      "search_location": null,
+      "search_cities": [],
+      "run_query_terms": []
+    },
+    "canonical": {
+      "canonical_key": "db-2818",
+      "normalized_title": "uberfuhrungsfahrer fs b",
+      "company_name": "perzukunft arbeitsvermittlung",
+      "location_text": "berlin, DE",
+      "country_code": "DE",
+      "city": "Berlin",
+      "posted_date": "2026-08-24",
+      "language_signals": {
+        "strong_german_required": false,
+        "german_mentioned": false,
+        "english_mentioned": false,
+        "english_required": false,
+        "english_preferred": false,
+        "low_language_signal": false,
+        "shift_signal": false,
+        "helper_role_signal": false
+      },
+      "source_records": [
+        {
+          "source_id": "ba (bundesagentur fur arbeit)",
+          "source_name": "BA (Bundesagentur fur Arbeit)",
+          "external_id": "12016-10005152242-S",
+          "source_reference": "12016-10005152242-S",
+          "source_url": "https://www.arbeitsagentur.de/jobsuche/suche?angebotsart=1&id=12016-10005152242-S&was=12016-10005152242-S",
+          "raw_payload": {},
+          "original_title": "uberfuhrungsfahrer fs b",
+          "original_company": "perzukunft arbeitsvermittlung",
+          "original_location": "berlin, DE",
+          "original_posted_at": null,
+          "posted_date": "2026-08-24",
+          "normalized_title": "uberfuhrungsfahrer fs b",
+          "normalized_company": "perzukunft arbeitsvermittlung",
+          "normalized_location": {
+            "raw_text": "berlin, DE",
+            "normalized_text": "berlin, DE",
+            "country_code": "DE",
+            "city": "berlin",
+            "postal_code": null,
+            "tokens": [
+              "berlin",
+              "de"
+            ]
+          },
+          "body_text": "Водитель для перевозки грузов",
+          "normalized_body_text": "",
+          "title_tokens": [
+            "uberfuhrungsfahrer",
+            "fs"
+          ],
+          "content_tokens": [],
+          "title_fingerprint": "",
+          "content_fingerprint": "",
+          "language_signals": {
+            "strong_german_required": false,
+            "german_mentioned": false,
+            "english_mentioned": false,
+            "english_required": false,
+            "english_preferred": false,
+            "low_language_signal": false,
+            "shift_signal": false,
+            "helper_role_signal": false
+          },
+          "description_complete": null
+        }
+      ],
+      "provenance": [
+        "BA (Bundesagentur fur Arbeit)"
+      ]
+    },
+    "expected": {
+      "score": 61,
+      "bucket": "maybe",
+      "filter": {
+        "decision": "allow",
+        "positive_hits": [
+          {
+            "code": "vehicle_logistics_family",
+            "label_ru": "роль в автомобильной логистике",
+            "weight": 0
+          },
+          {
+            "code": "search_query_term_match",
+            "label_ru": "совпадает с поисковыми терминами профиля",
+            "weight": 0
+          },
+          {
+            "code": "location_fit",
+            "label_ru": "локация совпадает с профилем",
+            "weight": 0
+          }
+        ],
+        "rejection_hits": [],
+        "review_hits": []
+      },
+      "scoring": {
+        "score": 61,
+        "positive_hits": [
+          {
+            "code": "priority_role",
+            "label_ru": "роль в автомобильной логистике",
+            "weight": 26
+          },
+          {
+            "code": "desired_role_match",
+            "label_ru": "совпадает с профилем поиска",
+            "weight": 10
+          },
+          {
+            "code": "location_match",
+            "label_ru": "локация совпадает с профилем",
+            "weight": 6
+          }
+        ],
+        "negative_hits": [
+          {
+            "code": "commute_distance",
+            "label_ru": "95 км от дома — реально только с переездом",
+            "weight": -8
+          },
+          {
+            "code": "posting_freshness",
+            "label_ru": "объявлению больше месяца",
+            "weight": -8
+          },
+          {
+            "code": "incomplete_requirements_review",
+            "label_ru": "неполное описание: ключевые требования не подтверждены",
+            "weight": 0
+          }
+        ]
+      }
+    }
+  },
+  {
+    "profile": {
+      "profile_label": "Перевозка грузов — Sprinter / Transporter B",
+      "profile_source": "saved",
+      "note_ru": null,
+      "legal_status": "section_24",
+      "work_authorized": true,
+      "german_level": "A1",
+      "english_level": "none",
+      "desired_roles": [
+        "Transporter / Sprinter Klasse B"
+      ],
+      "excluded_roles": [
+        "Paketzustellung",
+        "Briefzustellung",
+        "Postzustellung"
+      ],
+      "preferred_locations": [
+        "Neustrelitz",
+        "Berlin",
+        "Neubrandenburg",
+        "Rostock"
+      ],
+      "relocation_ready": 1,
+      "shift_ok": 1,
+      "physical_work_ok": null,
+      "housing_needed": 0,
+      "start_availability_text": "с 16.11.2026",
+      "notes": null,
+      "no_german_required": false,
+      "section24_interpreted": true,
+      "search_query_terms": [
+        "Sprinterfahrer",
+        "Fahrer Klasse B Transporter",
+        "Fahrer bis 3",
+        "5 t"
+      ],
+      "additional_search_terms": [],
+      "driver_license": "B",
+      "car_available": null,
+      "search_radius_km": null,
+      "employment_types": [],
+      "min_salary_eur_per_hour": null,
+      "self_employment_ok": null,
+      "home_city": "Neustrelitz",
+      "search_location": null,
+      "search_cities": [],
+      "run_query_terms": []
+    },
+    "canonical": {
+      "canonical_key": "db-3401",
+      "normalized_title": "fahrer transportfahrer 3 5t nahverkehr warenlogistik",
+      "company_name": "uwe steingross feinmechanik",
+      "location_text": "berlin, DE",
+      "country_code": "DE",
+      "city": "Berlin",
+      "posted_date": "2026-09-24",
+      "language_signals": {
+        "strong_german_required": false,
+        "german_mentioned": false,
+        "english_mentioned": false,
+        "english_required": false,
+        "english_preferred": false,
+        "low_language_signal": false,
+        "shift_signal": false,
+        "helper_role_signal": false
+      },
+      "source_records": [
+        {
+          "source_id": "ba (bundesagentur fur arbeit)",
+          "source_name": "BA (Bundesagentur fur Arbeit)",
+          "external_id": "10001-1003758665-S",
+          "source_reference": "10001-1003758665-S",
+          "source_url": "https://www.arbeitsagentur.de/jobsuche/suche?angebotsart=1&id=10001-1003758665-S&was=10001-1003758665-S",
+          "raw_payload": {},
+          "original_title": "fahrer transportfahrer 3 5t nahverkehr warenlogistik",
+          "original_company": "uwe steingross feinmechanik",
+          "original_location": "berlin, DE",
+          "original_posted_at": null,
+          "posted_date": "2026-09-24",
+          "normalized_title": "fahrer transportfahrer 3 5t nahverkehr warenlogistik",
+          "normalized_company": "uwe steingross feinmechanik",
+          "normalized_location": {
+            "raw_text": "berlin, DE",
+            "normalized_text": "berlin, DE",
+            "country_code": "DE",
+            "city": "berlin",
+            "postal_code": null,
+            "tokens": [
+              "berlin",
+              "de"
+            ]
+          },
+          "body_text": "водитель транспорта 3-5т городская логистика товаров",
+          "normalized_body_text": "3 5",
+          "title_tokens": [
+            "fahrer",
+            "transportfahrer",
+            "5t",
+            "nahverkehr",
+            "warenlogistik"
+          ],
+          "content_tokens": [],
+          "title_fingerprint": "",
+          "content_fingerprint": "",
+          "language_signals": {
+            "strong_german_required": false,
+            "german_mentioned": false,
+            "english_mentioned": false,
+            "english_required": false,
+            "english_preferred": false,
+            "low_language_signal": false,
+            "shift_signal": false,
+            "helper_role_signal": false
+          },
+          "description_complete": null
+        }
+      ],
+      "provenance": [
+        "BA (Bundesagentur fur Arbeit)"
+      ]
+    },
+    "expected": {
+      "score": 69,
+      "bucket": "maybe",
+      "filter": {
+        "decision": "allow",
+        "positive_hits": [
+          {
+            "code": "light_goods_transport_family",
+            "label_ru": "перевозка грузов на лёгком автомобиле",
+            "weight": 0
+          },
+          {
+            "code": "location_fit",
+            "label_ru": "локация совпадает с профилем",
+            "weight": 0
+          }
+        ],
+        "rejection_hits": [],
+        "review_hits": []
+      },
+      "scoring": {
+        "score": 69,
+        "positive_hits": [
+          {
+            "code": "priority_role",
+            "label_ru": "перевозка грузов на лёгком автомобиле",
+            "weight": 26
+          },
+          {
+            "code": "desired_role_match",
+            "label_ru": "совпадает с профилем поиска",
+            "weight": 10
+          },
+          {
+            "code": "location_match",
+            "label_ru": "локация совпадает с профилем",
+            "weight": 6
+          }
+        ],
+        "negative_hits": [
+          {
+            "code": "commute_distance",
+            "label_ru": "95 км от дома — реально только с переездом",
+            "weight": -8
+          }
+        ]
+      }
+    }
+  }
+]

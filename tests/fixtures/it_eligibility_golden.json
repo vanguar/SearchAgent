@@ -1,0 +1,51 @@
+[
+  {
+    "id": "djinni-junior-ai-2026-10-03",
+    "provenance": "Minimized real Djinni vacancy; snapshot db-2554, company and client details removed",
+    "title": "Junior AI Developer",
+    "body": "1+ year of hands-on software development experience (commercial or substantial personal projects)\nDemonstrable proficiency with AI coding tools: Claude Code, Cursor, GitHub Copilot, or equivalent\nWorking knowledge of TypeScript/JavaScript or Python\nStrong English communication (both written and spoken)\nNice to have:\nBackend experience with Node.js, Next.js, or FastAPI",
+    "bucket": "maybe", "score_range": [40, 59], "reason": "it_english_review", "positive": "it_entry_path"
+  },
+  {
+    "id": "djinni-data-automation-2026-10-03",
+    "provenance": "Minimized real Djinni vacancy 829787 / snapshot db-3406; no English requirement stated in source",
+    "title": "Technical Data Automation Specialist",
+    "body": "Hands-on experience with Claude Code and building automations\nHigh command of SQL: complex queries, optimization, performance thinking\nUnderstanding of Data Pipelines, ETL, and Data Processing Processes\nSignificant Advantage\nExperience in production systems\nAWS/GCP experience",
+    "bucket": "maybe", "score_range": [45, 69], "reason": "it_stack_depth_review", "positive": "ai_coding_brands"
+  },
+  {
+    "id": "dou-senior-ai-2026-10-03",
+    "provenance": "Minimized real DOU vacancy 375257 / snapshot db-3409",
+    "title": "Senior AI Engineer",
+    "body": "Use AI coding tools daily. Claude Code is our default.\n5+ years of software engineering experience, with production systems you have designed, shipped and supported.\nProven experience building LLM-based agents or agentic workflows that reached production with real users.\nClear communication with stakeholders in English.",
+    "bucket": "rejected", "score_range": [0, 35], "reason": "it_experience_gap", "positive": "ai_coding_brands"
+  },
+  {
+    "id": "dou-middle-ds-2026-10-03",
+    "provenance": "Minimized real DOU vacancy 375425 / snapshot db-3407",
+    "title": "Middle DS / AI Engineer",
+    "body": "3+ years of commercial experience in Data Science, Machine Learning, or AI Engineering\n1+ years of hands-on experience with LLMs and NLP\nHands-on experience with PyTorch, TensorFlow\nPractical experience with AI coding agents and development tools (Claude Code, Cursor)\nAt least Upper-Intermediate level of English (spoken and written)",
+    "bucket": "rejected", "score_range": [0, 35], "reason": "it_research_mismatch", "positive": "ai_coding_brands"
+  },
+  {
+    "id": "dou-applied-scientist-2026-10-03",
+    "provenance": "Minimized real DOU vacancy; snapshot db-3408",
+    "title": "Middle Applied Scientist",
+    "body": "4+ years of commercial experience in data science, applied science, machine learning, or a related field.\nProficiency in Python and SQL and experience working with large datasets.\nEnglish level - upper-intermediate or higher\nExperience evaluating LLM-based or agentic workflows.",
+    "bucket": "rejected", "score_range": [0, 35], "reason": "it_research_mismatch", "positive": "ai_agents_workflows"
+  },
+  {
+    "id": "djinni-fullstack-genai-2026-10-03",
+    "provenance": "Minimized real Djinni vacancy; snapshot db-3410",
+    "title": "Full Stack GenAI Engineer",
+    "body": "AI coding co-pilots: Claude Code, Cursor.\nКомерційний досвід Full Stack розробки на рівні Senior або Lead Engineer\nСильний практичний досвід роботи з GCP/Azure/AWS\nPython, JavaScript/TypeScript, React",
+    "bucket": "rejected", "score_range": [0, 35], "reason": "it_seniority_gap", "positive": "ai_coding_brands"
+  },
+  {
+    "id": "djinni-ai-architect-2026-10-03",
+    "provenance": "Minimized real Djinni vacancy; snapshot db-3411",
+    "title": "AI Solution Architect",
+    "body": "8+ years in solution or software architecture, including 3+ years delivering production AI solutions (not just prototypes).\nHands-on experience with OpenAI, Anthropic Claude, Google Gemini, AWS Bedrock, or Azure OpenAI.\nStrong Python, plus solid experience on AWS, Azure, or GCP.",
+    "bucket": "rejected", "score_range": [0, 35], "reason": "it_experience_gap", "positive": "ai_coding_brands"
+  }
+]
