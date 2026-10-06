@@ -4,6 +4,7 @@ import re
 from typing import Any
 
 from app.core.config import Settings
+from app.services.html_text import strip_html
 from app.services.source_adapters.base import BaseSourceAdapter
 from app.services.source_adapters.errors import AdapterRequestError, HttpTransportError
 from app.services.source_adapters.http import HttpTextTransport, UrllibHttpTextTransport
@@ -13,7 +14,7 @@ from app.services.source_adapters.models import (
     SourceRecordPreview,
     SourceSearchInput,
 )
-from app.services.source_adapters.rss import parse_rss_items
+from app.services.source_adapters.rss import has_full_rss_description, parse_rss_items
 
 # Djinni принимает `primary_keyword` ТОЛЬКО из закрытого списка рубрик. Значение вне
 # списка не вызывает ошибку — фид молча отдаёт общий нефильтрованный топ-100. Из-за
@@ -189,8 +190,8 @@ class DjinniRssAdapter(BaseSourceAdapter):
             status_kind="success" if enabled else "disabled",
             status_detail=(
                 "Украинский/remote IT-источник через RSS Djinni. В фиде есть только заголовок, "
-                "ссылка и описание: компанию и город Djinni не отдаёт, поэтому на карточках "
-                "этих вакансий они остаются пустыми."
+                "ссылка и описание. Компания извлекается из явного представления работодателя "
+                "в описании; если его нет, поле остаётся пустым. Город фид не передаёт."
                 if enabled
                 else "SOURCE_DJINNI_ENABLED=false."
             ),
@@ -294,19 +295,40 @@ def _item_to_record(source_id: str, source_name: str, raw_item: dict[str, Any]) 
     external_id = _to_text(raw_item.get("guid")) or _to_text(raw_item.get("link"))
     if external_id is None:
         return None
+    description = _to_text(raw_item.get("description"))
     return SourceRecordPreview(
-            description_complete=False,
+        description_complete=has_full_rss_description(description),
         source_id=source_id,
         source_name=source_name,
         external_id=external_id,
         source_reference=external_id,
         title=_to_text(raw_item.get("title")) or "Без названия",
-        company=None,
+        company=_company_from_description(description),
         location=None,
         posted_at=_to_text(raw_item.get("pub_date")),
         detail_url=_to_text(raw_item.get("link")),
         raw_payload=dict(raw_item),
     )
+
+
+def _company_from_description(description: str | None) -> str | None:
+    """Use an explicit employer introduction, never AI summaries or incidental names."""
+    body = strip_html(description or "")
+    introduction = re.match(
+        r"^(?:(?:Компанія|Компания|Company)\s+)?"
+        r"(?P<company>[^\n.!?]{1,80}?)\s+"
+        r"(?:шукає|ищет|is hiring|is looking for)\b",
+        body,
+        re.IGNORECASE,
+    )
+    if introduction is None:
+        return None
+    company = introduction["company"].strip(' \t\"«»“”')
+    if not company or not company[0].isupper() or len(company.split()) > 6:
+        return None
+    if company.casefold() in {"we", "our company", "the company", "company", "ми", "мы", "компанія", "компания", "наша компанія", "наша компания"}:
+        return None
+    return company
 
 
 def _to_text(value: Any) -> str | None:

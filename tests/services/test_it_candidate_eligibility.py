@@ -134,9 +134,39 @@ def test_ukraine_remote_is_uncertain_but_company_country_is_not_restriction():
     assert evaluate("AI Integration Specialist", TECH + "Company based in Ukraine. Work remotely from Europe.")[0] == "hot"
 
 
-def test_senior_word_alone_and_optional_experience_are_not_vetoes():
-    assert evaluate("Senior AI Integration Specialist", TECH + "Personal projects accepted.")[0] == "hot"
+@pytest.mark.parametrize("title", [
+    "Senior AI Business Systems Analyst", "Senior AI Integration Specialist", "Lead AI Automation Engineer",
+])
+def test_senior_title_cannot_be_rescued_by_missing_experience_requirement(title):
+    bucket, verdict, score = evaluate(title, TECH + "Personal projects accepted.", feedback=20)
+    assert bucket == "rejected"
+    assert score.score <= 35
+    assert any(h.code == "it_seniority_gap" for h in verdict.rejection_hits)
+
+
+def test_optional_experience_and_senior_colleagues_are_not_vetoes():
     assert evaluate("AI Integration Specialist", TECH + "3+ years commercial experience nice to have.")[0] == "hot"
+    assert evaluate("Junior AI Developer", TECH + "Mentorship from a Senior engineer and Tech Lead.")[0] == "hot"
+
+
+def test_senior_profile_outside_candidate_policy_keeps_senior_jobs():
+    profile = replace(PROFILE, desired_roles=("Senior Python Developer",), search_query_terms=("Python Developer",))
+    _, verdict, score = evaluate("Senior Python Developer", TECH, profile=profile)
+    assert not any(h.code == "it_seniority_gap" for h in (*verdict.rejection_hits, *score.negative_hits))
+
+
+def test_ai_profile_explicitly_targeting_senior_roles_keeps_senior_jobs():
+    profile = replace(PROFILE, desired_roles=(*AI_TOOLS_DESIRED_ROLES, "Senior AI Automation Specialist"))
+    bucket, verdict, _ = evaluate("Senior AI Automation Specialist", TECH * 2 + "Personal projects accepted.", profile=profile)
+    assert bucket == "hot"
+    assert not any(h.code == "it_seniority_gap" for h in verdict.rejection_hits)
+
+
+def test_targeting_senior_does_not_cancel_existing_experience_gap():
+    profile = replace(PROFILE, desired_roles=(*AI_TOOLS_DESIRED_ROLES, "Senior AI Automation Specialist"))
+    bucket, verdict, _ = evaluate("Senior AI Automation Specialist", TECH + "5+ years commercial experience required.", profile=profile)
+    assert bucket == "rejected"
+    assert any(h.code == "it_seniority_gap" for h in verdict.rejection_hits)
 
 
 def test_junior_or_pet_projects_do_not_cancel_separate_mandatory_experience():

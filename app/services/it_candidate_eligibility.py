@@ -113,7 +113,10 @@ def inspect_it_eligibility(
     senior_requirement = re.search(_SENIOR, title) or any(
         re.search(_SENIOR, c) and re.search(_COMMERCIAL, c) and re.search(_EXPERIENCE, c) for c in clauses
     )
-    if senior_requirement and experience_cap < 100:
+    # A senior title is itself a level requirement, even when the employer does
+    # not repeat it as a numeric/commercial-experience requirement in the body.
+    senior_target = any(re.search(_SENIOR, normalize_multilingual_text(role)) for role in profile.desired_roles)
+    if senior_requirement and (experience_cap < 100 or not senior_target):
         constrain("it_seniority_gap", "старшая роль требует подтверждённого профессионального опыта", 35, -20, reject=True)
     if re.search(r"\b(?:finance|financial|accounting|marketing|marketer|sales|recruiter|hr)\b", title) and not re.search(
         r"\b(?:developer|engineer|automation|integration|tools)\b", title

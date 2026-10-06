@@ -5,6 +5,7 @@ from email.utils import parsedate_to_datetime
 from typing import Any
 from xml.etree import ElementTree
 
+from app.services.html_text import strip_html
 from app.services.source_adapters.errors import AdapterResponseError
 
 
@@ -16,6 +17,17 @@ class RssItem:
     description: str | None
     pub_date: str | None
     raw_payload: dict[str, Any]
+
+
+def has_full_rss_description(description: str | None) -> bool:
+    """Validate bodies from feeds known to publish the vacancy description (DOU/Djinni).
+
+    These feeds include the original description, rather than search excerpts.
+    Empty, short or visibly clipped bodies must still be treated as insufficient.
+    Do not use this for feeds/APIs that provide summaries instead of descriptions.
+    """
+    body = strip_html(description or "")
+    return len(body) >= 120 and not body.endswith(("…", "..."))
 
 
 def parse_rss_items(
