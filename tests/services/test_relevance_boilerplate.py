@@ -6,7 +6,13 @@ import dataclasses
 from app.services.employer_boilerplate import strip_employer_boilerplate
 from app.services.rule_catalog import inspect_vacancy
 from app.services.scorer import VacancyScorer
-from tests.services.relevance_support import build_canonical, courier_profile, courier_run, items_titled
+from tests.services.relevance_support import (
+    build_canonical,
+    courier_profile,
+    courier_run,
+    flatten_cards,
+    items_titled,
+)
 
 _TEMPLATE = (
     "Wir sind ein nach AZAV zertifizierter Personalvermittler.   "
@@ -101,7 +107,7 @@ def test_unconfirmed_language_relief_scores_below_confirmed_relief() -> None:
 
 def test_real_run_event_fahrer_loses_template_language_bonus() -> None:
     result = courier_run()
-    cards = items_titled((*result.hot_results, *result.maybe_results, *result.rejected_results), "Hochzeiten")
+    cards = items_titled(flatten_cards((*result.hot_results, *result.maybe_results, *result.rejected_results)), "Hochzeiten")
     hidden = items_titled(result.hidden_filtered_items, "Hochzeiten")
 
     assert cards or hidden

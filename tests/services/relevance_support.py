@@ -71,8 +71,14 @@ def build_canonical(
     )
 
 
+def flatten_cards(items: Any) -> tuple[SearchResultItem, ...]:
+    """Карточки вместе со свёрнутыми в них вакансиями того же работодателя."""
+    return tuple(card for item in items for card in (item, *item.cluster_members))
+
+
 def visible_items(result: SearchRunResult) -> tuple[SearchResultItem, ...]:
-    return (*result.hot_results, *result.maybe_results)
+    """Всё, что человек видит: карточки «горячих» и «на проверку» и свёрнутое в них."""
+    return flatten_cards((*result.hot_results, *result.maybe_results))
 
 
 def items_titled(items: Any, fragment: str, *, company: str | None = None) -> list[Any]:

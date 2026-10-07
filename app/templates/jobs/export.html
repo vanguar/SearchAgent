@@ -102,6 +102,20 @@
       </p>
       {% if item.summary_ru %}<p class="vacancy__summary">{{ item.summary_ru }}</p>{% endif %}
       <p class="vacancy__explanation"><b>{{ item.explanation_ru }}</b></p>
+      {% set risk_labels = (item.filter_result.review_hits + item.filter_result.risk_hits)|map(attribute="label_ru")|list %}
+      {% if risk_labels %}<p class="vacancy__summary">Риск: {{ risk_labels|join(", ") }}.</p>{% endif %}
+      {% if item.cluster_members %}
+      <p class="vacancy__summary">
+        Этот работодатель: {{ item.cluster_size }} вакансий в выдаче, ещё {{ item.cluster_members|length }} свёрнуто сюда.
+        {% if item.cluster_contacts %}Общий контакт: {{ item.cluster_contacts|join(", ") }}.{% endif %}
+      </p>
+      <ul class="vacancy__summary">
+        {% for member in item.cluster_members %}
+        {% set member_link = item_link(member)|trim %}
+        <li>{{ member.primary_record.original_title }} · {{ member.score_result.score }}/100{% if member_link %} · <a href="{{ member_link }}">{{ member_link }}</a>{% endif %}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
       {% if link %}
       <p class="vacancy__link">Ссылка: <a href="{{ link }}">{{ link }}</a></p>
       {% else %}

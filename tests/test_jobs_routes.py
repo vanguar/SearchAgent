@@ -1458,3 +1458,32 @@ def test_jobs_pdf_export_omits_hard_filtered_vacancies() -> None:
     assert "Senior Python Engineer" not in response.text
     # Но сам факт отсева остаётся видимым — одной строкой.
     assert "Отсеяно жёсткими фильтрами: 133" in response.text
+
+
+def test_employer_summary_card_and_risks_render_in_results_and_pdf_export() -> None:
+    from tests.services.relevance_support import courier_run
+
+    result = courier_run()
+    summary = next(item for item in result.hot_results if item.cluster_members)
+    service = FakeSearchService(search_result=result)
+    app = create_app()
+    app.dependency_overrides[get_search_service] = lambda: service
+    app.dependency_overrides[get_search_history_service] = lambda: FakeSearchHistoryService()
+    client = TestClient(app)
+
+    response = client.post("/jobs/search-results", data={"source": "ba", "query": "Kurier", "location": "Berlin"})
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert f"ещё {len(summary.cluster_members)} свёрнуто" in response.text
+    assert summary.cluster_members[0].primary_record.original_title.split(" ")[0] in response.text
+
+    from app.web.routes.jobs import _register_task
+
+    task = _SearchTask(task_id="cluster-pdf", profile_id=None)
+    task.mark_done(result)
+    _register_task(task)
+    export = client.get("/jobs/export/cluster-pdf")
+
+    assert export.status_code == 200
+    assert f"ещё {len(summary.cluster_members)} свёрнуто сюда" in export.text

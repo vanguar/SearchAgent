@@ -12,6 +12,7 @@ from app.core.config import Settings
 from app.core.logging import logger
 from app.services.ai_tools_profile import AI_TOOLS_WESTERN_QUERY_TRANSLATIONS
 from app.services.employer_boilerplate import strip_employer_boilerplate
+from app.services.employer_clusters import collapse_employer_clusters
 from app.services.filter_engine import FilterEngine, is_b_only_driving_profile
 from app.services.geo_distance import place_weight
 from app.services.hashers import normalize_text_for_fingerprint
@@ -346,7 +347,7 @@ class SearchService:
                 results_list.append(item)
 
         hidden_filtered_items = tuple(hidden_items)
-        ordered_results = tuple(sorted(results_list, key=_result_sort_key))
+        ordered_results = collapse_employer_clusters(sorted(results_list, key=_result_sort_key))
 
         source_states = self._build_source_states(
             successful_responses=tuple(successful_responses),
@@ -841,13 +842,16 @@ class SearchService:
             )
             if item is not None:
                 items.append(dataclasses.replace(item, search_city=origin.search_city if origin else None))
-        ordered = tuple(sorted(items, key=_result_sort_key))
+        ordered = collapse_employer_clusters(sorted(items, key=_result_sort_key))
         query_groups: list[SearchQueryResultGroup] = []
         for query_group in merged.query_result_groups:
-            source_keys = {r.source_record_key for item in (*query_group.hot_results, *query_group.maybe_results)
+            shown = (*query_group.hot_results, *query_group.maybe_results)
+            source_keys = {r.source_record_key for item in (*shown, *(m for i in shown for m in i.cluster_members))
                            for r in item.canonical_group.source_records}
             members = tuple(item for item in ordered
-                            if any(r.source_record_key in source_keys for r in item.canonical_group.source_records))
+                            if any(r.source_record_key in source_keys
+                                   for card in (item, *item.cluster_members)
+                                   for r in card.canonical_group.source_records))
             query_groups.append(dataclasses.replace(
                 query_group, hot_results=tuple(i for i in members if i.bucket == "hot"),
                 maybe_results=tuple(i for i in members if i.bucket == "maybe"),
@@ -1903,7 +1907,8 @@ def _sufficient_canonical_count(result: SearchRunResult, profile: SearchProfileC
         *profile.additional_search_terms, *profile.run_query_terms,
     )) if is_specific_family(family)}
     eligible: set[str] = set()
-    for item in (*result.hot_results, *result.maybe_results):
+    displayed = (*result.hot_results, *result.maybe_results)
+    for item in (*displayed, *(member for host in displayed for member in host.cluster_members)):
         if item.filter_result.hard_reject:
             continue
         family = RoleFamily(item.role_family) if item.role_family else RoleFamily.GENERIC

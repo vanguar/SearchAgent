@@ -72,6 +72,28 @@
 
         <p class="jobs-vacancy-explanation"><strong>{{ item.explanation_ru }}</strong></p>
 
+        {% if item.cluster_members %}
+        <details class="jobs-employer-cluster">
+          <summary>
+            {{ item.primary_record.original_company or item.canonical_group.company_name or "Этот работодатель" }}:
+            {{ item.cluster_size }} вакансий в выдаче — ещё {{ item.cluster_members|length }} свёрнуто
+          </summary>
+          {% if item.cluster_contacts %}
+          <p class="muted">Общий контакт: {{ item.cluster_contacts|join(", ") }}</p>
+          {% endif %}
+          <ul class="jobs-employer-cluster__list">
+            {% for member in item.cluster_members %}
+            {% set member_url = (member.primary_record.source_url or "")|trim %}
+            <li>
+              {% if member_url %}<a href="{{ member_url }}" target="_blank" rel="noopener">{{ member.primary_record.original_title | unescape }}</a>{% else %}{{ member.primary_record.original_title | unescape }}{% endif %}
+              · {{ member.score_result.score }}
+              {% if member.primary_record.original_location %}· {{ member.primary_record.original_location }}{% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+        </details>
+        {% endif %}
+
         {% set risk_labels = (item.filter_result.review_hits + item.filter_result.risk_hits)|map(attribute="label_ru")|list %}
         {% if risk_labels %}
         <p class="jobs-vacancy-risk muted">Риск: {{ risk_labels|join(", ") }}.</p>

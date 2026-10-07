@@ -370,6 +370,13 @@ class SearchResultItem:
     # работодатель не назвал место: выдачу всё равно надо положить в раздел
     # того города, у которого её спросили.
     search_city: str | None = None
+    # Свёртка по работодателю (employer_clusters). У сводной карточки —
+    # свёрнутые в неё вакансии, размер кластера в выдаче и общий контакт;
+    # у свёрнутой вакансии — ключ карточки, в которую она убрана.
+    cluster_members: tuple[SearchResultItem, ...] = ()
+    cluster_size: int = 1
+    cluster_contacts: tuple[str, ...] = ()
+    collapsed_into: str | None = None
 
     @property
     def distance_from_home_km(self) -> float | None:

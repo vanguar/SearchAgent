@@ -1272,6 +1272,20 @@ body {
   margin: -2px 0 0;
 }
 
+.jobs-employer-cluster {
+  margin: 4px 0 0;
+}
+
+.jobs-employer-cluster summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.jobs-employer-cluster__list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
 .jobs-action-row {
   display: block;
   margin-top: 4px;

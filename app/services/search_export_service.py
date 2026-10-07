@@ -78,8 +78,9 @@ def build_search_export(
         "sources": [_source_state(state) for state in result.source_states],
         "attempts": _attempts_section(result.attempt_summary),
         "vacancies": [
-            _vacancy(item, description_excerpt_chars=description_excerpt_chars, full=full)
+            _vacancy(card, description_excerpt_chars=description_excerpt_chars, full=full)
             for item in (*result.hot_results, *result.maybe_results, *result.rejected_results)
+            for card in (item, *item.cluster_members)
         ],
         "hidden_filtered": [_hidden_item(item, full=full) for item in result.hidden_filtered_items],
     }
@@ -100,6 +101,9 @@ def _run_section(
             "maybe": len(result.maybe_results),
             "rejected": len(result.rejected_results),
             "hidden_by_hard_filter": len(result.hidden_filtered_items),
+            "collapsed_into_employer_cards": sum(
+                len(item.cluster_members) for item in (*result.hot_results, *result.maybe_results)
+            ),
         },
     }
     if search_input is not None:
@@ -216,6 +220,18 @@ def _vacancy(item: SearchResultItem, *, description_excerpt_chars: int, full: bo
             "negative": _rule_hits(item.score_result.negative_hits, full=full),
         },
         "signals": _signals(item.signals, full=full),
+        # Свёртка по работодателю: у сводной карточки — размер кластера и
+        # ключи свёрнутых вакансий; у свёрнутой — ключ сводной карточки.
+        "collapsed_into": item.collapsed_into,
+        "employer_cluster": (
+            {
+                "size": item.cluster_size,
+                "member_keys": [member.canonical_group.canonical_key for member in item.cluster_members],
+                "contacts": list(item.cluster_contacts),
+            }
+            if item.cluster_members
+            else None
+        ),
     }
     if full:
         vacancy["title_normalized"] = group.normalized_title
