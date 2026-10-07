@@ -90,7 +90,12 @@ class RelevanceConfig:
     # Голое «Rad» проверяется только в заголовке: в тексте оно слишком часто
     # значит колесо («Rad- und Reifenwechsel»).
     transport_mode_title_patterns: tuple[tuple[str, str], ...] = (
-        ("bike", r"\b(?:e\s*)?bike\w*|\bfahrrad\w*|\blastenrad\w*|\bcargo\s*bike\w*|\bvelo\w*|\brad\b|\brider\b|\bradkurier\w*"),
+        # Велосипед как СПОСОБ работы, а не как товар: «mit e-Bike», «Rad»,
+        # «Cargo Bike Kurier», «Rider». «Fahrer für die … E-Bike Stores» возит
+        # велосипеды на машине и под правило не попадает.
+        ("bike", r"\b(?:mit|per|auf)\s+(?:dem\s+|einem\s+)?(?:e\s*bike|fahrrad|rad|lastenrad|cargo\s*bike|velo)\b"
+                 r"|\b(?:e\s*bike|fahrrad|cargo\s*bike|lastenrad|velo|rad)\s*(?:kurier|courier|zusteller|rider|lieferant)\w*"
+                 r"|\b(?:fahrrad|velo|lastenrad)kurier\w*|\bradkurier\w*|\brad\b|\brider\b"),
         ("foot", r"\bzu\s+fuss\b"),
     )
     transport_mode_body_patterns: tuple[tuple[str, str], ...] = (

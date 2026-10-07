@@ -29,7 +29,8 @@ _DRIVING_TITLE_RE = re.compile(
     r"fahrer|kurier|zustell|paket|liefer|transport|lkw|spedition|ausliefer|logistik|tour"
 )
 _OPTIONAL_NEARBY_RE = re.compile(
-    r"\b(?:von\s+vorteil|wunschenswert|erwunscht|bevorzugt|optional|ideal|nice\s+to\s+have|kein\s+muss|"
+    r"\b(?:von\s+vorteil|wunschenswert|erwunscht|bevorzugt|optional|ideal|idealerweise|falls\s+erforderlich|"
+    r"wenn\s+vorhanden|nice\s+to\s+have|kein\s+muss|"
     r"kann\s+(?:spater\s+)?(?:erworben|gemacht|nachgeholt)\s+werden|wird\s+(?:gestellt|finanziert|ermoglicht|bezahlt)|"
     r"unterstutzen\s+(?:dich|sie)\s+bei)\b"
 )

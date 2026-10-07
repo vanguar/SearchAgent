@@ -156,3 +156,13 @@ def test_real_run_hides_license_gated_vacancies(fragment: str) -> None:
 
     assert not items_titled(visible_items(result), fragment), fragment
     assert hidden_reasons(result, fragment), fragment
+
+
+def test_p_schein_wished_for_if_needed_is_a_risk() -> None:
+    verdict = _verdict(
+        "Fahrer (m/w/d)",
+        "Gültiger Führerschein der Klasse B (idealerweise mit Personenbeförderungsschein/P-Schein, falls erforderlich).",
+    )
+
+    assert "p_schein_required" not in _codes(verdict.rejection_hits)
+    assert "p_schein_optional" in _codes(verdict.risk_hits)

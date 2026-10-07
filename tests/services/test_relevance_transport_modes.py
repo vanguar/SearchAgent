@@ -105,3 +105,12 @@ def test_real_run_keeps_car_courier_jobs() -> None:
     result = courier_run()
 
     assert items_titled(visible_items(result), "Last-Mile Logistics mit Auto")
+
+
+def test_bikes_as_goods_are_not_a_bike_job() -> None:
+    verdict = _verdict(
+        "Fahrer (m/w/d) für die Küstenrad E-Bike Stores",
+        "Du transportierst unsere Fahrräder und E-Bikes zwischen unseren Standorten.",
+    )
+
+    assert "transport_mode_mismatch" not in {hit.code for hit in verdict.rejection_hits}
