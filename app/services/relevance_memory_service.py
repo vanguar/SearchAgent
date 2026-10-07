@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 from sqlalchemy.orm import Session
 
@@ -83,6 +84,14 @@ class RelevanceMemoryService:
         self, db: Session, *, profile_id: int
     ) -> ProfileFeedbackMemory:
         rows = db.query(RelevanceFeedback).filter_by(profile_id=profile_id).all()
+        return self.build_memory_from_rows(rows, profile_id=profile_id)
+
+    def build_memory_from_rows(self, rows: Sequence[Any], *, profile_id: int) -> ProfileFeedbackMemory:
+        """То же, что build_profile_memory, но по готовым строкам (без сессии БД).
+
+        Строке достаточно атрибутов canonical_key, source_name, normalized_title,
+        role_family и feedback_label.
+        """
         memory = ProfileFeedbackMemory(
             profile_id=profile_id, total_feedback_count=len(rows)
         )
