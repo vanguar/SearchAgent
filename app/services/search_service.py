@@ -27,7 +27,7 @@ from app.services.role_family import (
 )
 from app.services.role_intent import normalize_role_intent
 from app.services.rule_catalog import HOT_BUCKET_MIN_SCORE, MAYBE_BUCKET_MIN_SCORE, inspect_vacancy
-from app.services.scorer import VacancyScorer
+from app.services.scorer import IRRELEVANT_SCORE_CODES, VacancyScorer
 from app.services.search_fallback import (
     ENOUGH_NON_REJECTED,
     LOW_LANGUAGE_FALLBACK,
@@ -1260,7 +1260,9 @@ class SearchService:
             search_mode=search_mode,
         )
         score_result = _apply_explicit_feedback_to_score(score_result, explicit_feedback_label)
-        bucket = _assign_bucket(filter_result=filter_result, score=score_result.score)
+        bucket = _assign_bucket(
+            filter_result=filter_result, score=score_result.score, negative_hits=score_result.negative_hits
+        )
         bucket = _apply_explicit_feedback_to_bucket(bucket, explicit_feedback_label)
         relevance_band = _compute_relevance_band(bucket)
         translated_title_ru = self.translation_service.translate_title(
@@ -1871,8 +1873,16 @@ def _compute_relevance_band(bucket: SearchBucket) -> RelevanceBand:
     return "low"
 
 
-def _assign_bucket(*, filter_result: FilterResult, score: int) -> SearchBucket:
+def _assign_bucket(
+    *,
+    filter_result: FilterResult,
+    score: int,
+    negative_hits: tuple[RuleHit, ...] = (),
+) -> SearchBucket:
     if filter_result.hard_reject:
+        return "rejected"
+    if any(hit.code in IRRELEVANT_SCORE_CODES for hit in negative_hits):
+        # Не та работа: «на проверку» здесь нечего проверять.
         return "rejected"
     if filter_result.review_required:
         return "maybe"

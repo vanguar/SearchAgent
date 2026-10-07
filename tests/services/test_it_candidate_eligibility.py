@@ -237,7 +237,8 @@ def test_non_it_results_exactly_match_prechange_baseline(case):
     canonical = CanonicalVacancyGroup(**payload)
     verdict = FilterEngine().evaluate(canonical, profile, search_mode="germany_local")
     score = VacancyScorer().score(canonical, profile, filter_result=verdict, search_mode="germany_local", today=date(2026, 10, 3))
-    actual = {"score": score.score, "bucket": _assign_bucket(filter_result=verdict, score=score.score),
+    bucket = _assign_bucket(filter_result=verdict, score=score.score, negative_hits=score.negative_hits)
+    actual = {"score": score.score, "bucket": bucket,
               "filter": asdict(verdict), "scoring": asdict(score)}
     # Поля, добавленные в FilterResult позже снимка, сравниваются только когда
     # в них что-то есть: пустое новое поле не меняет решения.

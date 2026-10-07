@@ -293,6 +293,12 @@ class VacancySignalSnapshot:
     car_in_title: bool = False
     car_mentioned: bool = False
     press_distribution_signal: bool = False
+    # Подтверждена ли искомая роль: заголовком или повторно описанием.
+    # None — профиль не про ту работу, которую умеют узнавать правила ролей,
+    # и судить не из чего.
+    role_confirmed: bool | None = None
+    # Заголовок — обучение (Ausbildung), а не работа.
+    apprenticeship_signal: bool = False
 
 
 @dataclass(frozen=True, slots=True)

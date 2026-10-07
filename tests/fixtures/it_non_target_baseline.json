@@ -287,7 +287,7 @@
     },
     "expected": {
       "score": 0,
-      "bucket": "maybe",
+      "bucket": "rejected",
       "filter": {
         "decision": "review",
         "positive_hits": [],
@@ -318,6 +318,11 @@
             "code": "title_head_manager",
             "label_ru": "title выглядит как руководящая роль",
             "weight": -24
+          },
+          {
+            "code": "role_not_confirmed",
+            "label_ru": "роль не подтверждена: ни заголовок, ни описание не называют искомую работу",
+            "weight": 0
           }
         ]
       }

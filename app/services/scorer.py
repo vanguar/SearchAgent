@@ -22,7 +22,7 @@ from app.services.profile_parser import (
     DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
 )
 from app.services.role_family import DRIVING_LIKE_FAMILIES, RoleFamily, classify_vacancy_de
-from app.services.rule_catalog import BASE_SCORE, HOT_BUCKET_MIN_SCORE, inspect_vacancy
+from app.services.rule_catalog import BASE_SCORE, HOT_BUCKET_MIN_SCORE, MAYBE_BUCKET_MIN_SCORE, inspect_vacancy
 from app.services.search_models import (
     DAILY_COMMUTE_LIMIT_KM,
     FilterResult,
@@ -847,6 +847,20 @@ class VacancyScorer:
             negative_hits.append(RuleHit(code=code, label_ru=label, weight=capped - score))
             score = capped
 
+        # Не та работа: в «нерелевантные», какие бы бонусы за смены и город ни набрались.
+        irrelevant_reasons: list[tuple[str, str]] = []
+        if resolved_signals.role_confirmed is False:
+            irrelevant_reasons.append((
+                "role_not_confirmed",
+                "роль не подтверждена: ни заголовок, ни описание не называют искомую работу",
+            ))
+        if resolved_signals.apprenticeship_signal and not _profile_wants_apprenticeship(profile):
+            irrelevant_reasons.append(("apprenticeship", "Ausbildung: это обучение, а не работа"))
+        for code, label in irrelevant_reasons:
+            capped = min(score, MAYBE_BUCKET_MIN_SCORE - 1)
+            negative_hits.append(RuleHit(code=code, label_ru=label, weight=capped - score))
+            score = capped
+
         if eligibility is not None:
             positive_hits.extend(eligibility.positive_hits)
             negative_hits.extend(eligibility.negative_hits)
@@ -869,6 +883,18 @@ class VacancyScorer:
             positive_hits=_dedupe_hits(positive_hits),
             negative_hits=_dedupe_hits(negative_hits),
         )
+
+
+# Коды, после которых вакансия идёт в «нерелевантные» даже при спорных требованиях.
+IRRELEVANT_SCORE_CODES = frozenset({"role_not_confirmed", "apprenticeship"})
+_APPRENTICESHIP_PROFILE_RE = re.compile(r"ausbildung|azubi|обучен|учеб|стаж")
+
+
+def _profile_wants_apprenticeship(profile: SearchProfileContext) -> bool:
+    return any(
+        _APPRENTICESHIP_PROFILE_RE.search(normalize_profile_text(text))
+        for text in (*profile.desired_roles, *profile.search_query_terms, *profile.run_query_terms)
+    )
 
 
 def _dedupe_hits(hits: list[RuleHit]) -> tuple[RuleHit, ...]:

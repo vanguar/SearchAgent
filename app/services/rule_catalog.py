@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from app.core.relevance_config import get_relevance_config
 from app.services.ai_tools_profile import is_ai_tools_profile
 from app.services.driver_license_signal_extractor import extract_driver_license_requirements
 from app.services.employment_signal_extractor import extract_employment_signals
@@ -172,6 +173,10 @@ POSITIVE_ROLE_FAMILIES: tuple[TextRule, ...] = (
             r"\blieferfahrer\w*",
             r"\bkraftfahrer\w*",
             r"\bfahrzeugfuhrer\w*",
+            # Английские заголовки той же работы. Только составные формы: голое
+            # "driver" в IT-объявлении — это драйвер устройства.
+            r"\b(?:delivery|van|courier|parcel)\s+drivers?\b",
+            r"\bcouriers?\b",
         ),
     ),
 )
@@ -851,7 +856,15 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         and (not german_any_required or basic_german_signal)
         and not strong_german_required
     )
+    role_confirmed = _role_confirmation(
+        canonical,
+        profile,
+        light_match=light_match,
+        title_confirmed=bool(positive_role_hits_in_title or desired_role_hits_in_title),
+    )
     return VacancySignalSnapshot(
+        role_confirmed=role_confirmed,
+        apprenticeship_signal=_is_apprenticeship_title(title_text),
         light_goods_transport_match=light_match,
         combined_text=combined_text,
         positive_role_hits=positive_role_hits,
@@ -1006,6 +1019,53 @@ def _keep_profile_relevant_role_hits(
         if (hit_family := POSITIVE_ROLE_HIT_FAMILIES.get(hit.code)) is None
         or any(families_are_compatible(query_family, hit_family) for query_family in query_families)
     )
+
+
+def _role_confirmation(
+    canonical: CanonicalVacancyGroup,
+    profile: SearchProfileContext,
+    *,
+    light_match: str | None,
+    title_confirmed: bool,
+) -> bool | None:
+    """Названа ли искомая работа: в заголовке или неоднократно в описании.
+
+    Одно упоминание в описании — не подтверждение: «Berliner Kurier» в подписи
+    издательства превращал вакансию редактора в курьерскую. Смены, совпавший
+    город и указанная оплата сами по себе роль не подтверждают.
+    """
+    if light_match is not None:
+        return None
+    query_families = {
+        family for family in classify_role_families(profile_role_texts(profile)) if is_specific_family(family)
+    }
+    role_families = set(POSITIVE_ROLE_HIT_FAMILIES.values())
+    if not query_families or not any(
+        families_are_compatible(query_family, role_family)
+        for query_family in query_families
+        for role_family in role_families
+    ):
+        return None
+    if title_confirmed:
+        return True
+    body = " ".join(
+        normalize_text_for_fingerprint(record.body_text) for record in canonical.source_records if record.body_text
+    )
+    if not body:
+        return False
+    relevant_rules = [
+        rule for rule in POSITIVE_ROLE_FAMILIES
+        if _keep_profile_relevant_role_hits((RuleHit(code=rule.code, label_ru=rule.label_ru),), profile)
+        and rule.code != "helper_family"
+    ]
+    mentions = sum(
+        len(re.findall(pattern, body)) for rule in relevant_rules for pattern in rule.patterns
+    )
+    return mentions >= get_relevance_config().role_body_confirmation_min_mentions
+
+
+def _is_apprenticeship_title(title_text: str) -> bool:
+    return any(re.search(pattern, title_text) for pattern in get_relevance_config().apprenticeship_title_patterns)
 
 
 def _match_rules(text: str, rules: tuple[TextRule, ...]) -> tuple[RuleHit, ...]:
