@@ -7,7 +7,10 @@ from typing import Any, Literal, cast
 
 from sqlalchemy.orm import Session
 
+from app.core.relevance_config import get_relevance_config
 from app.db.models.feedback import RelevanceFeedback
+from app.services.geo_distance import is_known_place
+from app.services.hashers import normalize_text_for_fingerprint
 
 FeedbackLabel = Literal["relevant", "weak", "irrelevant"]
 
@@ -22,11 +25,6 @@ _MODERATE = 2
 _ADJ_STRONG = 6
 _ADJ_MODERATE = 4
 _ADJ_WEAK = 2
-_ADJ_SOURCE_PENALTY = -3
-
-# Hard bounds on total adjustment — deterministic rules always dominate
-_ADJ_MAX = 8
-_ADJ_MIN = -8
 
 # Source penalty: fires when source has >= N irrelevant AND >= R rate irrelevant
 _SOURCE_MIN_IRRELEVANT = 3
@@ -57,6 +55,9 @@ class ProfileFeedbackMemory:
     frequently_irrelevant: list[FeedbackPattern] = field(default_factory=list)
     weak_tolerated: list[FeedbackPattern] = field(default_factory=list)
     source_signals: list[SourceQualitySignal] = field(default_factory=list)
+    # Заголовки вакансий, отмеченных нерелевантными: токены и семейство роли.
+    # По ним считается похожесть конкретной вакансии, а не всего семейства.
+    irrelevant_titles: list[tuple[frozenset[str], str | None]] = field(default_factory=list)
     total_feedback_count: int = 0
 
     @property
@@ -66,8 +67,12 @@ class ProfileFeedbackMemory:
 
 @dataclass(frozen=True)
 class ScoreAdjustmentResult:
-    adjustment: int       # bounded to [-8, +8]; 0 = no effect
+    adjustment: int       # bounded total; 0 = no effect (includes source_adjustment)
     note_ru: str | None   # one-line Russian explainer; None if adjustment is 0
+    # Отдельная маленькая поправка за источник (уже входит в adjustment).
+    source_adjustment: int = 0
+    # Штраф был бы, но у вакансии сильные позитивные сигналы.
+    penalty_suppressed: bool = False
 
 
 class RelevanceMemoryService:
@@ -106,6 +111,10 @@ class RelevanceMemoryService:
             if label is None:
                 continue
             memory.explicit_feedback_by_canonical_key[row.canonical_key] = label
+            if label == "irrelevant":
+                tokens = title_tokens(row.normalized_title or "")
+                if tokens:
+                    memory.irrelevant_titles.append((tokens, row.role_family))
             key = row.role_family or _title_key(row.normalized_title)
             if key:
                 bucket = family_counts.setdefault(
@@ -158,23 +167,47 @@ class RelevanceMemoryService:
         normalized_title: str,
         role_family: str | None,
         source_name: str,
+        target_families: frozenset[str] | None = None,
+        strong_positive: bool = False,
     ) -> ScoreAdjustmentResult:
-        """Return bounded score adjustment and optional Russian explanation."""
+        """Ограниченная поправка за обратную связь и пояснение к ней.
+
+        Штраф считается по похожести ЗАГОЛОВКА на отмеченные нерелевантными.
+        Похожесть по семейству роли используется только для семейств, которые
+        профиль не ищет: если курьер отметил «LKW Fahrer» нерелевантным, это
+        не повод понижать всю доставку, а IT-вакансии у складского профиля —
+        повод. `target_families=None` — профиль неизвестен, семейство решает
+        как раньше.
+
+        `strong_positive` (подтверждённая ставка, полный день, категория B —
+        хотя бы два из трёх) отменяет штрафы: такая вакансия заслуживает
+        внимания, даже если похожие отмечались нерелевантными.
+        """
         if not memory.has_memory:
             return ScoreAdjustmentResult(0, None)
 
+        config = get_relevance_config()
         match_key = role_family or _title_key(normalized_title)
+        family_is_target = bool(target_families) and role_family in (target_families or frozenset())
 
         pos_count = sum(
             p.count
             for p in memory.frequently_relevant
             if _keys_match(p.pattern_key, match_key)
         )
-        neg_count = sum(
+        family_neg_count = 0 if family_is_target else sum(
             p.count
             for p in memory.frequently_irrelevant
             if _keys_match(p.pattern_key, match_key)
         )
+        vacancy_tokens = title_tokens(normalized_title)
+        title_neg_count = sum(
+            1
+            for tokens, family in memory.irrelevant_titles
+            if (family is None or role_family is None or family == role_family)
+            and _jaccard(tokens, vacancy_tokens) >= config.feedback_title_similarity
+        )
+        neg_count = max(family_neg_count, title_neg_count)
         weak_count = sum(
             p.count
             for p in memory.weak_tolerated
@@ -184,39 +217,64 @@ class RelevanceMemoryService:
         source_penalty = 0
         for signal in memory.source_signals:
             if signal.source_name == source_name and signal.has_penalty:
-                source_penalty = _ADJ_SOURCE_PENALTY
+                source_penalty = -abs(config.feedback_source_penalty)
                 break
 
-        adjustment = 0
+        boost = _ADJ_STRONG if pos_count >= _STRONG else _ADJ_MODERATE if pos_count >= _MODERATE else (
+            _ADJ_WEAK if pos_count >= 1 else 0
+        )
+        penalty = _ADJ_STRONG if neg_count >= _STRONG else _ADJ_MODERATE if neg_count >= _MODERATE else (
+            _ADJ_WEAK if neg_count >= 1 else 0
+        )
+        suppressed = strong_positive and (penalty > 0 or source_penalty < 0)
+        if suppressed:
+            penalty = 0
+            source_penalty = 0
 
-        if pos_count >= _STRONG:
-            adjustment += _ADJ_STRONG
-        elif pos_count >= _MODERATE:
-            adjustment += _ADJ_MODERATE
-        elif pos_count >= 1:
-            adjustment += _ADJ_WEAK
-
-        if neg_count >= _STRONG:
-            adjustment -= _ADJ_STRONG
-        elif neg_count >= _MODERATE:
-            adjustment -= _ADJ_MODERATE
-        elif neg_count >= 1:
-            adjustment -= _ADJ_WEAK
-
-        adjustment += source_penalty
-        adjustment = max(_ADJ_MIN, min(_ADJ_MAX, adjustment))
+        adjustment = boost - penalty + source_penalty
+        adjustment = max(-abs(config.feedback_max_penalty), min(config.feedback_max_bonus, adjustment))
 
         note_ru: str | None = None
         if adjustment > 0:
             note_ru = "Похоже на роли, которые вы уже отмечали как подходящие."
-        elif adjustment < 0 and pos_count == 0 and source_penalty < 0:
+        elif adjustment < 0 and penalty == 0 and source_penalty < 0:
             note_ru = "Этот источник часто показывал вам нерелевантные вакансии."
         elif adjustment < 0:
-            note_ru = "Понижено, потому что похожие вакансии вы часто отмечали как нерелевантные."
+            note_ru = "Понижено: вакансии с похожим заголовком вы отмечали как нерелевантные."
+        elif suppressed:
+            note_ru = "Похожие вакансии вы отмечали нерелевантными, но у этой подтверждены ставка, полный день или категория B."
         elif weak_count > 0:
             note_ru = "Смежная роль, которую вы ранее иногда принимали как допустимую."
 
-        return ScoreAdjustmentResult(adjustment, note_ru)
+        return ScoreAdjustmentResult(
+            adjustment,
+            note_ru,
+            source_adjustment=source_penalty,
+            penalty_suppressed=suppressed,
+        )
+
+
+_TITLE_TOKEN_RE = re.compile(r"[a-z0-9]{3,}")
+# Слова, которые ничего не говорят о самой работе.
+_TITLE_STOPWORDS = frozenset({
+    "und", "oder", "fur", "mit", "der", "die", "das", "den", "dem", "des", "von", "auf", "bei", "ab",
+    "vollzeit", "teilzeit", "minijob",
+})
+
+
+def title_tokens(title: str) -> frozenset[str]:
+    """Значимые слова заголовка для сравнения с отмеченными вакансиями."""
+    normalized = normalize_text_for_fingerprint(title)
+    return frozenset(
+        token for token in _TITLE_TOKEN_RE.findall(normalized)
+        if token not in _TITLE_STOPWORDS and not token.isdigit() and not is_known_place(token)
+    )
+
+
+def _jaccard(left: frozenset[str], right: frozenset[str]) -> float:
+    if not left or not right:
+        return 0.0
+    return len(left & right) / len(left | right)
 
 
 def _title_key(title: str) -> str:

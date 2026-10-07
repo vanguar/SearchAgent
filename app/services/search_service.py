@@ -29,7 +29,7 @@ from app.services.role_family import (
 )
 from app.services.role_intent import normalize_role_intent
 from app.services.rule_catalog import HOT_BUCKET_MIN_SCORE, MAYBE_BUCKET_MIN_SCORE, inspect_vacancy
-from app.services.scorer import IRRELEVANT_SCORE_CODES, VacancyScorer
+from app.services.scorer import IRRELEVANT_SCORE_CODES, VacancyScorer, has_strong_positive_signals
 from app.services.search_fallback import (
     ENOUGH_NON_REJECTED,
     LOW_LANGUAGE_FALLBACK,
@@ -61,6 +61,7 @@ from app.services.search_models import (
     SearchSourceState,
     SourceStatusKind,
     VacancySignalSnapshot,
+    profile_role_texts,
 )
 from app.services.search_normalizer import is_german_city_name, parse_search_cities
 from app.services.search_profile_resolver import DatabaseSearchProfileResolver
@@ -1242,6 +1243,7 @@ class SearchService:
 
         # Compute bounded feedback adjustment (0 when no memory available).
         feedback_adjustment: int | None = None
+        feedback_source_adjustment: int | None = None
         feedback_note_ru: str | None = None
         explicit_feedback_label: FeedbackLabel | None = None
         if feedback_memory is not None:
@@ -1253,9 +1255,17 @@ class SearchService:
                 normalized_title=canonical.normalized_title or primary_record.original_title,
                 role_family=role_family_str,
                 source_name=primary_record.source_name,
+                target_families=frozenset(
+                    family.value
+                    for family in classify_role_families(profile_role_texts(profile))
+                    if is_specific_family(family)
+                ),
+                strong_positive=has_strong_positive_signals(signals),
             )
             if adj_result.adjustment != 0:
-                feedback_adjustment = adj_result.adjustment
+                feedback_adjustment = adj_result.adjustment - adj_result.source_adjustment
+                feedback_source_adjustment = adj_result.source_adjustment
+            if adj_result.note_ru:
                 feedback_note_ru = adj_result.note_ru
 
         score_result = self.scorer.score(
@@ -1264,6 +1274,7 @@ class SearchService:
             signals=signals,
             filter_result=filter_result,
             feedback_adjustment=feedback_adjustment,
+            feedback_source_adjustment=feedback_source_adjustment,
             search_mode=search_mode,
         )
         score_result = _apply_explicit_feedback_to_score(score_result, explicit_feedback_label)

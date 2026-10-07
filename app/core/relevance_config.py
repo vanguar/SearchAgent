@@ -209,7 +209,8 @@ class RelevanceConfig:
     feedback_max_penalty: int = 10
     feedback_max_bonus: int = 8
     feedback_source_penalty: int = 2
-    feedback_title_similarity: float = 0.5
+    # Доля общих слов заголовка (Жаккар), с которой вакансия «похожа» на отмеченную.
+    feedback_title_similarity: float = 0.6
     # Сильные позитивные сигналы, при которых штраф обратной связи не применяется.
     feedback_strong_hourly_eur: float = 15.0
 

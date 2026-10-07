@@ -440,9 +440,6 @@ def _search_terms_match_vacancy(combined_text: str, search_query_terms: tuple[st
 _LOW_LANGUAGE_BONUS = 12
 _LOW_LANGUAGE_UNCONFIRMED_BONUS = 6
 
-# Hard bounds for feedback adjustment — deterministic rules always dominate
-_FEEDBACK_ADJ_MAX = 8
-_FEEDBACK_ADJ_MIN = -8
 _UKRAINIAN_WELCOME_BONUS = 8
 _AI_TOOLS_SIGNAL_BONUS_CAP = 40
 _AI_TOOLS_LANGUAGE_FIT_BONUS = 12
@@ -464,6 +461,7 @@ class VacancyScorer:
         signals: VacancySignalSnapshot | None = None,
         filter_result: FilterResult | None = None,
         feedback_adjustment: int | None = None,
+        feedback_source_adjustment: int | None = None,
         search_mode: str | None = None,
         today: date | None = None,
     ) -> ScoreResult:
@@ -816,8 +814,9 @@ class VacancyScorer:
 
         # Bounded feedback adjustment — applied before hard reject cap.
         # Cannot override hard reject: cap below still enforces the deterministic ceiling.
+        config = get_relevance_config()
         if feedback_adjustment is not None:
-            adj = max(_FEEDBACK_ADJ_MIN, min(_FEEDBACK_ADJ_MAX, feedback_adjustment))
+            adj = max(-abs(config.feedback_max_penalty), min(config.feedback_max_bonus, feedback_adjustment))
             if adj > 0:
                 score += adj
                 positive_hits.append(
@@ -832,8 +831,19 @@ class VacancyScorer:
                 negative_hits.append(
                     RuleHit(
                         code="feedback_penalty",
-                        label_ru="похожие вакансии часто отмечались как нерелевантные",
+                        label_ru="вакансии с похожим заголовком вы отмечали как нерелевантные",
                         weight=adj,
+                    )
+                )
+        if feedback_source_adjustment:
+            source_adj = max(-abs(config.feedback_source_penalty), min(0, feedback_source_adjustment))
+            if source_adj < 0:
+                score += source_adj
+                negative_hits.append(
+                    RuleHit(
+                        code="feedback_source_penalty",
+                        label_ru="этот источник часто показывал вам нерелевантные вакансии",
+                        weight=source_adj,
                     )
                 )
 
@@ -913,6 +923,23 @@ def _profile_wants_apprenticeship(profile: SearchProfileContext) -> bool:
         _APPRENTICESHIP_PROFILE_RE.search(normalize_profile_text(text))
         for text in (*profile.desired_roles, *profile.search_query_terms, *profile.run_query_terms)
     )
+
+
+def has_strong_positive_signals(signals: VacancySignalSnapshot) -> bool:
+    """Подтверждённая ставка, полный день, категория B — хотя бы два из трёх.
+
+    Такой вакансии штраф обратной связи не применяется: она из лучших для
+    профиля, даже если похожие по названию человек отмечал нерелевантными.
+    """
+    config = get_relevance_config()
+    confirmed_rate = (
+        signals.salary_is_comparable
+        and signals.salary_hourly_eur is not None
+        and signals.salary_hourly_eur >= config.feedback_strong_hourly_eur
+    )
+    full_time = "full_time" in signals.employment_types
+    class_b = "B" in (*signals.required_driver_license_categories, *signals.allowed_driver_license_categories)
+    return sum((confirmed_rate, full_time, class_b)) >= 2
 
 
 def _dedupe_hits(hits: list[RuleHit]) -> tuple[RuleHit, ...]:
