@@ -134,6 +134,8 @@ def _profile_section(profile: SearchProfileContext) -> dict[str, Any]:
         "housing_needed": profile.housing_needed,
         "start_availability_text": profile.start_availability_text,
         "driver_license": profile.driver_license,
+        "license_classes": list(profile.license_classes),
+        "transport_modes": list(profile.transport_modes),
     }
 
 

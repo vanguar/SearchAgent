@@ -44,6 +44,7 @@ class SearchProfileCreateSpec:
     employment_types: tuple[str, ...] = ()
     min_salary_eur_per_hour: float | None = None
     self_employment_ok: bool | None = None
+    transport_modes: tuple[str, ...] = ()
 
 
 class ProfileCatalogService:
@@ -127,6 +128,7 @@ class ProfileCatalogService:
                 employment_types=list(spec.employment_types) or None,
                 min_salary_eur_per_hour=spec.min_salary_eur_per_hour,
                 self_employment_ok=spec.self_employment_ok,
+                transport_modes=list(spec.transport_modes) or None,
             )
             db.add(profile)
             db.commit()
@@ -195,6 +197,7 @@ class ProfileCatalogService:
                 employment_types=list(source.employment_types) if source.employment_types else None,
                 min_salary_eur_per_hour=source.min_salary_eur_per_hour,
                 self_employment_ok=source.self_employment_ok,
+                transport_modes=list(source.transport_modes) if source.transport_modes else None,
             )
             db.add(copy)
             db.commit()
@@ -388,6 +391,8 @@ class ProfileCatalogService:
             target.search_radius_km = fields.search_radius_km
         if fields.was_submitted("employment_types"):
             target.employment_types = list(fields.employment_types) or None
+        if fields.was_submitted("transport_modes"):
+            target.transport_modes = list(fields.transport_modes) or None
         if fields.was_submitted("min_salary_eur_per_hour"):
             target.min_salary_eur_per_hour = fields.min_salary_eur_per_hour
         if fields.was_submitted("physical_work_ok"):

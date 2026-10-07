@@ -39,6 +39,11 @@ from app.services.search_models import (
     profile_role_texts,
 )
 from app.services.search_normalizer import is_remote_worldwide_location
+from app.services.transport_mode_signals import (
+    TRANSPORT_MODE_LABELS_RU,
+    TransportModeSignals,
+    unsupported_transport_modes,
+)
 
 # Tokens so distinctive they identify a family even in long body text.
 # Deliberately narrow — body text has more noise than job titles, so only
@@ -143,6 +148,10 @@ class FilterEngine:
         heavy_vehicle_mismatch = _heavy_vehicle_mismatch_hit(resolved_signals, profile, canonical)
         if heavy_vehicle_mismatch is not None:
             rejection_hits.append(heavy_vehicle_mismatch)
+
+        transport_mismatch = _transport_mode_mismatch_hit(resolved_signals, profile)
+        if transport_mismatch is not None:
+            rejection_hits.append(transport_mismatch)
 
         passenger_rejections, license_risks = _passenger_and_medical_hits(resolved_signals, profile)
         rejection_hits.extend(passenger_rejections)
@@ -546,6 +555,30 @@ def _passenger_and_medical_hits(
             continue
         risks.append(RuleHit(code=f"license_risk_{code}", label_ru=label))
     return rejections, risks
+
+
+def _transport_mode_mismatch_hit(
+    signals: VacancySignalSnapshot,
+    profile: SearchProfileContext,
+) -> RuleHit | None:
+    """Работа на велосипеде или пешком, а профиль работает на машине."""
+    missing = unsupported_transport_modes(
+        TransportModeSignals(
+            title_modes=signals.title_transport_modes,
+            body_modes=signals.body_transport_modes,
+            car_in_title=signals.car_in_title,
+            car_mentioned=signals.car_mentioned,
+        ),
+        profile.transport_modes,
+    )
+    if not missing:
+        return None
+    vacancy_modes = ", ".join(TRANSPORT_MODE_LABELS_RU.get(mode, mode) for mode in missing)
+    profile_modes = ", ".join(TRANSPORT_MODE_LABELS_RU.get(mode, mode) for mode in profile.transport_modes)
+    return RuleHit(
+        code="transport_mode_mismatch",
+        label_ru=f"работа не на машине ({vacancy_modes}), а в профиле: {profile_modes}",
+    )
 
 
 def _profile_wants_healthcare(profile: SearchProfileContext) -> bool:

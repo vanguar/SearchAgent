@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from datetime import date
 
+from app.core.relevance_config import get_relevance_config
 from app.core.time import utc_now
 from app.services.ai_tools_profile import (
     build_ai_tools_match_text,
@@ -262,6 +263,29 @@ def _commute_distance_hit(
     else:
         label = f"{distance:.0f} км от дома — далеко ездить"
     return RuleHit(code="commute_distance", label_ru=label, weight=weight)
+
+
+def _press_distribution_hit(
+    signals: VacancySignalSnapshot,
+    profile: SearchProfileContext,
+    existing_negative_hits: list[RuleHit],
+) -> RuleHit | None:
+    """Разноска газет — пешая работа рано утром, а профиль работает на машине.
+
+    Не скрывается: на машине газеты тоже развозят. Но для такого профиля это
+    нецелевая роль, и выше настоящей доставки она стоять не должна.
+    """
+    if not signals.press_distribution_signal:
+        return None
+    if not profile.transport_modes or "foot" in profile.transport_modes:
+        return None
+    if any(hit.code == "driver_press_distribution" for hit in existing_negative_hits):
+        return None
+    return RuleHit(
+        code="press_distribution_non_target",
+        label_ru="разноска газет (обычно пешком, рано утром) — нецелевая роль для работы на машине",
+        weight=get_relevance_config().press_distribution_penalty,
+    )
 
 
 # --- Оплата и форма занятости относительно ориентиров профиля ---
@@ -629,6 +653,11 @@ class VacancyScorer:
             if non_core_hits:
                 score += sum(hit.weight for hit in non_core_hits)
                 negative_hits.extend(non_core_hits)
+
+        press_hit = _press_distribution_hit(resolved_signals, profile, negative_hits)
+        if press_hit is not None:
+            score += press_hit.weight
+            negative_hits.append(press_hit)
 
         commute_hit = _commute_distance_hit(resolved_signals, profile)
         if commute_hit is not None:

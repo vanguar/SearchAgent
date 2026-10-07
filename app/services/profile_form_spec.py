@@ -29,6 +29,15 @@ DRIVER_LICENSE_OPTIONS: tuple[str, ...] = (
     "AM", "A1", "A2", "A", "B", "BE", "B96", "B196", "C1", "C1E", "C", "CE", "D1", "D1E", "D", "DE", "L", "T", "P",
 )
 
+# Способы передвижения на работе, в фиксированном порядке.
+TRANSPORT_MODE_CHOICES: tuple[tuple[str, str], ...] = (
+    ("car", "Легковой автомобиль"),
+    ("van", "Фургон / Transporter"),
+    ("bike", "Велосипед / e-Bike"),
+    ("foot", "Пешком"),
+)
+TRANSPORT_MODE_ORDER: tuple[str, ...] = tuple(code for code, _ in TRANSPORT_MODE_CHOICES)
+
 EMPLOYMENT_TYPE_CHOICES: tuple[tuple[str, str], ...] = tuple(
     (code, EMPLOYMENT_TYPE_LABELS_RU[code]) for code in EMPLOYMENT_TYPE_ORDER
 )
@@ -60,6 +69,7 @@ class ProfileFormFields:
     preferred_locations: tuple[str, ...] = ()
     search_radius_km: int | None = None
     employment_types: tuple[str, ...] = ()
+    transport_modes: tuple[str, ...] = ()
     min_salary_eur_per_hour: float | None = None
     physical_work_ok: bool | None = None
     driver_license: str | None = None
@@ -98,6 +108,7 @@ def parse_profile_form(form_data: Mapping[str, object]) -> ProfileFormFields:
         preferred_locations=_merged_list(form_data, "primary_city", "additional_cities"),
         search_radius_km=_bounded_int(form_data, "search_radius_km", 0, MAX_PROFILE_RADIUS_KM),
         employment_types=_employment_types(form_data),
+        transport_modes=_transport_modes(form_data),
         min_salary_eur_per_hour=_bounded_float(form_data, "min_salary_eur_per_hour", 0.0, MAX_HOURLY_RATE_EUR),
         physical_work_ok=_tristate(form_data, "physical_work_ok"),
         driver_license=_driver_license(form_data),
@@ -127,6 +138,7 @@ _FIELD_NAMES: frozenset[str] = frozenset({
     "additional_cities",
     "search_radius_km",
     "employment_types",
+    "transport_modes",
     "min_salary_eur_per_hour",
     "physical_work_ok",
     "driver_license",
@@ -142,6 +154,7 @@ _FIELD_NAMES: frozenset[str] = frozenset({
 _CHECKBOX_MARKERS: dict[str, str] = {
     "no_german_required": "no_german_required_present",
     "employment_types": "employment_types_present",
+    "transport_modes": "transport_modes_present",
 }
 
 
@@ -264,6 +277,12 @@ def _employment_types(form_data: Mapping[str, object]) -> tuple[str, ...]:
     raw_values = _multi_values(form_data, "employment_types")
     selected = {value.strip() for value in raw_values if value.strip()}
     return tuple(code for code in EMPLOYMENT_TYPE_ORDER if code in selected)
+
+
+def _transport_modes(form_data: Mapping[str, object]) -> tuple[str, ...]:
+    """Отмеченные способы передвижения в фиксированном порядке; неизвестные коды отбрасываются."""
+    selected = {value.strip() for value in _multi_values(form_data, "transport_modes") if value.strip()}
+    return tuple(code for code in TRANSPORT_MODE_ORDER if code in selected)
 
 
 def _multi_values(form_data: Mapping[str, object], key: str) -> tuple[str, ...]:

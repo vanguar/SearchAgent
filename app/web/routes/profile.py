@@ -14,6 +14,7 @@ from app.services.profile_form_spec import (
     DRIVER_LICENSE_OPTIONS,
     EMPLOYMENT_TYPE_CHOICES,
     SEARCH_RADIUS_OPTIONS,
+    TRANSPORT_MODE_CHOICES,
     parse_profile_form,
 )
 from app.web.deps import get_profile_catalog_service
@@ -33,6 +34,7 @@ def _form_context(profile: object | None) -> dict[str, object]:
         "radius_options": SEARCH_RADIUS_OPTIONS,
         "employment_choices": EMPLOYMENT_TYPE_CHOICES,
         "driver_license_options": DRIVER_LICENSE_OPTIONS,
+        "transport_mode_choices": TRANSPORT_MODE_CHOICES,
     }
 
 

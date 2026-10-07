@@ -92,6 +92,9 @@ class SearchProfileContext:
     # Допустима ли самозанятость. None означает «не указано»: вакансия с
     # Gewerbeschein тогда помечается риском, но не скрывается.
     self_employment_ok: bool | None = None
+    # На чём человек готов работать: car | van | bike | foot. Пустой набор —
+    # не указано, вакансии по способу передвижения не фильтруются.
+    transport_modes: tuple[str, ...] = ()
     # Город проживания из профиля пользователя. От него считается дорога на
     # работу; при переезде меняется только это поле.
     home_city: str | None = None
@@ -284,6 +287,12 @@ class VacancySignalSnapshot:
     medical_transport_required: bool = False
     # Признаки риска по допускам: (код, подпись). Не скрывают вакансию.
     license_risk_markers: tuple[tuple[str, str], ...] = ()
+    # Способ передвижения: названный в заголовке / в описании (кроме машины).
+    title_transport_modes: tuple[str, ...] = ()
+    body_transport_modes: tuple[str, ...] = ()
+    car_in_title: bool = False
+    car_mentioned: bool = False
+    press_distribution_signal: bool = False
 
 
 @dataclass(frozen=True, slots=True)

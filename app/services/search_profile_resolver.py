@@ -139,6 +139,7 @@ class DatabaseSearchProfileResolver:
                 employment_types=tuple(getattr(search_profile, "employment_types", None) or ()),
                 min_salary_eur_per_hour=getattr(search_profile, "min_salary_eur_per_hour", None),
                 self_employment_ok=getattr(search_profile, "self_employment_ok", None),
+                transport_modes=tuple(getattr(search_profile, "transport_modes", None) or ()),
                 home_city=getattr(user_profile, "city", None),
             )
             logger.info(

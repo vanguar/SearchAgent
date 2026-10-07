@@ -48,7 +48,11 @@
 "home_city": "Neustrelitz",
 "search_location": null,
 "search_cities": [],
-"run_query_terms": []
+"run_query_terms": [],
+"transport_modes": [
+"car",
+"van"
+]
 },
 "feedback": [
 {

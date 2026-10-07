@@ -43,6 +43,7 @@ from app.services.search_models import (
 )
 from app.services.search_normalizer import is_remote_worldwide_location
 from app.services.signal_negation import mask_negated_signals, normalize_signal_text
+from app.services.transport_mode_signals import extract_transport_mode_signals
 from app.services.vehicle_class_signal_extractor import extract_vehicle_class_signals
 
 HOT_BUCKET_MIN_SCORE = 70
@@ -793,6 +794,7 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         vehicle_text = mandatory_vehicle_evidence_text(vehicle_text)
     driver_license_requirement = extract_driver_license_requirements(license_text)
     license_signals = extract_license_requirement_signals(title=title_text, text=license_text)
+    transport_signals = extract_transport_mode_signals(title=title_text, text=license_text)
     vehicle_class_signals = extract_vehicle_class_signals(vehicle_text)
     # Форма занятости, самозанятость и нагрузка читаются по ИСХОДНОМУ тексту:
     # combined_text уже свёрнут для поиска слов, а извлекателям нужны свои
@@ -868,6 +870,11 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         p_schein_optional=license_signals.p_schein_optional,
         medical_transport_required=license_signals.medical_transport_required,
         license_risk_markers=license_signals.risk_markers,
+        title_transport_modes=transport_signals.title_modes,
+        body_transport_modes=transport_signals.body_modes,
+        car_in_title=transport_signals.car_in_title,
+        car_mentioned=transport_signals.car_mentioned,
+        press_distribution_signal=transport_signals.press_distribution,
         distance_from_home_km=distance_from_home,
         matched_search_city=matched_search_city,
         outside_requested_cities=outside_requested_cities,

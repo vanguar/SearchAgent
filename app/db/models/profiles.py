@@ -59,3 +59,5 @@ class SearchProfile(TimestampMixin, Base):
     min_salary_eur_per_hour: Mapped[float | None] = mapped_column(Float)
     # Допустима ли самозанятость (Gewerbeschein / Subunternehmer / Honorarbasis).
     self_employment_ok: Mapped[bool | None] = mapped_column(Boolean)
+    # На чём готов работать: car | van | bike | foot. NULL — не указано.
+    transport_modes: Mapped[list[str] | None] = mapped_column(JSON)

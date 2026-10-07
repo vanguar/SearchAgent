@@ -35,6 +35,7 @@
 {% set extra_terms = (p.additional_search_terms if p is not none and p.additional_search_terms else []) %}
 {% set excluded = (p.excluded_roles if p is not none and p.excluded_roles else []) %}
 {% set chosen_employment = (p.employment_types if p is not none and p.employment_types else []) %}
+{% set chosen_transport = (p.transport_modes if p is not none and p.transport_modes else []) %}
 
 {% macro text_field(name, label, value, hint='', placeholder='', required=false, wide=false) %}
 {% set filled = (value is not none) and (value | string | trim) != '' %}
@@ -308,6 +309,26 @@
         Отметьте все открытые категории. С одной B вакансии с обязательными C/CE скрываются.
         «P» — P-Schein: без него скрываются вакансии на перевозку пассажиров.
       </p>
+    </div>
+
+    <div class="pf-field pf-field--wide{{ ' is-filled' if chosen_transport }}"
+         data-pf-field data-pf-kind="checkbox"
+         data-pf-state="{{ 'filled' if chosen_transport else 'empty' }}">
+      <div class="pf-field__head">
+        <span class="pf-label" id="pf-transport_modes-label">На чём готовы работать</span>
+        {{ filled_flag() }}
+      </div>
+      <input type="hidden" name="transport_modes_present" value="1" />
+      <div class="pf-chips" role="group" aria-labelledby="pf-transport_modes-label">
+        {% for code, label in (transport_mode_choices or []) %}
+        <label class="pf-chip">
+          <input type="checkbox" name="transport_modes" value="{{ code }}"
+                 {% if code in chosen_transport %}checked{% endif %} />
+          <span>{{ label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <p class="pf-hint">Например, только автомобиль и фургон — тогда вакансии велокурьеров и пеших разносчиков скрываются. Ничего не отмечено — не учитывается.</p>
     </div>
 
     {{ tri_field('car_available', 'Есть свой автомобиль',
