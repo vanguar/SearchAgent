@@ -13,7 +13,7 @@ from app.services.ai_tools_profile import (
     match_ai_tools_signals,
 )
 from app.services.employment_signal_extractor import EMPLOYMENT_TYPE_LABELS_RU
-from app.services.filter_engine import FilterEngine, is_b_only_driving_profile
+from app.services.filter_engine import FilterEngine, is_b_only_driving_profile, work_authorization_label
 from app.services.hashers import normalize_text_for_fingerprint
 from app.services.it_candidate_eligibility import inspect_it_eligibility, is_it_candidate_profile
 from app.services.normalization_models import CanonicalVacancyGroup
@@ -790,7 +790,9 @@ class VacancyScorer:
 
         if resolved_signals.sponsorship_ambiguity:
             score -= 6
-            negative_hits.append(RuleHit(code="sponsorship_review", label_ru="есть вопросы по допуску к работе", weight=-6))
+            negative_hits.append(
+                RuleHit(code="sponsorship_review", label_ru=work_authorization_label(resolved_signals), weight=-6)
+            )
 
         title_penalties = _score_title_shape_penalties(canonical.normalized_title)
         if title_penalties:

@@ -241,6 +241,8 @@ class VacancySignalSnapshot:
     strong_experience_required: bool = False
     entry_level_signal: bool = False
     sponsorship_ambiguity: bool = False
+    # Требования к допуску, которые профиль не закрывает (подписи на русском).
+    work_authorization_risks: tuple[str, ...] = ()
     required_driver_license_categories: tuple[str, ...] = ()
     allowed_driver_license_categories: tuple[str, ...] = ()
     optional_driver_license_categories: tuple[str, ...] = ()

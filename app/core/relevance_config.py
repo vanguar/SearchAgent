@@ -179,33 +179,30 @@ class RelevanceConfig:
     duplicate_body_min_chars: int = 200
 
     # --- 7. Допуск к работе ---
-    work_authorization_patterns: tuple[str, ...] = (
-        r"\barbeitserlaubnis\w*",
-        r"\baufenthaltstitel\w*",
-        r"\baufenthaltserlaubnis\w*",
-        r"\beu\s*staatsburger\w*",
-        r"\beu\s*burger\w*",
-        r"\bdeutsche\w*\s+staatsangehorigkeit\b",
-        r"\bstaatsangehorigkeit\s+(?:eines\s+)?eu\b",
-        r"\bsicherheitsuberprufung\w*",
-        r"\bvisa\b",
-        r"\bvisum\b",
-        r"\bvisa\s+sponsorship\b",
-        r"\bsponsorship\b",
-        r"\bwork\s+permit\b",
-        r"\bresidence\s+permit\b",
-        r"\beu\s+citizenship\b",
-        r"\bright\s+to\s+work\b",
+    # (вид требования, шаблон, подпись, закрывается ли обычным правом на работу).
+    # Право на работу (например § 24 AufenthG) закрывает Arbeitserlaubnis и визу;
+    # гражданство и проверку безопасности оно не закрывает.
+    work_authorization_requirements: tuple[tuple[str, str, str, bool], ...] = (
+        ("work_permit", r"\b(?:arbeitserlaubnis|arbeitsgenehmigung|aufenthaltstitel|aufenthaltserlaubnis)\w*",
+         "нужно разрешение на работу (Arbeitserlaubnis)", True),
+        ("work_permit", r"\b(?:work|residence)\s+permit\b|\bright\s+to\s+work\b",
+         "нужно разрешение на работу (work permit)", True),
+        ("visa", r"\bvisa\b|\bvisum\b|\b(?:visa\s+)?sponsorship\b",
+         "вопрос визы или спонсорства", True),
+        ("eu_citizenship", r"\beu\s*(?:staats)?burger\w*|\bstaatsangehorigkeit\s+(?:eines\s+)?eu\b|\beu\s+citizenship\b",
+         "требуют гражданство ЕС", False),
+        ("german_citizenship", r"\bdeutsche\w*\s+staatsangehorigkeit\b|\bgerman\s+citizenship\b",
+         "требуют немецкое гражданство", False),
+        ("security_clearance", r"\bsicherheitsuberprufung\w*|\bsecurity\s+clearance\b",
+         "нужна проверка безопасности (Sicherheitsüberprüfung)", False),
     )
-    # Требования, которые закрывает обычное право на работу (§ 24 и т.п.):
-    # для такого профиля они не риск. Проверка безопасности и гражданство — риск всегда.
-    work_permit_satisfied_patterns: tuple[str, ...] = (
-        r"\barbeitserlaubnis\w*",
-        r"\baufenthaltstitel\w*",
-        r"\baufenthaltserlaubnis\w*",
-        r"\bwork\s+permit\b",
-        r"\bresidence\s+permit\b",
-        r"\bright\s+to\s+work\b",
+    # Слова рядом с упоминанием, которые делают его информацией, а не требованием:
+    # «keine Einschränkungen innerhalb der Arbeitserlaubnis».
+    work_authorization_informational_patterns: tuple[str, ...] = (
+        r"\b(?:keine|ohne)\s+einschrankung\w*",
+        r"\bno\s+restrictions?\b",
+        r"\bunterstutz\w*\s+(?:dich|sie|bei)\b",
+        r"\bhelfen\s+(?:dir|ihnen)\b",
     )
 
     # --- 8. Обратная связь ---

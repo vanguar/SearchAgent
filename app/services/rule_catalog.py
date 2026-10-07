@@ -46,6 +46,10 @@ from app.services.search_normalizer import is_remote_worldwide_location
 from app.services.signal_negation import mask_negated_signals, normalize_signal_text
 from app.services.transport_mode_signals import extract_transport_mode_signals
 from app.services.vehicle_class_signal_extractor import extract_vehicle_class_signals
+from app.services.work_authorization_signals import (
+    extract_work_authorization_requirements,
+    unmet_work_authorization,
+)
 
 HOT_BUCKET_MIN_SCORE = 70
 MAYBE_BUCKET_MIN_SCORE = 45
@@ -594,18 +598,6 @@ IMMEDIATE_START_RULE = TextRule(
     label_ru="можно быстро выйти",
     patterns=(r"\bab sofort\b", r"\bsofortiger eintritt\b", r"\bimmediate start\b", r"\bstart sofort\b"),
 )
-SPONSORSHIP_REVIEW_RULE = TextRule(
-    code="sponsorship_review",
-    label_ru="есть вопросы по допуску к работе",
-    patterns=(
-        r"\bvisa\w*",
-        r"\bsponsorship\b",
-        r"\barbeitserlaubnis\b",
-        r"\bwork permit\b",
-        r"\bresidence permit\b",
-        r"\beu citizenship\b",
-    ),
-)
 
 _ROLE_SUFFIX_TOKENS = frozenset({
     "developer",
@@ -870,6 +862,12 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         and (not german_any_required or basic_german_signal)
         and not strong_german_required
     )
+    work_authorization_risks = tuple(
+        requirement.label_ru
+        for requirement in unmet_work_authorization(
+            extract_work_authorization_requirements(raw_text), work_authorized=profile.work_authorized
+        )
+    )
     role_confirmed = _role_confirmation(
         canonical,
         profile,
@@ -951,7 +949,8 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         vocational_training_required=_requirement_is_mandatory(combined_text, VOCATIONAL_REQUIRED_RULE),
         strong_experience_required=_matches_rule(combined_text, STRONG_EXPERIENCE_RULE),
         entry_level_signal=_matches_rule(combined_text, ENTRY_LEVEL_RULE),
-        sponsorship_ambiguity=_matches_rule(combined_text, SPONSORSHIP_REVIEW_RULE),
+        sponsorship_ambiguity=bool(work_authorization_risks),
+        work_authorization_risks=work_authorization_risks,
     )
 
 

@@ -242,7 +242,8 @@ def test_filter_engine_rejects_degree_ausbildung_and_experience_mismatch_for_low
 
 def test_filter_engine_marks_sponsorship_style_ambiguity_as_reviewable() -> None:
     engine = FilterEngine()
-    profile = _build_profile()
+    # Без права на работу вопрос визы и разрешения — риск.
+    profile = _build_profile(work_authorized=False, legal_status=None)
     canonical = _build_canonical(
         title="Verpacker/in",
         body="Verpackung im Lager. Work permit and visa questions are discussed individually.",
@@ -252,6 +253,19 @@ def test_filter_engine_marks_sponsorship_style_ambiguity_as_reviewable() -> None
 
     assert result.decision == "review"
     assert any(hit.code == "sponsorship_review" for hit in result.review_hits)
+
+
+def test_work_permit_question_is_not_a_risk_for_an_authorized_profile() -> None:
+    # Section 24: право на работу есть, разрешение и виза закрыты.
+    result = FilterEngine().evaluate(
+        _build_canonical(
+            title="Verpacker/in",
+            body="Verpackung im Lager. Work permit and visa questions are discussed individually.",
+        ),
+        _build_profile(),
+    )
+
+    assert not any(hit.code == "sponsorship_review" for hit in result.review_hits)
 
 
 def test_filter_engine_does_not_treat_generic_mitarbeiter_role_as_helper_match() -> None:

@@ -494,7 +494,8 @@ def test_search_service_orchestrates_dedup_filtering_scoring_and_bucketing() -> 
     assert len(result.rejected_results) == 0
     assert result.hot_results[0].summary_ru is not None
     assert result.hot_results[0].explanation_ru.startswith("Подходит:")
-    assert result.maybe_results[0].explanation_ru.startswith("С осторожностью:")
+    # Профиль с правом на работу (Section 24): «Work permit and visa» — не риск.
+    assert not any(hit.code == "sponsorship_review" for hit in result.maybe_results[0].filter_result.review_hits)
     assert any(state.source_id == "broken" and state.error_message == "Временный сбой." for state in result.source_states)
 
 

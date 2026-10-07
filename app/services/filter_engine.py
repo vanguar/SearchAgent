@@ -301,7 +301,7 @@ class FilterEngine:
             review_hits.append(employment_type_hit)
 
         if resolved_signals.sponsorship_ambiguity:
-            review_hits.append(RuleHit(code="sponsorship_review", label_ru="есть вопросы по допуску к работе"))
+            review_hits.append(RuleHit(code="sponsorship_review", label_ru=work_authorization_label(resolved_signals)))
 
         review_hits.extend(condition_review_hits(
             build_raw_analysis_text(canonical), profile,
@@ -321,6 +321,13 @@ class FilterEngine:
             review_hits=_dedupe_hits(review_hits),
             risk_hits=_dedupe_hits(risk_hits),
         )
+
+
+def work_authorization_label(signals: VacancySignalSnapshot) -> str:
+    """«есть вопросы по допуску к работе: требуют гражданство ЕС» — с конкретикой."""
+    if not signals.work_authorization_risks:
+        return "есть вопросы по допуску к работе"
+    return "есть вопросы по допуску к работе: " + ", ".join(signals.work_authorization_risks)
 
 
 def _self_employment_hit(
