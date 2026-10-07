@@ -57,7 +57,9 @@ _HEAVY_VEHICLE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("Müllfahrzeug", re.compile(r"\b(?:mullfahrzeug|mullwagen)\w*\b")),
     ("Baustellen-LKW", re.compile(r"\bbaustellen\s+(?:lkw|lastwagen|fahrzeug)\w*\b")),
     ("Wechselbrücke", re.compile(r"\bwechselbruck(?:e|enverkehr|en)\w*\b")),
-    ("Kran-LKW", re.compile(r"\bkran\s+(?:lkw|lastwagen)\b|\bladekran\w*\b")),
+    # «Ladekran» сам по себе не доказывает грузовик: это риск, а не отказ
+    # (см. license_requirement_signals).
+    ("Kran-LKW", re.compile(r"\bkran\s+(?:lkw|lastwagen)\b")),
     ("Bus", re.compile(r"\b(?:busfahrer|omnibus|linienbus|reisebus)\w*\b")),
 )
 
@@ -85,7 +87,7 @@ _HEAVY_QUALIFICATION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
         "Berufskraftfahrerqualifikation",
         re.compile(r"\bberufskraftfahrerqualifikation\w*\b|\bbkrfqg\b|\bgrundqualifikation\w*\b"),
     ),
-    ("Code 95", re.compile(r"\b(?:schlusselzahl|kennziffer|code)\s+95\b")),
+    ("Code 95", re.compile(r"\b(?:schlusselzahl|kennziffer|ziffer|code)\s+95\b")),
     ("Fahrerkarte", re.compile(r"\b(?:digitale\s+)?fahrerkarte\w*\b|\btachographenkarte\w*\b")),
     (
         "ADR-Schein",

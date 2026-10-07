@@ -19,6 +19,7 @@ from app.services.language_signal_extractor import (
     ENGLISH_PREFERRED_PATTERNS,
     ENGLISH_REQUIRED_PATTERNS,
 )
+from app.services.license_requirement_signals import extract_license_requirement_signals
 from app.services.light_goods_transport import (
     employment_evidence_text,
     mandatory_vehicle_evidence_text,
@@ -791,6 +792,7 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         license_text = mandatory_vehicle_evidence_text(license_text)
         vehicle_text = mandatory_vehicle_evidence_text(vehicle_text)
     driver_license_requirement = extract_driver_license_requirements(license_text)
+    license_signals = extract_license_requirement_signals(title=title_text, text=license_text)
     vehicle_class_signals = extract_vehicle_class_signals(vehicle_text)
     # Форма занятости, самозанятость и нагрузка читаются по ИСХОДНОМУ тексту:
     # combined_text уже свёрнут для поиска слов, а извлекателям нужны свои
@@ -861,6 +863,11 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         optional_driver_license_categories=driver_license_requirement.optional,
         mentioned_driver_license_categories=driver_license_requirement.mentioned,
         negated_driver_license_categories=driver_license_requirement.negated,
+        title_driver_license_categories=license_signals.title_categories,
+        requires_p_schein=license_signals.requires_p_schein,
+        p_schein_optional=license_signals.p_schein_optional,
+        medical_transport_required=license_signals.medical_transport_required,
+        license_risk_markers=license_signals.risk_markers,
         distance_from_home_km=distance_from_home,
         matched_search_city=matched_search_city,
         outside_requested_cities=outside_requested_cities,

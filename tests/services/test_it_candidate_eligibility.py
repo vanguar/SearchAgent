@@ -239,4 +239,9 @@ def test_non_it_results_exactly_match_prechange_baseline(case):
     score = VacancyScorer().score(canonical, profile, filter_result=verdict, search_mode="germany_local", today=date(2026, 10, 3))
     actual = {"score": score.score, "bucket": _assign_bucket(filter_result=verdict, score=score.score),
               "filter": asdict(verdict), "scoring": asdict(score)}
+    # Поля, добавленные в FilterResult позже снимка, сравниваются только когда
+    # в них что-то есть: пустое новое поле не меняет решения.
+    for added_field in ("risk_hits",):
+        if added_field not in case["expected"]["filter"] and not actual["filter"][added_field]:
+            del actual["filter"][added_field]
     assert json.loads(json.dumps(actual)) == case["expected"]

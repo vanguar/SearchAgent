@@ -1123,13 +1123,13 @@ def test_driver_b_only_profile_ignores_non_license_uses_of_category_tokens() -> 
         assert not any(hit.code == "driver_license_mismatch" for hit in result.rejection_hits), body
 
 
-def test_driver_license_filter_is_inactive_without_b_only_profile_license() -> None:
+def test_driver_license_filter_is_inactive_when_profile_covers_or_omits_license() -> None:
     canonical = _build_canonical(
         title="LKW Fahrer Kl. CE",
         body="Führerschein CE zwingend erforderlich.",
     )
 
-    for driver_license in (None, "C", "CE"):
+    for driver_license in (None, "CE", "B, CE"):
         profile = _build_profile(
             desired_roles=(DRIVER_B_FERNVERKEHR_ROLE,),
             search_query_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
@@ -1139,6 +1139,24 @@ def test_driver_license_filter_is_inactive_without_b_only_profile_license() -> N
         result = FilterEngine().evaluate(canonical, profile)
 
         assert not any(hit.code == "driver_license_mismatch" for hit in result.rejection_hits)
+
+
+def test_driver_license_filter_rejects_required_class_above_profile_classes() -> None:
+    canonical = _build_canonical(
+        title="LKW Fahrer Kl. CE",
+        body="Führerschein CE zwingend erforderlich.",
+    )
+    profile = _build_profile(
+        desired_roles=(DRIVER_B_FERNVERKEHR_ROLE,),
+        search_query_terms=DRIVER_B_FERNVERKEHR_SEARCH_TERMS,
+        driver_license="C",
+        german_level=None,
+    )
+
+    result = FilterEngine().evaluate(canonical, profile)
+
+    hits = [hit for hit in result.rejection_hits if hit.code == "driver_license_mismatch"]
+    assert hits and "CE" in hits[0].label_ru
 
 
 def test_basic_german_profile_rejects_explicit_b1_or_stronger_requirements() -> None:

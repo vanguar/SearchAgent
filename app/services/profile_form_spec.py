@@ -23,7 +23,11 @@ _LIST_SPLIT_RE = re.compile(r"[,;\n]+")
 
 # Категории водительских прав, которые предлагает форма. Пустое значение —
 # «не указано»; оно НЕ равно «прав нет».
-DRIVER_LICENSE_OPTIONS: tuple[str, ...] = ("AM", "A1", "A2", "A", "B", "BE", "B96", "B196", "C1", "C1E", "C", "CE", "D1", "D1E", "D", "DE", "L", "T")
+# «P» — P-Schein (Fahrerlaubnis zur Fahrgastbeförderung): без него вакансии
+# на перевозку пассажиров скрываются.
+DRIVER_LICENSE_OPTIONS: tuple[str, ...] = (
+    "AM", "A1", "A2", "A", "B", "BE", "B96", "B196", "C1", "C1E", "C", "CE", "D1", "D1E", "D", "DE", "L", "T", "P",
+)
 
 EMPLOYMENT_TYPE_CHOICES: tuple[tuple[str, str], ...] = tuple(
     (code, EMPLOYMENT_TYPE_LABELS_RU[code]) for code in EMPLOYMENT_TYPE_ORDER

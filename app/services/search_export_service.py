@@ -207,6 +207,7 @@ def _vacancy(item: SearchResultItem, *, description_excerpt_chars: int, full: bo
             "positive_hits": _rule_hits(item.filter_result.positive_hits, full=full),
             "rejection_hits": _rule_hits(item.filter_result.rejection_hits, full=full),
             "review_hits": _rule_hits(item.filter_result.review_hits, full=full),
+            "risk_hits": _rule_hits(item.filter_result.risk_hits, full=full),
         },
         "score_hits": {
             "positive": _rule_hits(item.score_result.positive_hits, full=full),

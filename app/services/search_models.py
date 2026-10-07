@@ -177,6 +177,14 @@ class SearchProfileContext:
         return not self.english_level or is_low_german_level(self.english_level)
 
     @property
+    def license_classes(self) -> tuple[str, ...]:
+        """Открытые категории прав из профиля, плюс «P» за P-Schein.
+
+        Пустой кортеж — «в профиле не указано»: тогда фильтры по правам молчат.
+        """
+        return parse_license_classes(self.driver_license)
+
+    @property
     def accepts_shifts(self) -> bool:
         return self.shift_ok is not False
 
@@ -267,6 +275,15 @@ class VacancySignalSnapshot:
     # Общие названия водителя: контекст, который сам по себе не доказывает тяжёлый транспорт.
     heavy_vehicle_context_signals: tuple[str, ...] = ()
     heavy_driver_qualification_signals: tuple[str, ...] = ()
+    # Категории прав, названные голым кодом в заголовке («Kraftfahrer CE»).
+    title_driver_license_categories: tuple[str, ...] = ()
+    # Перевозка людей: нужен P-Schein (обязателен / упомянут как желательный).
+    requires_p_schein: bool = False
+    p_schein_optional: bool = False
+    # Квалифицированный Krankentransport: нужен медицинский допуск.
+    medical_transport_required: bool = False
+    # Признаки риска по допускам: (код, подпись). Не скрывают вакансию.
+    license_risk_markers: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -275,6 +292,8 @@ class FilterResult:
     positive_hits: tuple[RuleHit, ...] = ()
     rejection_hits: tuple[RuleHit, ...] = ()
     review_hits: tuple[RuleHit, ...] = ()
+    # Предупреждения для карточки, которые НЕ меняют решение фильтра.
+    risk_hits: tuple[RuleHit, ...] = ()
 
     @property
     def hard_reject(self) -> bool:
@@ -519,6 +538,30 @@ def profile_role_texts(profile: SearchProfileContext) -> tuple[str, ...]:
     сохранённые ключевые слова профиля и введённый запрос на него не влияли.
     """
     return (*profile.desired_roles, *profile.search_query_terms, *profile.run_query_terms)
+
+
+_LICENSE_CLASS_CODES = frozenset({
+    "AM", "A1", "A2", "A", "B", "BE", "B96", "B196", "C1", "C1E", "C", "CE",
+    "D1", "D1E", "D", "DE", "L", "T", "P",
+})
+_P_SCHEIN_ALIASES = frozenset({"P", "FZF", "P-SCHEIN", "PSCHEIN", "P SCHEIN"})
+_LICENSE_SPLIT_RE = re.compile(r"[,;/|]+|\s{2,}")
+
+
+def parse_license_classes(value: str | None) -> tuple[str, ...]:
+    """«B, BE» → ("B", "BE"); «P-Schein» и «FzF» → "P". Неизвестное отбрасывается."""
+    if not value:
+        return ()
+    found: list[str] = []
+    for raw in _LICENSE_SPLIT_RE.split(value):
+        token = raw.strip().upper()
+        if not token:
+            continue
+        if token in _P_SCHEIN_ALIASES:
+            token = "P"
+        if token in _LICENSE_CLASS_CODES and token not in found:
+            found.append(token)
+    return tuple(found)
 
 
 def normalize_profile_text(text: str | None) -> str:

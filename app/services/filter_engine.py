@@ -13,6 +13,7 @@ from app.services.driver_license_signal_extractor import extract_profile_driver_
 from app.services.employment_signal_extractor import EMPLOYMENT_TYPE_LABELS_RU
 from app.services.hashers import normalize_text_for_fingerprint
 from app.services.it_candidate_eligibility import inspect_it_eligibility, is_it_candidate_profile
+from app.services.license_requirement_signals import covered_license_classes, has_truck_class
 from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.profile_condition_review import condition_review_hits
 from app.services.profile_parser import (
@@ -116,6 +117,7 @@ class FilterEngine:
         positive_hits = list(_collect_positive_hits(resolved_signals, profile))
         rejection_hits: list[RuleHit] = []
         review_hits: list[RuleHit] = []
+        risk_hits: list[RuleHit] = []
 
         if resolved_signals.light_goods_transport_match == "none":
             rejection_hits.append(RuleHit(
@@ -141,6 +143,10 @@ class FilterEngine:
         heavy_vehicle_mismatch = _heavy_vehicle_mismatch_hit(resolved_signals, profile, canonical)
         if heavy_vehicle_mismatch is not None:
             rejection_hits.append(heavy_vehicle_mismatch)
+
+        passenger_rejections, license_risks = _passenger_and_medical_hits(resolved_signals, profile)
+        rejection_hits.extend(passenger_rejections)
+        risk_hits.extend(license_risks)
 
         family_mismatch = (
             resolved_signals.light_goods_transport_match not in {"target", "adjacent"}
@@ -304,6 +310,7 @@ class FilterEngine:
             positive_hits=_dedupe_hits(positive_hits),
             rejection_hits=_dedupe_hits(rejection_hits),
             review_hits=_dedupe_hits(review_hits),
+            risk_hits=_dedupe_hits(risk_hits),
         )
 
 
@@ -435,13 +442,14 @@ def _driver_license_mismatch_hit(
 ) -> RuleHit | None:
     profile_categories = set(extract_profile_driver_license_categories(profile.driver_license))
     if profile_categories != {"B"}:
-        return None
+        return _license_class_gap_hit(signals, profile)
 
     incompatible_categories = tuple(
         category
-        for category in signals.mentioned_driver_license_categories
+        for category in (*signals.mentioned_driver_license_categories, *signals.title_driver_license_categories)
         if category != "B" and category not in signals.negated_driver_license_categories
     )
+    incompatible_categories = tuple(dict.fromkeys(incompatible_categories))
     if signals.light_goods_transport_match is not None:
         # The new specialization distinguishes mandatory requirements from explicit alternatives/preferences.
         # Existing profiles retain their established policy.
@@ -463,6 +471,91 @@ def _driver_license_mismatch_hit(
     return RuleHit(
         code="driver_license_mismatch",
         label_ru=label,
+    )
+
+
+def _license_class_gap_hit(
+    signals: VacancySignalSnapshot,
+    profile: SearchProfileContext,
+) -> RuleHit | None:
+    """Профиль не только с B: скрывать то, что требует категорию сверх открытых.
+
+    Здесь учитываются только ОБЯЗАТЕЛЬНЫЕ категории и коды в заголовке: у профиля
+    с несколькими категориями простое упоминание другой — ещё не требование.
+    """
+    classes = tuple(code for code in profile.license_classes if code != "P")
+    if not classes:
+        return None
+    covered = covered_license_classes(classes)
+    missing = tuple(
+        category
+        for category in dict.fromkeys(
+            (*signals.required_driver_license_categories, *signals.title_driver_license_categories)
+        )
+        if category not in covered and category not in signals.negated_driver_license_categories
+    )
+    if not missing and not has_truck_class(classes):
+        qualifications = [
+            label for label in signals.heavy_driver_qualification_signals
+            if label in {"Code 95", "Berufskraftfahrerqualifikation"}
+        ]
+        if qualifications:
+            return RuleHit(
+                code="driver_license_mismatch",
+                label_ru=f"нужна квалификация профессионального водителя ({qualifications[0]}), а в профиле нет категории C",
+            )
+    if not missing:
+        return None
+    return RuleHit(
+        code="driver_license_mismatch",
+        label_ru=(
+            f"вакансия требует категорию {'/'.join(missing)}, "
+            f"а в профиле открыты: {', '.join(classes)}"
+        ),
+    )
+
+
+def _passenger_and_medical_hits(
+    signals: VacancySignalSnapshot,
+    profile: SearchProfileContext,
+) -> tuple[list[RuleHit], list[RuleHit]]:
+    """Перевозка людей и больных: отказы и риски.
+
+    Работает только когда в профиле указаны права: без них профиль не про
+    вождение, и судить о допусках к перевозке не из чего.
+    """
+    rejections: list[RuleHit] = []
+    risks: list[RuleHit] = []
+    classes = profile.license_classes
+    if not classes:
+        return rejections, risks
+    if signals.requires_p_schein and "P" not in classes:
+        rejections.append(RuleHit(
+            code="p_schein_required",
+            label_ru="перевозка пассажиров: нужен P-Schein (Personenbeförderungsschein), а в профиле его нет",
+        ))
+    elif signals.p_schein_optional and "P" not in classes:
+        risks.append(RuleHit(code="p_schein_optional", label_ru="P-Schein желателен — уточнить у работодателя"))
+    if signals.medical_transport_required and not _profile_wants_healthcare(profile):
+        rejections.append(RuleHit(
+            code="medical_transport_required",
+            label_ru="квалифицированный Krankentransport: нужен Rettungssanitäter/Rettungshelfer",
+        ))
+    for code, label in signals.license_risk_markers:
+        if code == "long_haul" and _profile_wants_long_haul(profile):
+            continue
+        risks.append(RuleHit(code=f"license_risk_{code}", label_ru=label))
+    return rejections, risks
+
+
+def _profile_wants_healthcare(profile: SearchProfileContext) -> bool:
+    return RoleFamily.HEALTHCARE in classify_role_families(profile_role_texts(profile))
+
+
+def _profile_wants_long_haul(profile: SearchProfileContext) -> bool:
+    return any(
+        "fernverkehr" in normalize_profile_text(text) or "дальн" in normalize_profile_text(text)
+        for text in profile_role_texts(profile)
     )
 
 
