@@ -437,6 +437,9 @@ def _search_terms_match_vacancy(combined_text: str, search_query_terms: tuple[st
                 return True
     return False
 
+_LOW_LANGUAGE_BONUS = 12
+_LOW_LANGUAGE_UNCONFIRMED_BONUS = 6
+
 # Hard bounds for feedback adjustment — deterministic rules always dominate
 _FEEDBACK_ADJ_MAX = 8
 _FEEDBACK_ADJ_MIN = -8
@@ -701,9 +704,22 @@ class VacancyScorer:
             )
 
 
-        if resolved_signals.low_language_signal:
-            score += 12
-            positive_hits.append(RuleHit(code="low_language_signal", label_ru="низкий языковой барьер", weight=12))
+        if resolved_signals.low_language_signal and resolved_signals.language_relief_confirmed:
+            score += _LOW_LANGUAGE_BONUS
+            positive_hits.append(
+                RuleHit(code="low_language_signal", label_ru="низкий языковой барьер", weight=_LOW_LANGUAGE_BONUS)
+            )
+        elif resolved_signals.low_language_signal:
+            # Вырезка описания: облегчение правдоподобно, но не проверено, и
+            # такая вакансия не должна обгонять ту, чьё описание подтверждено.
+            score += _LOW_LANGUAGE_UNCONFIRMED_BONUS
+            positive_hits.append(
+                RuleHit(
+                    code="low_language_signal",
+                    label_ru="низкий языковой барьер (по фрагменту описания, проверить)",
+                    weight=_LOW_LANGUAGE_UNCONFIRMED_BONUS,
+                )
+            )
 
         if resolved_signals.shift_signal and profile.accepts_shifts:
             score += 8

@@ -299,6 +299,8 @@ class VacancySignalSnapshot:
     role_confirmed: bool | None = None
     # Заголовок — обучение (Ausbildung), а не работа.
     apprenticeship_signal: bool = False
+    # Облегчение по языку видно в заголовке или в подтверждённом полном описании.
+    language_relief_confirmed: bool = True
 
 
 @dataclass(frozen=True, slots=True)

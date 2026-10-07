@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from app.core.config import Settings
 from app.core.logging import logger
 from app.services.ai_tools_profile import AI_TOOLS_WESTERN_QUERY_TRANSLATIONS
+from app.services.employer_boilerplate import strip_employer_boilerplate
 from app.services.filter_engine import FilterEngine, is_b_only_driving_profile
 from app.services.geo_distance import place_weight
 from app.services.hashers import normalize_text_for_fingerprint
@@ -317,7 +318,9 @@ class SearchService:
         # и его удвоение ничего не давало.
         hidden_items: list[HiddenFilteredItem] = []
         results_list: list[SearchResultItem] = []
-        for canonical in processed.canonical_groups:
+        # Шаблонные абзацы работодателя вырезаются после дедупликации и до
+        # анализа: признаки должны опираться на текст конкретной вакансии.
+        for canonical in strip_employer_boilerplate(processed.canonical_groups):
             signals = inspect_vacancy(canonical, resolved_profile)
             filter_result = self.filter_engine.evaluate(
                 canonical, resolved_profile, signals=signals, search_mode=search_input.search_mode
@@ -819,7 +822,7 @@ class SearchService:
                 ):
                     records_by_key[key] = record
         records = tuple(records_by_key.values())
-        groups = SourceMergeService().merge_records(records).canonical_groups
+        groups = strip_employer_boilerplate(SourceMergeService().merge_records(records).canonical_groups)
         items: list[SearchResultItem] = []
         hidden: list[HiddenFilteredItem] = []
         for group in groups:

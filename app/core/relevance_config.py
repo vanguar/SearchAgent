@@ -148,6 +148,18 @@ class RelevanceConfig:
         r"\bdsgvo\b",
         r"\bpersonenbezogene\w*\s+daten\b",
     )
+    # Абзацы с жёсткими требованиями не вырезаются никогда, даже если повторяются
+    # у работодателя в каждой вакансии: требование остаётся требованием.
+    boilerplate_protected_patterns: tuple[str, ...] = (
+        r"\bfuhrerschein\w*",
+        r"\bfahrerlaubnis\w*",
+        r"\bklasse\s+[a-d]\w*",
+        r"\blkw\b",
+        r"\bp\s*schein\w*",
+        r"\b(?:schlusselzahl|ziffer|code)\s+95\b",
+        r"\bberufskraftfahrer\w*",
+        r"\bstaplerschein\w*",
+    )
 
     # --- 6. Дедупликация ---
     # Варианты написания одного работодателя → каноническое имя.

@@ -331,7 +331,8 @@ LOW_LANGUAGE_RULE = TextRule(
         r"\b(?:deutsch|deutschkenntnisse)\s+nicht\s+(?:erforderlich|notwendig)\b",
         r"\bgerman\s+(?:is\s+)?not\s+(?:required|necessary|mandatory)\b",
         r"\b(?:kein|keine|no)\s+(?:deutsch|deutschkenntnisse|german)\s+(?:erforderlich|required|necessary)\b",
-        r"\bgrundkenntnisse(?: in deutsch)?\b",
+        r"\bgrundkenntnisse\s+(?:in\s+)?(?:der\s+)?deutsch\w*(?:\s+sprache)?\b",
+        r"\bdeutsch\w*\s+grundkenntnisse\b",
         r"\beinfache deutschkenntnisse\b",
         r"\b(?:deutsch|deutschkenntnisse)\s+(?:auf\s+)?a1(?:\s+niveau)?\b",
         r"\ba1(?:\s+niveau)?\s+(?:deutsch|deutschkenntnisse)\b",
@@ -357,9 +358,10 @@ BASIC_GERMAN_RULE = TextRule(
     code="basic_german_signal",
     label_ru="достаточно базового немецкого",
     patterns=(
-        r"\b(?:nur\s+)?grundkenntnisse(?: in deutsch)?\b",
+        r"\b(?:nur\s+)?grundkenntnisse\s+(?:in\s+)?(?:der\s+)?deutsch\w*(?:\s+sprache)?\b",
+        r"\bdeutsch\w*\s+(?:grund|basis)kenntnisse\b",
         r"\b(?:einfache|geringe) deutschkenntnisse\b",
-        r"\bbasiskenntnisse(?: in deutsch)?\b",
+        r"\bbasiskenntnisse\s+(?:in\s+)?(?:der\s+)?deutsch\w*(?:\s+sprache)?\b",
         r"\b(?:deutsch|deutschkenntnisse)\s+(?:auf\s+)?a1(?:\s+niveau)?\b",
         r"\ba1(?:\s+niveau)?\s+(?:deutsch|deutschkenntnisse)\b",
         r"\bbasic german\b",
@@ -824,11 +826,23 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         canonical.language_signals.strong_german_required and not german_requirement_softened
     )
     german_any_required = _requirement_is_mandatory(german_text, GERMAN_ANY_REQUIRED_RULE)
+    analyzable_body = _has_analyzable_body(canonical)
+    # Тексты описаний к этому моменту очищены от шаблонных абзацев работодателя
+    # (employer_boilerplate), поэтому облегчающие признаки опираются только на
+    # текст конкретной вакансии.
     german_not_required_signal = (
         not strong_german_required and _matches_rule(combined_text, GERMAN_NOT_REQUIRED_RULE)
     )
     basic_german_signal = not strong_german_required and _matches_rule(combined_text, BASIC_GERMAN_RULE)
-    analyzable_body = _has_analyzable_body(canonical)
+    low_language_signal = canonical.language_signals.low_language_signal or _matches_rule(
+        combined_text, LOW_LANGUAGE_RULE
+    )
+    # Облегчение подтверждено, если оно видно в заголовке или описание целиком.
+    # По вырезке оно правдоподобно, но не доказано: рядом может стоять «B2
+    # erforderlich», которого во фрагмент не попало.
+    language_relief_confirmed = analyzable_body or any(
+        _matches_rule(title_text, rule) for rule in (GERMAN_NOT_REQUIRED_RULE, BASIC_GERMAN_RULE, LOW_LANGUAGE_RULE)
+    )
     english_required_signal = _english_requirement_is_mandatory(combined_text) or (
         canonical.language_signals.english_required
         and not _english_requirement_is_softened_everywhere(combined_text)
@@ -915,7 +929,8 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         location_hits=location_hits,
         strong_german_required=strong_german_required,
         german_any_required=german_any_required,
-        low_language_signal=canonical.language_signals.low_language_signal or _matches_rule(combined_text, LOW_LANGUAGE_RULE),
+        low_language_signal=low_language_signal,
+        language_relief_confirmed=language_relief_confirmed,
         german_not_required_signal=german_not_required_signal,
         basic_german_signal=basic_german_signal,
         description_insufficient=not analyzable_body,

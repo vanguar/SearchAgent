@@ -65,7 +65,25 @@ _INTENDED_COURIER_NOISE_FIX = {
     "postzustellung fs b vollzeitanstellung": ("hot", 71),
     "sicherheitsmitarbeiter werkschutz automobilhersteller 15 90 std in berlin id 25911": ("hard_hidden", 27),
 }
-_INTENDED_CHANGES = {"courier": _INTENDED_COURIER_NOISE_FIX, "fahrer_b": _INTENDED_COURIER_NOISE_FIX}
+# Низкий языковой барьер, найденный только во фрагменте описания, весит вдвое
+# меньше подтверждённого (12 → 6): вакансия с непроверенным текстом не должна
+# обгонять проверенную.
+_UNCONFIRMED_RELIEF_TITLE = "fahrer transporter klasse b renault master mit planenaufbau"
+# «Grundkenntnisse als Fahrer» — навыки вождения, а не базовый немецкий.
+_DRIVING_BASICS_TITLE = "eventfahrer in oder"
+_DRIVING_BASICS_HIDDEN_TITLE = "berufskraftfahrer im werksverkehr fernverkehr"
+_INTENDED_CHANGES = {
+    "courier": {
+        **_INTENDED_COURIER_NOISE_FIX, _UNCONFIRMED_RELIEF_TITLE: ("maybe", 77), _DRIVING_BASICS_TITLE: ("hot", 79),
+        _DRIVING_BASICS_HIDDEN_TITLE: ("hard_hidden", 10),
+    },
+    "fahrer_b": {
+        **_INTENDED_COURIER_NOISE_FIX, _UNCONFIRMED_RELIEF_TITLE: ("maybe", 77), _DRIVING_BASICS_TITLE: ("hot", 79),
+        _DRIVING_BASICS_HIDDEN_TITLE: ("hard_hidden", 10),
+    },
+    "vehicle_logistics": {_UNCONFIRMED_RELIEF_TITLE: ("hard_hidden", 27)},
+    "warehouse": {_UNCONFIRMED_RELIEF_TITLE: ("hard_hidden", 4)},
+}
 
 
 @pytest.mark.parametrize("name,role,term", [

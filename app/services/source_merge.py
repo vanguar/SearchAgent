@@ -150,7 +150,7 @@ class _MutableCanonicalGroup:
         self.country_code = self.country_code or record.normalized_location.country_code
         self.city = self.city or record.normalized_location.city
         self.posted_date = _pick_earliest_date(self.posted_date, record.posted_date)
-        self.language_signals = _merge_language_signals(self.language_signals, record.language_signals)
+        self.language_signals = merge_language_signals(self.language_signals, record.language_signals)
         self.title_tokens = _pick_longer_tokens(self.title_tokens, record.title_tokens)
         self.content_tokens = _pick_longer_tokens(self.content_tokens, record.content_tokens)
 
@@ -209,7 +209,7 @@ def _pick_earliest_date(current: date | None, candidate: date | None) -> date | 
     return current if current <= candidate else candidate
 
 
-def _merge_language_signals(left: LanguageSignals, right: LanguageSignals) -> LanguageSignals:
+def merge_language_signals(left: LanguageSignals, right: LanguageSignals) -> LanguageSignals:
     return LanguageSignals(
         strong_german_required=left.strong_german_required or right.strong_german_required,
         german_mentioned=left.german_mentioned or right.german_mentioned,
