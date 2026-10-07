@@ -58,17 +58,22 @@ _YEAR_WORDS = r"(?:pro\s+jahr|je\s+jahr|/\s*jahr|jahrlich|jährlich|jahresgehalt
 # В обратном порядке («Stundenlohn … 15,50 €») валюта обязательна: иначе после
 # «Stundenlohn inkl.» подхватывалось любое число из следующей фразы.
 _RANGE = r"\s*{currency}?\s*(?:-|–|bis(?!\s+zu))\s*\d[\d.,\s]*\s*{currency}?\s*"
+# «Tarif-Stundenlohn», «Brutto-Monatsgehalt»: приставка через дефис перед периодом.
+_PREFIX = r"(?:[A-Za-zÄÖÜäöüß]+-)?"
+# Между периодом и суммой в обратном порядке — без конца предложения и кавычек:
+# иначе «… per year.” Was wir bieten 17,20 € Tarif-Stundenlohn» читалось как 17,20 €/год.
+_GAP = r"[^0-9.!?“”\"«»]{0,20}"
 _PERIOD_PATTERNS: tuple[tuple[SalaryPeriod, re.Pattern[str]], ...] = (
     # Нижняя граница вилки «15,00 € bis 18,00 € pro Stunde» получает период верхней.
-    ("hour", re.compile(rf"{_AMOUNT}{_RANGE.format(currency=_CURRENCY)}(?:{_HOUR_WORDS})", re.IGNORECASE)),
-    ("month", re.compile(rf"{_AMOUNT}{_RANGE.format(currency=_CURRENCY)}(?:{_MONTH_WORDS})", re.IGNORECASE)),
-    ("year", re.compile(rf"{_AMOUNT}{_RANGE.format(currency=_CURRENCY)}(?:{_YEAR_WORDS})", re.IGNORECASE)),
-    ("hour", re.compile(rf"{_AMOUNT}\s*{_CURRENCY}?\s*(?:{_HOUR_WORDS})", re.IGNORECASE)),
-    ("hour", re.compile(rf"(?:{_HOUR_WORDS})[^0-9]{{0,20}}{_AMOUNT}\s*{_CURRENCY}", re.IGNORECASE)),
-    ("month", re.compile(rf"{_AMOUNT}\s*{_CURRENCY}?\s*(?:{_MONTH_WORDS})", re.IGNORECASE)),
-    ("month", re.compile(rf"(?:{_MONTH_WORDS})[^0-9]{{0,20}}{_AMOUNT}\s*{_CURRENCY}", re.IGNORECASE)),
-    ("year", re.compile(rf"{_AMOUNT}\s*{_CURRENCY}?\s*(?:{_YEAR_WORDS})", re.IGNORECASE)),
-    ("year", re.compile(rf"(?:{_YEAR_WORDS})[^0-9]{{0,20}}{_AMOUNT}\s*{_CURRENCY}", re.IGNORECASE)),
+    ("hour", re.compile(rf"{_AMOUNT}{_RANGE.format(currency=_CURRENCY)}{_PREFIX}(?:{_HOUR_WORDS})", re.IGNORECASE)),
+    ("month", re.compile(rf"{_AMOUNT}{_RANGE.format(currency=_CURRENCY)}{_PREFIX}(?:{_MONTH_WORDS})", re.IGNORECASE)),
+    ("year", re.compile(rf"{_AMOUNT}{_RANGE.format(currency=_CURRENCY)}{_PREFIX}(?:{_YEAR_WORDS})", re.IGNORECASE)),
+    ("hour", re.compile(rf"{_AMOUNT}\s*{_CURRENCY}?\s*{_PREFIX}(?:{_HOUR_WORDS})", re.IGNORECASE)),
+    ("month", re.compile(rf"{_AMOUNT}\s*{_CURRENCY}?\s*{_PREFIX}(?:{_MONTH_WORDS})", re.IGNORECASE)),
+    ("year", re.compile(rf"{_AMOUNT}\s*{_CURRENCY}?\s*{_PREFIX}(?:{_YEAR_WORDS})", re.IGNORECASE)),
+    ("hour", re.compile(rf"(?:{_HOUR_WORDS}){_GAP}{_AMOUNT}\s*{_CURRENCY}", re.IGNORECASE)),
+    ("month", re.compile(rf"(?:{_MONTH_WORDS}){_GAP}{_AMOUNT}\s*{_CURRENCY}", re.IGNORECASE)),
+    ("year", re.compile(rf"(?:{_YEAR_WORDS}){_GAP}{_AMOUNT}\s*{_CURRENCY}", re.IGNORECASE)),
 )
 
 # Сумма с валютой, но без названия периода. Период тогда угадывается по величине.

@@ -7,6 +7,7 @@ from app.core.relevance_config import get_relevance_config
 from app.services.ai_tools_profile import is_ai_tools_profile
 from app.services.commute_signals import has_early_shift
 from app.services.driver_license_signal_extractor import extract_driver_license_requirements
+from app.services.employer_branch import branch_location_conflict
 from app.services.employment_signal_extractor import extract_employment_signals
 from app.services.geo_distance import (
     GeoPoint,
@@ -793,7 +794,15 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         license_text = mandatory_vehicle_evidence_text(license_text)
         vehicle_text = mandatory_vehicle_evidence_text(vehicle_text)
     driver_license_requirement = extract_driver_license_requirements(license_text)
-    license_signals = extract_license_requirement_signals(title=title_text, text=license_text)
+    license_signals = extract_license_requirement_signals(
+        title=title_text,
+        text=license_text,
+        company=" ".join(
+            dict.fromkeys(
+                name for name in (canonical.company_name, *(r.original_company for r in canonical.source_records)) if name
+            )
+        ),
+    )
     transport_signals = extract_transport_mode_signals(title=title_text, text=license_text)
     vehicle_class_signals = extract_vehicle_class_signals(vehicle_text)
     # Форма занятости, самозанятость и нагрузка читаются по ИСХОДНОМУ тексту:
@@ -878,6 +887,7 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
     return VacancySignalSnapshot(
         role_confirmed=role_confirmed,
         early_shift_signal=has_early_shift(raw_text),
+        employer_branch_conflict=_employer_branch_conflict(canonical),
         apprenticeship_signal=_is_apprenticeship_title(title_text),
         light_goods_transport_match=light_match,
         combined_text=combined_text,
@@ -1222,6 +1232,20 @@ def _measure_home_distance(
     if vacancy_point is None:
         return None
     return distance_km(resolve_point(city=profile.home_city), vacancy_point)
+
+
+def _employer_branch_conflict(canonical: CanonicalVacancyGroup) -> tuple[str, float] | None:
+    """Филиал работодателя далеко от места, указанного источником (см. employer_branch)."""
+    for record in canonical.source_records:
+        conflict = branch_location_conflict(
+            record.original_company or record.normalized_company,
+            city=record.normalized_location.city,
+            postal_code=record.normalized_location.postal_code,
+            location_text=record.normalized_location.raw_text or record.original_location,
+        )
+        if conflict is not None:
+            return conflict
+    return None
 
 
 def _resolve_vacancy_point(canonical: CanonicalVacancyGroup) -> GeoPoint | None:

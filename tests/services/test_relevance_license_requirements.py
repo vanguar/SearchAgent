@@ -166,3 +166,26 @@ def test_p_schein_wished_for_if_needed_is_a_risk() -> None:
 
     assert "p_schein_required" not in _codes(verdict.rejection_hits)
     assert "p_schein_optional" in _codes(verdict.risk_hits)
+
+
+def test_school_and_disability_transport_company_needs_p_schein() -> None:
+    verdict = FilterEngine().evaluate(
+        build_canonical(
+            title="Fahrer mit Führerschein B und höher",
+            body="Fahrer gesucht.",
+            company="Joachim Lehmann e.K. Schüler- und Behindertentr.",
+        ),
+        courier_profile(),
+    )
+
+    assert "p_schein_required" in _codes(verdict.rejection_hits)
+
+
+def test_goods_driver_at_a_taxi_company_is_not_passenger_transport() -> None:
+    verdict = FilterEngine().evaluate(
+        build_canonical(title="Transporterfahrer/-in (m/w/d)", body="Warentransport mit Sprinter.",
+                        company="Taxi Fuhrbetrieb Fred Meier"),
+        courier_profile(),
+    )
+
+    assert "p_schein_required" not in _codes(verdict.rejection_hits)

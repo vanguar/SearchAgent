@@ -72,16 +72,22 @@ _UNCONFIRMED_RELIEF_TITLE = "fahrer transporter klasse b renault master mit plan
 # «Grundkenntnisse als Fahrer» — навыки вождения, а не базовый немецкий.
 _DRIVING_BASICS_TITLE = "eventfahrer in oder"
 _DRIVING_BASICS_HIDDEN_TITLE = "berufskraftfahrer im werksverkehr fernverkehr"
+# Перевозка школьников — перевозка пассажиров: без P-Schein скрывается.
+_SCHOOL_TRANSPORT_TITLE = "fahrer schulerbeforderung potsdam und umland"
+# Transgourmet из BA (без текста) и та же вакансия Careerjet склеены в одну.
+_MERGED_TRANSGOURMET_TITLE = "kraftfahrer im lagerverkehr"
 _INTENDED_CHANGES = {
     "courier": {
         **_INTENDED_COURIER_NOISE_FIX, _UNCONFIRMED_RELIEF_TITLE: ("maybe", 77), _DRIVING_BASICS_TITLE: ("hot", 79),
         _DRIVING_BASICS_HIDDEN_TITLE: ("hard_hidden", 10),
+        _SCHOOL_TRANSPORT_TITLE: ("hard_hidden", 35),
     },
     "fahrer_b": {
         **_INTENDED_COURIER_NOISE_FIX, _UNCONFIRMED_RELIEF_TITLE: ("maybe", 77), _DRIVING_BASICS_TITLE: ("hot", 79),
         _DRIVING_BASICS_HIDDEN_TITLE: ("hard_hidden", 10),
+        _SCHOOL_TRANSPORT_TITLE: ("hard_hidden", 35),
     },
-    "vehicle_logistics": {_UNCONFIRMED_RELIEF_TITLE: ("hard_hidden", 27)},
+    "vehicle_logistics": {_UNCONFIRMED_RELIEF_TITLE: ("hard_hidden", 27), _MERGED_TRANSGOURMET_TITLE: ("hard_hidden", 13)},
     "warehouse": {_UNCONFIRMED_RELIEF_TITLE: ("hard_hidden", 4)},
 }
 

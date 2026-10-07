@@ -124,3 +124,34 @@ def test_real_run_shows_one_deutsche_post_postbote_card_per_district(district: s
     ]
 
     assert len(cards) == 1
+
+
+def test_branch_in_employer_name_far_from_the_given_place_hides_the_vacancy() -> None:
+    from tests.services.relevance_support import courier_run
+
+    reasons = [
+        hit.code
+        for item in courier_run().hidden_filtered_items
+        if "Niederlassung Betrieb Ravensburg" in (item.company_name or "")
+        for hit in item.rejection_reasons
+    ]
+
+    assert "employer_branch_location_conflict" in reasons
+
+
+def test_district_named_like_another_town_and_branch_suffix_still_merge() -> None:
+    body = "Wir liefern Bio-Essen an Schulen und Kitas. Führerschein Klasse B. " * 4
+    schildkroete = (
+        _record("s-1", "Fahrer:in für Inklusionsunternehmen (m/w/d)", body, company="Schildkröte GmbH",
+                location="Britz, Berlin"),
+        _record("s-2", "Fahrer:in für Inklusionsunternehmen (m/w/d)", "", company="Schildkröte GmbH",
+                location="12099 Berlin, Deutschland"),
+    )
+    aveato = (
+        _record("a-1", "Kurier/ Servicefahrer (m/w/d)", body, company="aveato GmbH - aveato Catering Berlin",
+                location="Britz, Berlin"),
+        _record("a-2", "Kurier/ Servicefahrer (m/w/d)", "", company="aveato GmbH", location="12099 Berlin"),
+    )
+
+    assert len(SourceMergeService().merge_records(schildkroete).canonical_groups) == 1
+    assert len(SourceMergeService().merge_records(aveato).canonical_groups) == 1

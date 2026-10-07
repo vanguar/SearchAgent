@@ -69,7 +69,7 @@ def test_net_salary_is_flagged_and_not_comparable() -> None:
 @pytest.mark.parametrize(
     ("fragment", "expected"),
     [
-        ("Postbote für Pakete und Briefe (m/w/d)", 18.5),
+        ("Postbote für Briefe und Pakete in Berlin-Tempelhof", 17.92),
         ("Fahrer - Arztpraxen", 13.9),
     ],
 )
@@ -100,3 +100,13 @@ def test_real_run_contradicting_rates_are_doubtful() -> None:
 def test_real_run_time_tec_metadata_month_is_not_shown_as_rate() -> None:
     for card in items_titled(_all_cards(), "Fahrer (m/w/d)", company="Time Tec"):
         assert card.signals.salary_hourly_eur is None or card.signals.salary_hourly_eur <= 30
+
+
+def test_tarif_stundenlohn_after_a_year_sentence_is_an_hourly_rate() -> None:
+    text = (
+        "more than 140 days per year.” Was wir bieten✓ 17,20 € Tarif-Stundenlohn ✓ Ein krisensicherer Arbeitsplatz"
+    )
+    salary = extract_salary_signals(text)
+
+    assert salary.hourly_eur == 17.2
+    assert not salary.doubtful

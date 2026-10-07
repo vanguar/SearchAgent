@@ -56,6 +56,7 @@ def _compiled(config: RelevanceConfig) -> dict[str, tuple[re.Pattern[str], ...]]
     return {
         "p_req": tuple(re.compile(p) for p in config.p_schein_requirement_patterns),
         "p_title": tuple(re.compile(p) for p in config.p_schein_title_patterns),
+        "p_company": tuple(re.compile(p) for p in config.p_schein_company_patterns),
         "med_title": tuple(re.compile(p) for p in config.medical_transport_title_patterns),
         "med_req": tuple(re.compile(p) for p in config.medical_transport_requirement_patterns),
     }
@@ -65,6 +66,7 @@ def extract_license_requirement_signals(
     *,
     title: str | None,
     text: str | None,
+    company: str | None = None,
     config: RelevanceConfig | None = None,
 ) -> LicenseRequirementSignals:
     resolved = config or get_relevance_config()
@@ -76,7 +78,12 @@ def extract_license_requirement_signals(
 
     p_required = False
     p_optional = False
-    if any(pattern.search(title_text) for pattern in patterns["p_title"]):
+    # Название фирмы говорит о перевозке людей так же ясно, как заголовок:
+    # «… Schüler- und Behindertentransport», «Taxi Müller».
+    title_and_company = f"{title_text} {normalize_text_for_fingerprint(company)}".strip()
+    if any(pattern.search(title_text) for pattern in patterns["p_title"]) or any(
+        pattern.search(title_and_company) for pattern in patterns["p_company"]
+    ):
         p_required = True
     for pattern in patterns["p_req"]:
         for match in pattern.finditer(body):

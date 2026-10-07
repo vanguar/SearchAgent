@@ -37,10 +37,35 @@ def numbers_in(text: str | None) -> set[str]:
     return found
 
 
+_LATIN_WORD_RE = re.compile(r"[A-Za-zÄÖÜäöüß]{3,}")
+_CYRILLIC_RE = re.compile(r"[А-Яа-яЁё]")
+
+
+def _latin_words(text: str) -> list[str]:
+    return [word.casefold() for word in _LATIN_WORD_RE.findall(text)]
+
+
 def is_valid_title_translation(original: str, translated: str | None) -> bool:
+    """Перевод заголовка без иероглифов, с числами оригинала и без латинского мусора.
+
+    Латинские слова допустимы, только если они есть в оригинале (бренды,
+    «Delivery Driver»). Транслит («dostavshchik posylok») и приписанный к
+    переводу сам оригинал («Курьер - Берлин Kurier - Berlin - Marienfelde»)
+    не проходят.
+    """
     if not translated or not translated.strip() or has_cjk(translated):
         return False
-    return numbers_in(original) <= numbers_in(translated)
+    if not numbers_in(original) <= numbers_in(translated):
+        return False
+    original_words = set(_latin_words(original))
+    latin = _latin_words(translated)
+    if any(word not in original_words for word in latin):
+        return False
+    if _CYRILLIC_RE.search(translated) and original_words:
+        echoed = set(latin) & original_words
+        if len(echoed) >= 3 and len(echoed) >= 0.6 * len(original_words):
+            return False
+    return True
 
 
 def is_valid_summary(source_text: str, summary: str | None) -> bool:

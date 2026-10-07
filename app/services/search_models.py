@@ -312,6 +312,9 @@ class VacancySignalSnapshot:
     early_shift_signal: bool = False
     # Вакансия кадрового агентства: чем выдаёт себя (None — не агентство).
     staffing_agency: str | None = None
+    # Филиал из названия работодателя далеко от указанного места работы:
+    # (город филиала, расстояние в км). Источник, скорее всего, ошибся с местом.
+    employer_branch_conflict: tuple[str, float] | None = None
 
 
 @dataclass(frozen=True, slots=True)

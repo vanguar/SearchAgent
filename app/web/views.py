@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+import re
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse
@@ -11,6 +12,8 @@ from app.core.constants import APP_SUBTITLE, APP_TITLE, NAV_ITEMS
 from app.services.employment_signal_extractor import EMPLOYMENT_TYPE_LABELS_RU
 from app.services.llm_client import LLMStatus, get_runtime_status
 from app.web.search_presentation import search_overview
+
+_CYRILLIC_RE = re.compile(r"[А-Яа-яЁё]")
 
 
 def _employment_type_labels(codes: object) -> str:
@@ -25,6 +28,9 @@ templates = Jinja2Templates(directory=str(settings.templates_dir))
 # in visible text. Jinja autoescaping still re-escapes the result on render,
 # so this is safe — it never bypasses escaping and never touches stored data.
 templates.env.filters["unescape"] = html.unescape
+# Перевод заголовка показывается, только если он действительно русский: при
+# откате на немецкий оригинал строка лишь повторяла бы заголовок.
+templates.env.tests["russian_text"] = lambda value: bool(value and _CYRILLIC_RE.search(str(value)))
 # Подписи форм занятости берутся из того же словаря, что и правила поиска, —
 # иначе на карточке и в фильтре одно и то же значение называлось бы по-разному.
 templates.env.globals["employment_type_labels"] = _employment_type_labels

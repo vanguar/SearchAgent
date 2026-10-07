@@ -303,6 +303,15 @@ class FilterEngine:
         outside_cities = _outside_requested_cities_hit(resolved_signals, profile, worldwide_search)
         if outside_cities is not None:
             rejection_hits.append(outside_cities)
+        elif resolved_signals.employer_branch_conflict is not None and not worldwide_search:
+            branch, distance = resolved_signals.employer_branch_conflict
+            label = (
+                f"место работы указано недостоверно: филиал работодателя — {branch}, "
+                f"в {distance:.0f} км от места, указанного источником"
+            )
+            # Заказаны конкретные города, а работа, судя по филиалу, далеко от них.
+            target = rejection_hits if profile.search_cities else risk_hits
+            target.append(RuleHit(code="employer_branch_location_conflict", label_ru=label))
 
         self_employment_hit = _self_employment_hit(resolved_signals, profile)
         if self_employment_hit is not None:

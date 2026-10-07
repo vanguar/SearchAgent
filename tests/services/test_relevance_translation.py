@@ -92,3 +92,22 @@ def test_translations_of_the_real_run_have_no_cjk_and_keep_numbers() -> None:
         assert translated is not None
         assert not has_cjk(translated), title
         assert numbers_in(title) <= numbers_in(translated), (title, translated)
+
+
+@pytest.mark.parametrize(
+    ("original", "translated"),
+    [
+        ("Paketzusteller (m/w/d)", "доставщик посылок dostavshchik posylok"),
+        ("Kurier (m/w/d) - Berlin - Marienfelde", "Курьер - Берлин - Мариенфельде Kurier - Berlin - Marienfelde"),
+    ],
+)
+def test_transliteration_and_echoed_original_are_rejected(original: str, translated: str) -> None:
+    from app.services.translation_quality import is_valid_title_translation
+
+    assert not is_valid_title_translation(original, translated)
+
+
+def test_english_words_from_the_original_are_allowed() -> None:
+    from app.services.translation_quality import is_valid_title_translation
+
+    assert is_valid_title_translation("Delivery Driver / Paketzusteller", "Доставщик посылок / Delivery Driver")

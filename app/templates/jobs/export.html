@@ -85,7 +85,7 @@
     <div class="vacancy vacancy--{{ item.bucket }}">
       <p class="vacancy__title">
         {{ item.primary_record.original_title }}
-        {% if item.translated_title_ru %}<span class="vacancy__title-ru">— {{ item.translated_title_ru }}</span>{% endif %}
+        {% if item.translated_title_ru is russian_text %}<span class="vacancy__title-ru">— {{ item.translated_title_ru }}</span>{% endif %}
       </p>
       <p class="vacancy__company">
         {{ item.primary_record.original_company or item.canonical_group.company_name or "Компания не указана" }}

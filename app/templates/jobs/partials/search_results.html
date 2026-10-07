@@ -30,7 +30,7 @@
         <div class="jobs-vacancy-card__header">
           <div class="jobs-vacancy-card__title-block">
             <strong class="jobs-vacancy-title">{{ item.primary_record.original_title | unescape }}</strong>
-            {% if item.translated_title_ru %}
+            {% if item.translated_title_ru is russian_text %}
             <span class="jobs-vacancy-title-ru">{{ item.translated_title_ru }}</span>
             {% endif %}
           </div>

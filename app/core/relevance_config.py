@@ -69,6 +69,16 @@ class RelevanceConfig:
         r"\btaxi\w*",
         r"\bfahrgastbeforderung\w*",
     )
+    # Перевозка школьников и людей с инвалидностью — тоже перевозка пассажиров.
+    # Проверяется и в заголовке, и в названии фирмы («… Schüler- und Behindertentr.»).
+    # «Taxi» в названии фирмы сюда не входит: такси-фирма бывает и грузовой.
+    p_schein_company_patterns: tuple[str, ...] = (
+        r"\bschuler\w*\s+und\s+behinderten\w*",
+        r"\bbehindertentr\w*",
+        r"\bbehindertenfahr\w*",
+        r"\bschuler(?:beforderung|verkehr|fahr|transport)\w*",
+        r"\bkrankenfahrt\w*",
+    )
     # Квалифицированная перевозка больных: нужен Rettungssanitäter/Rettungshelfer.
     medical_transport_title_patterns: tuple[str, ...] = (r"\bkrankentransport\w*",)
     medical_transport_requirement_patterns: tuple[str, ...] = (
@@ -116,6 +126,9 @@ class RelevanceConfig:
         r"\btageszeitung\w*",
         r"\bfruhaufsteher\w*",
         r"\bzeitung\w*\s+austragen\b",
+        # Листовки и проспекты — та же пешая разноска.
+        r"\b(?:flyer|prospekt|werbemittel|werbe|handzettel)\w*\s*(?:und\s+\w+\s*)?verteil\w*",
+        r"\b(?:prospekt|flyer|werbemittel|handzettel)verteil\w*",
     )
     press_distribution_penalty: int = -20
 
@@ -239,6 +252,9 @@ class RelevanceConfig:
         ("Fahrzeugüberführer", "перегонщик автомобилей"),
         ("Quereinsteiger", "без профильного опыта"),
         ("Abrufkraft", "работа по вызову"),
+        ("Tagespauschale", "суточные"),
+        ("Spesen", "суточные (командировочные)"),
+        ("Abschleppdienst", "эвакуатор"),
         ("Liliengewächse", "цветы и растения (не «выращивание лилий»)"),
         ("Zusteller", "доставщик"),
         ("Paketzusteller", "доставщик посылок"),
@@ -264,6 +280,9 @@ class RelevanceConfig:
         r"\b(?:zwischen\s+)?0[0-5]\s+[0-5]\d\s+(?:und\s+|bis\s+)?0?[0-9]\s+[0-5]\d\b",
         r"\bfruhaufsteher\w*",
     )
+    # Филиал в названии работодателя («Niederlassung Betrieb Ravensburg») дальше
+    # этого расстояния от указанного места работы — место указано недостоверно.
+    branch_city_conflict_km: float = 150.0
     # «Дом с даты»: «2026-11-01=Neustrelitz; 2027-03-01=Rostock».
     home_city_schedule: str = ""
 
@@ -329,6 +348,7 @@ _ENV_NUMBERS: dict[str, str] = {
     "salary_yearly_min": "RELEVANCE_SALARY_YEARLY_MIN",
     "salary_yearly_max": "RELEVANCE_SALARY_YEARLY_MAX",
     "commute_average_speed_kmh": "RELEVANCE_COMMUTE_SPEED_KMH",
+    "branch_city_conflict_km": "RELEVANCE_BRANCH_CITY_CONFLICT_KM",
     "commute_max_minutes_for_early_shift": "RELEVANCE_COMMUTE_MAX_MINUTES_EARLY_SHIFT",
     "early_shift_latest_hour": "RELEVANCE_EARLY_SHIFT_LATEST_HOUR",
     "staffing_agency_body_min_markers": "RELEVANCE_STAFFING_AGENCY_BODY_MIN_MARKERS",

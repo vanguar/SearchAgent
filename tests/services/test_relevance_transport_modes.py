@@ -114,3 +114,11 @@ def test_bikes_as_goods_are_not_a_bike_job() -> None:
     )
 
     assert "transport_mode_mismatch" not in {hit.code for hit in verdict.rejection_hits}
+
+
+def test_flyer_distribution_is_demoted_for_car_profile() -> None:
+    canonical = build_canonical(title="Flyer- und Prospektverteiler / Zustellerin Post Briefe", body="Verteilung.")
+
+    score = VacancyScorer().score(canonical, courier_profile(**CAR_PROFILE))
+
+    assert any(hit.code == "press_distribution_non_target" for hit in score.negative_hits)
