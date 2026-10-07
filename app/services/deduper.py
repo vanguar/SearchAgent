@@ -423,7 +423,9 @@ def _location_cities(location: NormalizedLocation, company: str | None = None) -
         company, city=location.city, postal_code=location.postal_code, location_text=location.raw_text
     )
     if conflict is not None:
-        return frozenset({canonical_city(conflict[0])})
+        branch_city = canonical_city(conflict[0])
+        if branch_city:
+            return frozenset({branch_city})
     return _cities_of(location.city, location.raw_text)
 
 

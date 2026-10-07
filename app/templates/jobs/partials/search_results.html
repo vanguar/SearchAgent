@@ -64,7 +64,7 @@
         {% endif %}
 
         {% if item.signals.description_insufficient %}
-        <p class="jobs-vacancy-risk muted">Данных недостаточно: полный текст описания не подтверждён. Требования, которых нет во фрагменте, нужно проверить в оригинале.</p>
+        <p class="jobs-vacancy-risk muted" title="Источник отдал только фрагмент описания: требования, которых в нём нет, проверьте в оригинале.">Данных недостаточно — фрагмент описания, проверить в оригинале.</p>
         {% endif %}
         {% if item.summary_ru %}
         <p class="jobs-vacancy-summary">{{ item.summary_ru }}</p>
