@@ -156,6 +156,23 @@ class FilterEngine:
         if early_shift_risk is not None:
             risk_hits.append(early_shift_risk)
 
+        if resolved_signals.staffing_agency:
+            policy = get_relevance_config().staffing_agency_policy
+            if policy == "exclude":
+                rejection_hits.append(RuleHit(
+                    code="staffing_agency_excluded",
+                    label_ru=(
+                        f"кадровое агентство ({resolved_signals.staffing_agency}) — "
+                        "агентства исключены настройкой поиска"
+                    ),
+                ))
+            else:
+                suffix = " — приоритет снижен, показана в конце выдачи" if policy == "demote" else ""
+                risk_hits.append(RuleHit(
+                    code="staffing_agency",
+                    label_ru=f"вакансия от кадрового агентства ({resolved_signals.staffing_agency}){suffix}",
+                ))
+
         transport_mismatch = _transport_mode_mismatch_hit(resolved_signals, profile)
         if transport_mismatch is not None:
             rejection_hits.append(transport_mismatch)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from datetime import date
+from functools import lru_cache
 
 from app.core.relevance_config import get_relevance_config
 from app.services.employer_identity import employer_key
@@ -45,9 +46,7 @@ class VacancyDeduper:
         content_similarity = token_similarity(record.content_tokens, candidate.content_tokens)
         # Сходство именно текстов объявлений: в content_tokens входят заголовок
         # и компания, и два разных текста под одним заголовком выглядят похожими.
-        body_similarity = token_similarity(
-            fingerprint_tokens(record.body_text), fingerprint_tokens(candidate.body_text)
-        )
+        body_similarity = token_similarity(_body_tokens(record.body_text), _body_tokens(candidate.body_text))
         company_match = _companies_match(record.normalized_company, candidate.normalized_company)
         # Канонический ключ работодателя («DHL» = «Deutsche Post AG»). Используется
         # только правилами, которые требуют совпадения самих текстов: сокращённое
@@ -351,17 +350,28 @@ def _locations_match(
     return bool(_location_cities(record.normalized_location) & _location_cities(candidate.normalized_location))
 
 
+@lru_cache(maxsize=8192)
+def _body_tokens(body: str | None) -> tuple[str, ...]:
+    """Токены текста объявления; кэш — сравнение идёт для каждой пары записей."""
+    return fingerprint_tokens(body)
+
+
 def _location_cities(location: NormalizedLocation) -> frozenset[str]:
+    return _cities_of(location.city, location.raw_text)
+
+
+@lru_cache(maxsize=8192)
+def _cities_of(city_name: str | None, raw_text: str | None) -> frozenset[str]:
     """Города, которые называет локация: распознанный город и части исходной строки.
 
     Adzuna пишет «Mitte, Berlin», и распознанный город — неоднозначное «Mitte»;
     без исходной строки та же вакансия DHL не совпадала с BA-записью «Berlin».
     """
-    city = canonical_city(location.city)
+    city = canonical_city(city_name)
     if city and is_known_place(city):
         return frozenset({city})
-    names = [location.city or ""]
-    names.extend(part for part in re.split(r"[,;/]", location.raw_text or "") if part.strip())
+    names = [city_name or ""]
+    names.extend(part for part in re.split(r"[,;/]", raw_text or "") if part.strip())
     cities = {canonical_city(name) for name in names}
     return frozenset(city for city in cities if city and city not in _NON_CITY_LOCATION_PARTS)
 

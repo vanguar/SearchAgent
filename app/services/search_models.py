@@ -310,6 +310,8 @@ class VacancySignalSnapshot:
     language_relief_confirmed: bool = True
     # Смена начинается до 06:00 или ночью.
     early_shift_signal: bool = False
+    # Вакансия кадрового агентства: чем выдаёт себя (None — не агентство).
+    staffing_agency: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

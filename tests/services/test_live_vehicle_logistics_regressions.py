@@ -24,6 +24,7 @@ from app.services.search_service import SearchService, _assign_bucket, _pick_pri
 from app.services.source_adapters.models import SourceRecordPreview
 from app.services.source_merge import SourceMergeService
 from app.services.vacancy_quality_signals import quality_differentiator_hits
+from tests.services.relevance_support import staffing_agencies_allowed
 
 TODAY = date(2026, 9, 30)
 PROFILE = SearchProfileContext(
@@ -177,6 +178,12 @@ def test_duplicate_score_is_independent_of_source_order():
 
 
 def test_duplicate_found_in_separate_queries_is_rescored_and_keeps_all_urls():
+    # Проверяется склейка и ссылки, а не политика агентств: вакансия от perZukunft.
+    with staffing_agencies_allowed():
+        _assert_duplicate_found_in_separate_queries_is_rescored_and_keeps_all_urls()
+
+
+def _assert_duplicate_found_in_separate_queries_is_rescored_and_keeps_all_urls():
     service = SearchService()
     records = (live_record("5890228465"), live_record("cj-f0c8caf613a29c78"))
     attempts = []

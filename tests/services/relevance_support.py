@@ -3,11 +3,15 @@ from __future__ import annotations
 
 import dataclasses
 import json
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import date
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from unittest import mock
 
+from app.core.relevance_config import get_relevance_config
 from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.normalizer import VacancyNormalizer
 from app.services.relevance_replay import profile_from_fixture, replay_run_fixture
@@ -27,6 +31,24 @@ def courier_fixture() -> dict[str, Any]:
 def courier_run() -> SearchRunResult:
     """Реальный прогон «Доставка / Курьер» 07.10.2026 через текущий конвейер."""
     return replay_run_fixture(courier_fixture(), today=RUN_DAY)
+
+
+@contextmanager
+def staffing_agencies_allowed() -> Iterator[None]:
+    """Агентства как обычные вакансии: для проверок, не связанных с их политикой."""
+    config = dataclasses.replace(get_relevance_config(), staffing_agency_policy="keep")
+    with (
+        mock.patch("app.services.filter_engine.get_relevance_config", return_value=config),
+        mock.patch("app.services.staffing_agency.get_relevance_config", return_value=config),
+    ):
+        yield
+
+
+@lru_cache(maxsize=1)
+def courier_run_with_agencies() -> SearchRunResult:
+    """Тот же прогон, но агентства не скрываются — нужен, чтобы проверять их вакансии."""
+    with staffing_agencies_allowed():
+        return replay_run_fixture(courier_fixture(), today=RUN_DAY)
 
 
 def courier_profile(**overrides: Any) -> SearchProfileContext:

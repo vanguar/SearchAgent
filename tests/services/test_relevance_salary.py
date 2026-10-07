@@ -5,11 +5,17 @@ import pytest
 from app.services.filter_engine import FilterEngine
 from app.services.rule_catalog import inspect_vacancy
 from app.services.salary_signal_extractor import extract_salary_signals
-from tests.services.relevance_support import build_canonical, courier_profile, courier_run, flatten_cards, items_titled
+from tests.services.relevance_support import (
+    build_canonical,
+    courier_profile,
+    courier_run_with_agencies,
+    flatten_cards,
+    items_titled,
+)
 
 
 def _all_cards():
-    result = courier_run()
+    result = courier_run_with_agencies()
     return flatten_cards((*result.hot_results, *result.maybe_results, *result.rejected_results))
 
 

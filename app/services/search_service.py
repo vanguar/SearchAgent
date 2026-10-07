@@ -75,6 +75,7 @@ from app.services.source_adapters.models import (
 )
 from app.services.source_adapters.registry import SourceAdapterRegistry
 from app.services.source_merge import SourceMergeService
+from app.services.staffing_agency import demote_staffing_agencies, mark_staffing_agencies
 from app.services.summary_service import SummaryService
 from app.services.translation_service import TranslationService
 from app.services.vacancy_processing import VacancyProcessingService
@@ -322,8 +323,11 @@ class SearchService:
         results_list: list[SearchResultItem] = []
         # Шаблонные абзацы работодателя вырезаются после дедупликации и до
         # анализа: признаки должны опираться на текст конкретной вакансии.
-        for canonical in strip_employer_boilerplate(processed.canonical_groups):
-            signals = inspect_vacancy(canonical, resolved_profile)
+        analysis_groups = strip_employer_boilerplate(processed.canonical_groups)
+        analysis_signals = mark_staffing_agencies(
+            analysis_groups, [inspect_vacancy(canonical, resolved_profile) for canonical in analysis_groups]
+        )
+        for canonical, signals in zip(analysis_groups, analysis_signals, strict=True):
             filter_result = self.filter_engine.evaluate(
                 canonical, resolved_profile, signals=signals, search_mode=search_input.search_mode
             )
@@ -347,8 +351,10 @@ class SearchService:
             if item is not None:
                 results_list.append(item)
 
+        demoted_results, dropped_agency_items = demote_staffing_agencies(sorted(results_list, key=_result_sort_key))
+        hidden_items.extend(_hidden_agency_duplicates(self, dropped_agency_items))
         hidden_filtered_items = tuple(hidden_items)
-        ordered_results = collapse_employer_clusters(sorted(results_list, key=_result_sort_key))
+        ordered_results = collapse_employer_clusters(demoted_results)
 
         source_states = self._build_source_states(
             successful_responses=tuple(successful_responses),
@@ -827,8 +833,8 @@ class SearchService:
         groups = strip_employer_boilerplate(SourceMergeService().merge_records(records).canonical_groups)
         items: list[SearchResultItem] = []
         hidden: list[HiddenFilteredItem] = []
-        for group in groups:
-            signals = inspect_vacancy(group, profile)
+        group_signals = mark_staffing_agencies(groups, [inspect_vacancy(group, profile) for group in groups])
+        for group, signals in zip(groups, group_signals, strict=True):
             verdict = self.filter_engine.evaluate(group, profile, signals=signals, search_mode=search_mode)
             if verdict.hard_reject:
                 hidden.append(self._build_hidden_filtered_item(canonical=group, filter_result=verdict))
@@ -843,7 +849,9 @@ class SearchService:
             )
             if item is not None:
                 items.append(dataclasses.replace(item, search_city=origin.search_city if origin else None))
-        ordered = collapse_employer_clusters(sorted(items, key=_result_sort_key))
+        demoted_items, dropped_agency_items = demote_staffing_agencies(sorted(items, key=_result_sort_key))
+        hidden.extend(_hidden_agency_duplicates(self, dropped_agency_items))
+        ordered = collapse_employer_clusters(demoted_items)
         query_groups: list[SearchQueryResultGroup] = []
         for query_group in merged.query_result_groups:
             shown = (*query_group.hot_results, *query_group.maybe_results)
@@ -1819,6 +1827,25 @@ def _collapse_items_sharing_a_source_record(
         seen_records |= record_keys
         kept.append(item)
     return tuple(kept)
+
+
+_AGENCY_DUPLICATE_HIT = RuleHit(
+    code="staffing_agency_duplicate",
+    label_ru="ещё одна вакансия того же кадрового агентства — в выдаче оставлена только самая свежая",
+)
+
+
+def _hidden_agency_duplicates(
+    service: SearchService,
+    items: Sequence[SearchResultItem],
+) -> list[HiddenFilteredItem]:
+    return [
+        service._build_hidden_filtered_item(
+            canonical=item.canonical_group,
+            filter_result=FilterResult(decision="reject", rejection_hits=(_AGENCY_DUPLICATE_HIT,)),
+        )
+        for item in items
+    ]
 
 
 def _result_item_key(item: SearchResultItem) -> str:

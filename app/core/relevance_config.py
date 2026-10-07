@@ -262,7 +262,11 @@ class RelevanceConfig:
     home_city_schedule: str = ""
 
     # --- Кадровые агентства ---
-    exclude_staffing_agencies: bool = True
+    # Что делать с вакансиями кадровых агентств:
+    #   demote  — в самый конец выдачи («на проверку»), от агентства одна, самая свежая;
+    #   exclude — скрывать целиком;
+    #   keep    — как обычные вакансии (только пометка на карточке).
+    staffing_agency_policy: str = "demote"
     staffing_agency_company_patterns: tuple[str, ...] = (
         r"\barbeitsvermittlung\w*",
         r"\bpersonalvermittlung\w*",
@@ -286,8 +290,10 @@ class RelevanceConfig:
         r"\bprivate\w*\s+arbeitsvermittlung\w*",
         r"\bpersonalvermittlung\w*",
         r"\bim\s+auftrag\s+(?:unseres|eines)\s+kunden\b",
-        r"\bfur\s+(?:unseren|einen)\s+(?:namhaften\s+|renommierten\s+)?kunden\b",
-        r"\bunser\w*\s+kunde\w*\b",
+        # «für unseren Kunden» — дательный падеж единственного числа: «для нашего
+        # клиента». Общее «unsere Kunden» (покупатели) признаком не является.
+        r"\bfur\s+(?:unseren|einen)\s+(?:namhaften\s+|renommierten\s+|langjahrigen\s+)?kunden\b",
+        r"\bunser\s+kunde\b",
         r"\bvermittlungsgutschein\w*",
     )
     # Сколько разных признаков агентства в тексте нужно, чтобы считать
@@ -321,8 +327,11 @@ _ENV_NUMBERS: dict[str, str] = {
     "early_shift_latest_hour": "RELEVANCE_EARLY_SHIFT_LATEST_HOUR",
     "staffing_agency_body_min_markers": "RELEVANCE_STAFFING_AGENCY_BODY_MIN_MARKERS",
 }
-_ENV_BOOLS: dict[str, str] = {"exclude_staffing_agencies": "RELEVANCE_EXCLUDE_STAFFING_AGENCIES"}
-_ENV_STRINGS: dict[str, str] = {"home_city_schedule": "HOME_CITY_SCHEDULE"}
+_ENV_BOOLS: dict[str, str] = {}
+_ENV_STRINGS: dict[str, str] = {
+    "home_city_schedule": "HOME_CITY_SCHEDULE",
+    "staffing_agency_policy": "RELEVANCE_STAFFING_AGENCY_POLICY",
+}
 
 
 def load_relevance_config() -> RelevanceConfig:
