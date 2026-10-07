@@ -225,7 +225,8 @@ def extract_canonical_salary_signals(canonical: CanonicalVacancyGroup, *, analys
                 hourly_eur=salary.hourly_eur, is_net=salary.is_net,
             ))
 
-    textual = [salary for field in ("body", "title") for salary, _ in by_field[field]]
+    textual_fields: tuple[SalaryField, ...] = ("body", "title")
+    textual = [salary for field in textual_fields for salary, _ in by_field[field]]
     doubtful_amounts = tuple(dict.fromkeys(amount for salary in textual for amount in salary.doubtful_amounts))
     upper_bound = next((salary.upper_bound_amount for salary in textual if salary.upper_bound_amount), None)
     mentioned = bool(_ANY_PAY_MENTION_RE.search(analysis_text or "")) or any(

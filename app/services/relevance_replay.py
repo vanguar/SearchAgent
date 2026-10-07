@@ -27,7 +27,7 @@ RUN_FIXTURE_VERSION = 1
 
 def profile_from_fixture(payload: Mapping[str, Any]) -> SearchProfileContext:
     names = {field.name for field in dataclasses.fields(SearchProfileContext)}
-    values = {
+    values: dict[str, Any] = {
         key: tuple(value) if isinstance(value, list) else value
         for key, value in payload.items()
         if key in names

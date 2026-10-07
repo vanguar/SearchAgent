@@ -19,6 +19,7 @@ import os
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 from app.core.logging import logger
 
@@ -337,7 +338,7 @@ _ENV_STRINGS: dict[str, str] = {
 def load_relevance_config() -> RelevanceConfig:
     """Значения по умолчанию, поверх них — JSON-файл, поверх него — переменные окружения."""
     defaults = RelevanceConfig()
-    overrides: dict[str, object] = {}
+    overrides: dict[str, Any] = {}
     fields = {field.name: field for field in dataclasses.fields(RelevanceConfig)}
 
     config_file = os.getenv("RELEVANCE_CONFIG_FILE")
