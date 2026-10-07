@@ -275,6 +275,11 @@ class VacancySignalSnapshot:
     salary_is_comparable: bool = False
     salary_conflict: bool = False
     salary_evidence: tuple[SalaryEvidence, ...] = ()
+    # Сумма вне правдоподобных границ (в оценке не учитывается) и сумма,
+    # названная только как максимум («bis zu …»).
+    salary_doubtful: bool = False
+    salary_doubtful_amounts: tuple[str, ...] = ()
+    salary_upper_bound: str | None = None
     light_commercial_vehicle_signals: tuple[str, ...] = ()
     heavy_vehicle_signals: tuple[str, ...] = ()
     # Общие названия водителя: контекст, который сам по себе не доказывает тяжёлый транспорт.

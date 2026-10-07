@@ -93,13 +93,14 @@ def test_live_salary_conflict_has_same_calculation_and_summary_with_provenance(u
     service = SummaryService(helper=helper)
     service._llm_cache[original.body_text] = "Оплата 25,54 €/ч."
     summary = service.build_summary(canonical, signals, use_llm=use_llm)
-    assert signals.salary_hourly_eur == 18.23
+    # При расхождении полей приоритет у описания, затем заголовок, затем
+    # метаданные; конфликт при этом остаётся видимым в карточке.
+    assert signals.salary_hourly_eur == 25.54
     assert signals.salary_conflict
-    assert "salary_below_target" in {hit.code for hit in score.negative_hits}
-    assert "salary_above_target" not in {hit.code for hit in score.positive_hits}
+    assert "salary_above_target" in {hit.code for hit in score.positive_hits}
     assert "заголовок: 18,23 €/ч" in summary
     assert "описание: 25,54 €/ч" in summary
-    assert "Расчётная ставка для оценки: 18,23 €/ч" in summary
+    assert "Расчётная ставка для оценки: 25,54 €/ч" in summary
     assert "требует уточнения" in summary
     helper.summarize.assert_not_called()
     exported = _signals(signals, full=True)

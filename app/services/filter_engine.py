@@ -149,6 +149,8 @@ class FilterEngine:
         if heavy_vehicle_mismatch is not None:
             rejection_hits.append(heavy_vehicle_mismatch)
 
+        risk_hits.extend(_salary_risk_hits(resolved_signals))
+
         transport_mismatch = _transport_mode_mismatch_hit(resolved_signals, profile)
         if transport_mismatch is not None:
             rejection_hits.append(transport_mismatch)
@@ -562,6 +564,25 @@ def _passenger_and_medical_hits(
             continue
         risks.append(RuleHit(code=f"license_risk_{code}", label_ru=label))
     return rejections, risks
+
+
+def _salary_risk_hits(signals: VacancySignalSnapshot) -> list[RuleHit]:
+    """Оплата, которой нельзя верить как есть: подписи для карточки."""
+    hits: list[RuleHit] = []
+    if signals.salary_doubtful:
+        amounts = ", ".join(signals.salary_doubtful_amounts)
+        hits.append(RuleHit(
+            code="salary_doubtful",
+            label_ru=f"сумма оплаты сомнительна ({amounts}) — в оценке не учитывается",
+        ))
+    elif signals.salary_upper_bound:
+        hits.append(RuleHit(
+            code="salary_upper_bound_only",
+            label_ru=f"указан только максимум оплаты («bis zu» {signals.salary_upper_bound}) — расчётная ставка не определена",
+        ))
+    if signals.salary_is_net and signals.salary_hourly_eur is not None:
+        hits.append(RuleHit(code="salary_net", label_ru="оплата указана нетто — с брутто-ориентиром не сравнивается"))
+    return hits
 
 
 def _transport_mode_mismatch_hit(
