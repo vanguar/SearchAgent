@@ -6,6 +6,8 @@ import threading
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Protocol
 
+from app.services.translation_quality import glossary_prompt_block
+
 if TYPE_CHECKING:
     from app.core.config import Settings
 
@@ -173,7 +175,7 @@ class OpenAILLMClient:
         """Перевести название должности на русский (2-5 слов)."""
         if not text or not text.strip():
             return None
-        prompt = _TRANSLATE_TITLE_PROMPT.format(text=text.strip())
+        prompt = _TRANSLATE_TITLE_PROMPT.format(text=text.strip(), glossary=glossary_prompt_block())
         return self._call(prompt, max_tokens=64)
 
     def summarize(self, text: str) -> str | None:
@@ -181,7 +183,7 @@ class OpenAILLMClient:
         # Короткий огрызок текста пересказывать нечем — модель начнёт додумывать.
         if not text or len(text.strip()) < _MIN_SUMMARY_SOURCE_CHARS:
             return None
-        prompt = _SUMMARIZE_VACANCY_PROMPT.format(text=text.strip()[:2000])
+        prompt = _SUMMARIZE_VACANCY_PROMPT.format(text=text.strip()[:2000], glossary=glossary_prompt_block())
         return self._call(prompt, max_tokens=200)
 
     def translate_location_to_de(self, location: str) -> str | None:
@@ -362,7 +364,10 @@ work_authorized=true.
 
 _TRANSLATE_TITLE_PROMPT = """\
 Переведи это немецкое название должности на русский язык в 2-5 слов.
-Верни только русский перевод без кавычек и пояснений.
+Верни только русский перевод без кавычек и пояснений, только кириллицей и латиницей.
+Все числа, ставки и суммы перенеси без изменений: «14,25 €/h» → «14,25 €/ч».
+Глоссарий:
+{glossary}
 Название: {text}"""
 
 # ВАЖНО: промпт не должен перечислять, ЧТО искать. Прежняя версия просила
@@ -381,6 +386,9 @@ _SUMMARIZE_VACANCY_PROMPT = """\
 - Не добавляй ничего, чего нет в тексте. Не додумывай типичные требования профессии.
 - Если про язык, права, опыт или график в тексте не сказано — не упоминай их вообще.
 - Текст может обрываться на середине фразы. Обрезанное не достраивай.
+- Пиши только по-русски; числа и суммы переноси без изменений.
+Глоссарий:
+{glossary}
 Текст вакансии: {text}"""
 
 _EXPLAIN_MATCH_PROMPT = """\

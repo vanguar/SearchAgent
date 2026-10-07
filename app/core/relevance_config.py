@@ -222,6 +222,26 @@ class RelevanceConfig:
     salary_yearly_min: float = 15000.0
     salary_yearly_max: float = 60000.0
 
+    # --- 10. Перевод заголовков и сводок ---
+    # Глоссарий частых терминов: подставляется в промпты перевода и пересказа.
+    translation_glossary: tuple[tuple[str, str], ...] = (
+        ("Botenfahrer", "курьер-водитель"),
+        ("Stückgut", "сборные грузы (не «тяжёлые»)"),
+        ("Kommissioniertätigkeit", "комплектация заказов (не «комиссионные»)"),
+        ("Kommissionierer", "комплектовщик заказов"),
+        ("Überführung", "перегон автомобиля"),
+        ("Fahrzeugüberführer", "перегонщик автомобилей"),
+        ("Quereinsteiger", "без профильного опыта"),
+        ("Abrufkraft", "работа по вызову"),
+        ("Liliengewächse", "цветы и растения (не «выращивание лилий»)"),
+        ("Zusteller", "доставщик"),
+        ("Paketzusteller", "доставщик посылок"),
+        ("Nahverkehr", "местные перевозки"),
+        ("Fernverkehr", "дальние перевозки"),
+    )
+    # Сколько раз повторить перевод, если ответ модели не прошёл проверку.
+    translation_retries: int = 1
+
     # --- 11. Дорога и начало смены ---
     commute_average_speed_kmh: float = 70.0
     commute_max_minutes_for_early_shift: int = 60

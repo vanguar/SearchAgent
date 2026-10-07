@@ -1,8 +1,16 @@
 from __future__ import annotations
 
+import re
 from typing import Protocol
 
+from app.core.relevance_config import get_relevance_config
 from app.services.hashers import normalize_text_for_fingerprint
+from app.services.translation_quality import is_valid_title_translation
+
+# Пометка пола в заголовке переводу не нужна и только сбивает модель.
+_GENDER_MARKER_RE = re.compile(
+    r"\(\s*(?:[mwdfx]\s*/\s*){1,3}[mwdfx]\s*\)|\((?:gn|all genders?)\)", re.IGNORECASE
+)
 
 
 class TranslationHelper(Protocol):
@@ -43,6 +51,30 @@ _TOKEN_TRANSLATIONS = {
 class TranslationService:
     """Local-safe translation fallback for short vacancy labels."""
 
+    def _checked_llm_title(self, title: str) -> str | None:
+        """Перевод модели, прошедший проверку, иначе исходный заголовок.
+
+        В модель уходит ИСХОДНЫЙ заголовок, а не нормализованный: в
+        нормализованном «14,25 €/h» становится «14 25 h», и модель честно
+        переводила это как «14-25 ч». Ответ с иероглифами или с потерянными
+        числами повторяется, а после повторов заменяется исходным заголовком.
+        """
+        assert self.helper is not None
+        source = _GENDER_MARKER_RE.sub(" ", title)
+        source = " ".join(source.split())
+        answered = False
+        for _ in range(1 + max(0, get_relevance_config().translation_retries)):
+            translated = self.helper.translate_title(source)
+            normalized_translated = translated.strip() if translated else None
+            if normalized_translated is None:
+                break
+            answered = True
+            if is_valid_title_translation(source, normalized_translated):
+                return normalized_translated
+        # Модель молчит — дальше словарный перевод. Модель ответила мусором —
+        # честнее показать исходный немецкий заголовок.
+        return (source or None) if answered else None
+
     def __init__(self, *, helper: TranslationHelper | None = None) -> None:
         self.helper = helper
         # Per-instance cache to avoid re-calling the LLM for identical titles within one
@@ -61,16 +93,11 @@ class TranslationService:
             return None
 
         if use_llm and self.helper is not None:
-            if candidate in self._llm_cache:
-                cached = self._llm_cache[candidate]
-                if cached:
-                    return cached
-            else:
-                translated = self.helper.translate_title(candidate)
-                normalized_translated = translated.strip() if translated else None
-                self._llm_cache[candidate] = normalized_translated
-                if normalized_translated:
-                    return normalized_translated
+            if candidate not in self._llm_cache:
+                self._llm_cache[candidate] = self._checked_llm_title(original_title or normalized_title)
+            cached = self._llm_cache[candidate]
+            if cached:
+                return cached
 
         direct = _KNOWN_TITLE_TRANSLATIONS.get(candidate)
         if direct:

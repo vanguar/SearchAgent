@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from app.core.relevance_config import get_relevance_config
 from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.search_models import VacancySignalSnapshot
+from app.services.translation_quality import is_valid_summary
 from app.services.translation_service import TranslationService
 
 
@@ -16,6 +18,22 @@ class SummaryHelper(Protocol):
 
 class SummaryService:
     """Short Russian summaries with a deterministic local fallback."""
+
+    def _checked_llm_summary(self, body_text: str) -> str | None:
+        """Пересказ модели без иероглифов и без чисел, которых нет в тексте.
+
+        Не прошедший проверку ответ повторяется; после повторов используется
+        детерминированная сводка (None здесь — сигнал перейти к ней).
+        """
+        assert self.helper is not None
+        for _ in range(1 + max(0, get_relevance_config().translation_retries)):
+            helper_summary = self.helper.summarize(body_text)
+            normalized_summary = helper_summary.strip() if helper_summary else None
+            if normalized_summary is None:
+                return None
+            if is_valid_summary(body_text, normalized_summary):
+                return normalized_summary
+        return None
 
     def __init__(
         self,
@@ -47,8 +65,7 @@ class SummaryService:
                 if cached:
                     return cached
             else:
-                helper_summary = self.helper.summarize(body_text)
-                normalized_summary = helper_summary.strip() if helper_summary else None
+                normalized_summary = self._checked_llm_summary(body_text)
                 self._llm_cache[body_text] = normalized_summary
                 if normalized_summary:
                     return normalized_summary
