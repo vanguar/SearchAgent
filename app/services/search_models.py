@@ -308,6 +308,8 @@ class VacancySignalSnapshot:
     apprenticeship_signal: bool = False
     # Облегчение по языку видно в заголовке или в подтверждённом полном описании.
     language_relief_confirmed: bool = True
+    # Смена начинается до 06:00 или ночью.
+    early_shift_signal: bool = False
 
 
 @dataclass(frozen=True, slots=True)

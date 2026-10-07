@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Generator
 from datetime import UTC, datetime
 
@@ -14,6 +15,14 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
+
+# Правила релевантности в тестах — только значения по умолчанию: локальный .env
+# (расписание переезда, переопределения RELEVANCE_*) не должен менять результат.
+# Конфиг читается лениво при первом обращении, поэтому сбросить можно после импортов.
+os.environ["HOME_CITY_SCHEDULE"] = ""
+os.environ.pop("RELEVANCE_CONFIG_FILE", None)
+for _name in [name for name in os.environ if name.startswith("RELEVANCE_")]:
+    del os.environ[_name]
 
 
 @pytest.fixture()

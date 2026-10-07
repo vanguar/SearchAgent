@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 
+from app.core.relevance_config import get_relevance_config
 from app.services.ai_tools_profile import (
     build_ai_tools_match_text,
     build_ai_tools_title_text,
@@ -9,6 +10,7 @@ from app.services.ai_tools_profile import (
     has_deep_classic_engineering_requirements,
     is_ai_tools_profile,
 )
+from app.services.commute_signals import commute_minutes
 from app.services.driver_license_signal_extractor import extract_profile_driver_license_categories
 from app.services.employment_signal_extractor import EMPLOYMENT_TYPE_LABELS_RU
 from app.services.hashers import normalize_text_for_fingerprint
@@ -150,6 +152,9 @@ class FilterEngine:
             rejection_hits.append(heavy_vehicle_mismatch)
 
         risk_hits.extend(_salary_risk_hits(resolved_signals))
+        early_shift_risk = _early_shift_commute_hit(resolved_signals)
+        if early_shift_risk is not None:
+            risk_hits.append(early_shift_risk)
 
         transport_mismatch = _transport_mode_mismatch_hit(resolved_signals, profile)
         if transport_mismatch is not None:
@@ -564,6 +569,22 @@ def _passenger_and_medical_hits(
             continue
         risks.append(RuleHit(code=f"license_risk_{code}", label_ru=label))
     return rejections, risks
+
+
+def _early_shift_commute_hit(signals: VacancySignalSnapshot) -> RuleHit | None:
+    """Далеко от дома и смена до 06:00: без переезда к началу не успеть."""
+    if not signals.early_shift_signal:
+        return None
+    minutes = commute_minutes(signals.distance_from_home_km)
+    if minutes is None or minutes <= get_relevance_config().commute_max_minutes_for_early_shift:
+        return None
+    return RuleHit(
+        code="early_shift_long_commute",
+        label_ru=(
+            f"до работы около {minutes} мин, а смена начинается до 06:00 или ночью — "
+            "без переезда к началу смены не успеть"
+        ),
+    )
 
 
 def _salary_risk_hits(signals: VacancySignalSnapshot) -> list[RuleHit]:

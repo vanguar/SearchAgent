@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from app.core.relevance_config import get_relevance_config
 from app.services.ai_tools_profile import is_ai_tools_profile
+from app.services.commute_signals import has_early_shift
 from app.services.driver_license_signal_extractor import extract_driver_license_requirements
 from app.services.employment_signal_extractor import extract_employment_signals
 from app.services.geo_distance import (
@@ -876,6 +877,7 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
     )
     return VacancySignalSnapshot(
         role_confirmed=role_confirmed,
+        early_shift_signal=has_early_shift(raw_text),
         apprenticeship_signal=_is_apprenticeship_title(title_text),
         light_goods_transport_match=light_match,
         combined_text=combined_text,

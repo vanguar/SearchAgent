@@ -8,8 +8,10 @@ from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.logging import logger
+from app.core.time import utc_now
 from app.db.models.profiles import SearchProfile, UserProfile
 from app.db.session import SessionLocal
+from app.services.commute_signals import effective_home_city
 from app.services.profile_role_sanitizer import (
     drop_excluded_roles_contradicting_desired,
     sanitize_role_list,
@@ -140,7 +142,8 @@ class DatabaseSearchProfileResolver:
                 min_salary_eur_per_hour=getattr(search_profile, "min_salary_eur_per_hour", None),
                 self_employment_ok=getattr(search_profile, "self_employment_ok", None),
                 transport_modes=tuple(getattr(search_profile, "transport_modes", None) or ()),
-                home_city=getattr(user_profile, "city", None),
+                # Дом по расписанию переезда (HOME_CITY_SCHEDULE), иначе город профиля.
+                home_city=effective_home_city(getattr(user_profile, "city", None), today=utc_now().date()),
             )
             logger.info(
                 "search_profile_resolved profile_source=saved search_profile_id=%s user_profile_id=%s",

@@ -250,9 +250,12 @@ class RelevanceConfig:
         r"\bnachtschicht\w*",
         r"\bnachtzustellung\w*",
         r"\bfruhmorgens\b",
-        r"\bfruhschicht\w*\s+ab\s+[0-5]\b",
-        r"\bab\s+[0-5]\s*(?:00\s*)?uhr\b",
-        r"\b[0-5]\s*(?:00)?\s*uhr\s+morgens\b",
+        r"\bfruhschicht\w*\s+ab\s+0?[0-5]\b",
+        r"\bab\s+0?[0-5](?:\s+[0-5]\d)?\s*uhr\b",
+        r"\b0?[0-5](?:\s+[0-5]\d)?\s*uhr\s+morgens\b",
+        r"\b(?:arbeitsbeginn|schichtbeginn|beginn|start)\s+(?:um\s+|ab\s+)?0?[0-5](?:\s+[0-5]\d)?\s*uhr\b",
+        # «zwischen 02:00 und 06:00», «02:00–06:00» (после нормализации «02 00 06 00»).
+        r"\b(?:zwischen\s+)?0[0-5]\s+[0-5]\d\s+(?:und\s+|bis\s+)?0?[0-9]\s+[0-5]\d\b",
         r"\bfruhaufsteher\w*",
     )
     # «Дом с даты»: «2026-11-01=Neustrelitz; 2027-03-01=Rostock».
