@@ -3,13 +3,17 @@ from __future__ import annotations
 import re
 from datetime import date
 
+from app.core.relevance_config import get_relevance_config
+from app.services.employer_identity import employer_key
 from app.services.geo_distance import canonical_city, is_known_place
-from app.services.hashers import normalize_text_for_fingerprint, token_similarity
+from app.services.hashers import fingerprint_tokens, normalize_text_for_fingerprint, token_similarity
 from app.services.normalization_models import (
     CanonicalVacancySnapshot,
     DuplicateCandidate,
+    NormalizedLocation,
     NormalizedVacancyRecord,
 )
+from app.services.role_family import RoleFamily, classify_vacancy_de
 
 
 class VacancyDeduper:
@@ -39,7 +43,16 @@ class VacancyDeduper:
             token_similarity(_role_tokens(record), _role_tokens(candidate)),
         )
         content_similarity = token_similarity(record.content_tokens, candidate.content_tokens)
+        # Сходство именно текстов объявлений: в content_tokens входят заголовок
+        # и компания, и два разных текста под одним заголовком выглядят похожими.
+        body_similarity = token_similarity(
+            fingerprint_tokens(record.body_text), fingerprint_tokens(candidate.body_text)
+        )
         company_match = _companies_match(record.normalized_company, candidate.normalized_company)
+        # Канонический ключ работодателя («DHL» = «Deutsche Post AG»). Используется
+        # только правилами, которые требуют совпадения самих текстов: сокращённое
+        # имя агентства без такого подтверждения склеивать небезопасно.
+        employer_match = _employers_match(record.normalized_company, candidate.normalized_company)
         location_match = _locations_match(record, candidate)
         posting_date_close = _dates_are_close(record.posted_date, candidate.posted_date)
 
@@ -92,7 +105,46 @@ class VacancyDeduper:
         if agency_duplicate:
             reason_codes.append("agency_alias_with_content_evidence")
 
-        is_duplicate = not locations_conflict and not references_conflict and (
+        # Одна вакансия под разными названиями роли: тот же работодатель, тот же
+        # текст объявления, а заголовки отличаются только словом роли
+        # («Kurier» / «Lieferfahrer» / «Fahrer» … «- Berlin - Marienfelde»).
+        same_posting_text = (
+            not locations_conflict
+            and employer_match
+            and _bodies_are_the_same_posting(record, candidate, body_similarity)
+            and _titles_differ_only_by_role_words(record, candidate)
+        )
+        if same_posting_text:
+            reason_codes.append("same_employer_same_text")
+        # Одинаковый заголовок и похожий текст у одного работодателя в одном
+        # городе — одна карточка, даже если источник дал позициям разные номера:
+        # человеку нужна одна вакансия с несколькими ссылками, а не пять
+        # одинаковых. Похожесть текста обязательна: у агентства под одним
+        # заголовком бывают разные клиенты с разными требованиями, и их
+        # требования не должны смешиваться в одной карточке.
+        same_title_same_place = (
+            not locations_conflict
+            and employer_match
+            and location_match
+            and (
+                body_similarity >= 0.58
+                or (
+                    # Без текста склеиваем только при строго одинаковом имени
+                    # компании: сокращённое имя агентства требует подтверждения.
+                    company_match
+                    and not references_conflict
+                    and (_has_no_text(record.body_text) or _has_no_text(candidate.body_text))
+                )
+            )
+            and bool(_role_tokens(record))
+            and set(_role_tokens(record)) == set(_role_tokens(candidate))
+        )
+        if same_title_same_place:
+            reason_codes.append("same_employer_same_title_same_city")
+
+        is_duplicate = same_posting_text or same_title_same_place or (
+            not locations_conflict and not references_conflict
+        ) and (
             reference_duplicate or agency_duplicate
             or (
                 title_similarity >= 0.82
@@ -235,6 +287,40 @@ def _companies_match(left: str | None, right: str | None) -> bool:
     return bool(left_core and right_core and left_core == right_core)
 
 
+def _employers_match(left: str | None, right: str | None) -> bool:
+    """Один работодатель по каноническому ключу (алиасы и юр. формы из конфига)."""
+    left_key, right_key = employer_key(left), employer_key(right)
+    return bool(left_key and left_key == right_key)
+
+
+def _has_no_text(body: str | None) -> bool:
+    """Описания нет: сравнивать нечего, и смешать чужие требования оно не может."""
+    return len((body or "").strip()) < 40
+
+
+def _bodies_are_the_same_posting(
+    record: NormalizedVacancyRecord,
+    candidate: CanonicalVacancySnapshot,
+    body_similarity: float,
+) -> bool:
+    config = get_relevance_config()
+    if body_similarity < config.duplicate_body_similarity:
+        return False
+    min_chars = config.duplicate_body_min_chars
+    return len(record.body_text or "") >= min_chars and len(candidate.body_text or "") >= min_chars
+
+
+def _titles_differ_only_by_role_words(
+    record: NormalizedVacancyRecord,
+    candidate: CanonicalVacancySnapshot,
+) -> bool:
+    left, right = set(record.title_tokens), set(candidate.title_tokens)
+    difference = left ^ right
+    if not difference or not (left & right):
+        return False
+    return all(classify_vacancy_de(token) is not RoleFamily.GENERIC for token in difference)
+
+
 def _locations_conflict(
     record: NormalizedVacancyRecord,
     candidate: CanonicalVacancySnapshot,
@@ -245,9 +331,9 @@ def _locations_conflict(
     мешать склейке одной и той же вакансии из источника, который локацию не
     отдаёт.
     """
-    left_city = canonical_city(record.normalized_location.city)
-    right_city = canonical_city(candidate.normalized_location.city)
-    return bool(left_city and right_city and left_city != right_city)
+    left_cities = _location_cities(record.normalized_location)
+    right_cities = _location_cities(candidate.normalized_location)
+    return bool(left_cities and right_cities and left_cities.isdisjoint(right_cities))
 
 
 def _locations_match(
@@ -262,9 +348,25 @@ def _locations_match(
     # Районы города — это город. Без этого "Rostock" из BA и "Evershagen" из
     # Adzuna считались разными местами, дедупликация не срабатывала, и одна
     # вакансия показывалась дважды с расхождением в баллах до 30.
-    left_city = canonical_city(record.normalized_location.city)
-    right_city = canonical_city(candidate.normalized_location.city)
-    return bool(left_city and right_city and left_city == right_city)
+    return bool(_location_cities(record.normalized_location) & _location_cities(candidate.normalized_location))
+
+
+def _location_cities(location: NormalizedLocation) -> frozenset[str]:
+    """Города, которые называет локация: распознанный город и части исходной строки.
+
+    Adzuna пишет «Mitte, Berlin», и распознанный город — неоднозначное «Mitte»;
+    без исходной строки та же вакансия DHL не совпадала с BA-записью «Berlin».
+    """
+    city = canonical_city(location.city)
+    if city and is_known_place(city):
+        return frozenset({city})
+    names = [location.city or ""]
+    names.extend(part for part in re.split(r"[,;/]", location.raw_text or "") if part.strip())
+    cities = {canonical_city(name) for name in names}
+    return frozenset(city for city in cities if city and city not in _NON_CITY_LOCATION_PARTS)
+
+
+_NON_CITY_LOCATION_PARTS = frozenset({"deutschland", "germany", "de"})
 
 
 def _dates_are_close(left: date | None, right: date | None) -> bool:

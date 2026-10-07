@@ -1,5 +1,6 @@
 """Frozen API corpus: independent relevance labels and unchanged existing-profile scores."""
 import json
+import re
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
@@ -13,6 +14,29 @@ CAPTURE = json.loads((ROOT / "tests/fixtures/light_transport_live_probes.json").
 LABELS = json.loads((ROOT / "docs/diagnostics/light_transport_probe_labels.json").read_text(encoding="utf-8"))
 BEFORE = json.loads((ROOT / "docs/diagnostics/light_transport_live_before.json").read_text(encoding="utf-8"))
 GROUPS = group_records([r for probe in CAPTURE["probes"] for r in probe["records"]])
+# Пометка пола из одиночных букв, которую нормализатор заголовков раньше
+# оставлял в тексте: «fahrer w d m potsdam» и «fahrer potsdam» — одна вакансия.
+_GENDER_LETTERS_RE = re.compile(r"(?:\b[mwdfx]\b\s*){3,4}")
+
+
+def _title_key(title: str) -> str:
+    return " ".join(_GENDER_LETTERS_RE.sub(" ", title).split())
+
+
+def _aligned(entries: list[dict]) -> list[tuple[list[dict], object]]:
+    """Сопоставить снимок корпуса с группами по заголовку, а не по позиции.
+
+    После снимка дедупликация научилась склеивать одинаковые объявления одного
+    работодателя (например, две записи P&H «LKW Fahrer 7,5 t C1» из BA), и
+    позиционное сравнение сдвигалось. Для склеенной группы допустимо решение
+    любой из исходных записей с тем же заголовком.
+    """
+    by_title: dict[str, list[dict]] = {}
+    for entry in entries:
+        by_title.setdefault(_title_key(entry["title"]), []).append(entry)
+    aligned = [(by_title.get(_title_key(group.normalized_title), []), group) for group in GROUPS]
+    assert all(candidates for candidates, _ in aligned)
+    return aligned
 
 
 @pytest.fixture(autouse=True)
@@ -21,8 +45,8 @@ def freeze_scoring_date(monkeypatch):
 
 
 def test_target_recall_and_noise_protection_on_captured_api_records():
-    for label, group in zip(LABELS, GROUPS, strict=True):
-        assert label["title"] == group.normalized_title
+    for labels, group in _aligned(LABELS):
+        label = labels[0]
         decision = explain_filter_decision(group, PROFILE)["final_decision"]
         if label["label"] == "TARGET":
             assert decision in {"hot", "maybe"}, group.normalized_title
@@ -53,7 +77,10 @@ _INTENDED_CHANGES = {"courier": _INTENDED_COURIER_NOISE_FIX, "fahrer_b": _INTEND
 def test_existing_profiles_preserve_frozen_decisions_and_scores(name, role, term):
     profile = replace(PROFILE, desired_roles=(role,), search_query_terms=(term,))
     intended = _INTENDED_CHANGES.get(name, {})
-    for expected, group in zip(BEFORE["evaluations"][name], GROUPS, strict=True):
+    for candidates, group in _aligned(BEFORE["evaluations"][name]):
         actual = explain_filter_decision(group, profile)
-        expected_pair = intended.get(group.normalized_title, (expected["final_decision"], expected["score"]))
-        assert (actual["final_decision"], actual["score"]) == expected_pair, group.normalized_title
+        expected_pairs = {
+            intended.get(group.normalized_title, (expected["final_decision"], expected["score"]))
+            for expected in candidates
+        }
+        assert (actual["final_decision"], actual["score"]) in expected_pairs, group.normalized_title

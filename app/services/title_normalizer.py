@@ -8,6 +8,8 @@ _BRACKET_NOISE_RE = re.compile(
     r"\((?:[^)]*\b(?:m/?w/?d|w/?m/?d|d/?m/?w|mwd|mwdiv|gn|all genders?)\b[^)]*)\)",
     re.IGNORECASE,
 )
+# Любая запись пола из 2–4 букв через «/»: (w/m/x/d), m/f/d, (m/w/x).
+_GENDER_SLASH_RE = re.compile(r"\(?(?<![\w/])[mwdfx](?:\s*/\s*[mwdfx]){1,3}(?![\w/])\)?", re.IGNORECASE)
 _INLINE_NOISE_RE = re.compile(
     r"\b(?:m/?w/?d|w/?m/?d|d/?m/?w|mwd|mwdiv|gn|all genders?|gesucht|ab sofort|sofort|vollzeit|teilzeit|remote|hybrid)\b",
     re.IGNORECASE,
@@ -24,6 +26,7 @@ class TitleNormalizer:
 
         cleaned = title.replace("|", " ").replace("+", " ").replace("_", " ")
         cleaned = _BRACKET_NOISE_RE.sub(" ", cleaned)
+        cleaned = _GENDER_SLASH_RE.sub(" ", cleaned)
         cleaned = _GENDER_ENDING_RE.sub(r"\g<stem>", cleaned)
         cleaned = _INLINE_NOISE_RE.sub(" ", cleaned)
         cleaned = cleaned.replace("/", " ").replace("-", " ")

@@ -218,25 +218,29 @@ def test_hidden_heavy_evidence_from_another_attempt_cannot_be_lost():
     assert len(result.hidden_filtered_items) == 1
 
 
-@pytest.mark.parametrize("difference", ["city", "reference", "body"])
+@pytest.mark.parametrize("difference", ["city", "body"])
 def test_similar_agency_jobs_are_not_merged(difference):
     first = live_record("cj-f0c8caf613a29c78")
     second = replace(first, source_id="adzuna", external_id="different", normalized_company="perzukunft arbeitsvermittlung")
     if difference == "city":
         second = replace(second, normalized_location=replace(second.normalized_location, city="Rostock"))
-    elif difference == "reference":
-        second = replace(second, body_text=second.body_text.replace("12016-10005358982-S", "12016-10009999999-S"))
     else:
         second = replace(second, body_text="Andere Aufgaben bei einem anderen Kunden.")
     assert len(SourceMergeService().merge_records((first, second)).canonical_groups) == 2
 
 
-def test_different_references_with_identical_title_company_city_do_not_overwrite():
+@pytest.mark.parametrize("company", ["perzukunft", "perzukunft arbeitsvermittlung"])
+def test_identical_posting_with_another_reference_becomes_one_card_keeping_both_links(company):
+    # Одинаковый заголовок, работодатель, город и текст: одна карточка, а не
+    # несколько одинаковых. Обе записи остаются внутри неё — ссылка не теряется.
     first = live_record("cj-f0c8caf613a29c78")
-    second = replace(first, external_id="different", body_text=first.body_text.replace("12016-10005358982-S", "12016-10009999999-S"))
+    second = replace(
+        first, external_id="different", normalized_company=company,
+        body_text=first.body_text.replace("12016-10005358982-S", "12016-10009999999-S"),
+    )
     groups = SourceMergeService().merge_records((first, second)).canonical_groups
-    assert len(groups) == 2
-    assert {r.external_id for g in groups for r in g.source_records} == {first.external_id, "different"}
+    assert len(groups) == 1
+    assert {r.external_id for r in groups[0].source_records} == {first.external_id, "different"}
 
 
 def test_real_incomplete_hot_is_capped_without_rejection():
