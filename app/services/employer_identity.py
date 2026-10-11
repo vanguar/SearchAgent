@@ -17,6 +17,14 @@ from app.core.relevance_config import RelevanceConfig, get_relevance_config
 from app.services.hashers import normalize_text_for_fingerprint
 
 _SPACES_RE = re.compile(r"\s+")
+# Одиночные буквы и цифры подряд: «h 2» из «H 2 Personalmanagement» и «h2» из
+# «H2 Personalmanagement» — один работодатель, «w f» из «W&F» — тоже.
+_INITIALS_RUN_RE = re.compile(r"(?<!\S)[a-z0-9](?:\s[a-z0-9])+(?!\S)")
+
+
+def compact_initials(normalized_name: str) -> str:
+    """Склеивает идущие подряд однобуквенные токены нормализованного имени."""
+    return _INITIALS_RUN_RE.sub(lambda match: match.group().replace(" ", ""), normalized_name)
 
 
 @lru_cache(maxsize=4)
@@ -49,7 +57,7 @@ def _employer_key_cached(name: str, config: RelevanceConfig) -> str:
     for pattern in suffixes:
         stripped = pattern.sub(" ", stripped)
     stripped = _SPACES_RE.sub(" ", stripped).strip()
-    return stripped or normalized
+    return compact_initials(stripped or normalized)
 
 
 def configured_alias(name: str | None, *, config: RelevanceConfig | None = None) -> str:

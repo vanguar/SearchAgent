@@ -192,6 +192,10 @@ _TITLE_DE_TOKENS: list[tuple[RoleFamily, tuple[str, ...]]] = [
     )),
     (RoleFamily.SECURITY, (
         "sicherheitsmitarbeiter", "sicherheitsdienst", "security", "wachschutz", "bewachung",
+        # Охрана и контроль: склад в их объявлениях упомянут лишь как прошлый опыт
+        # кандидата («Quereinsteiger aus Lager, Fahrdienst oder Gastronomie»).
+        "sicherheitskraft", "sicherheitsfachkraft", "zugangskontroll", "objektschutz", "werkschutz",
+        "fahrkartenkontroll", "fahrausweispruf", "ticketkontroll",
     )),
     (RoleFamily.OFFICE, (
         # Диспетчер планирует рейсы за столом: «Disponent Fahrdienst» — офис, а
@@ -202,6 +206,9 @@ _TITLE_DE_TOKENS: list[tuple[RoleFamily, tuple[str, ...]]] = [
     )),
     (RoleFamily.SALES, (
         "vertriebsmitarbeiter", "kundenberater", "vertrieb", "verkaufer", "einzelhandel", "kassierer",
+        # Без голого "verkauf": "Verkaufsfahrer" — водитель, а не продавец.
+        "verkaufsaushilfe", "verkaufs aushilfe", "verkaufshilfe", "verkaufsmitarbeiter", "verkaufskraft",
+        "verkaufsberater",
         "customer success", "client success", "account manager", "account executive", "business development",
     )),
     (RoleFamily.CONSTRUCTION, (

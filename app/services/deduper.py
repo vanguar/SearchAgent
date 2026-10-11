@@ -6,7 +6,7 @@ from functools import lru_cache
 
 from app.core.relevance_config import get_relevance_config
 from app.services.employer_branch import branch_location_conflict
-from app.services.employer_identity import configured_alias, employer_key
+from app.services.employer_identity import compact_initials, configured_alias, employer_key
 from app.services.geo_distance import canonical_city, is_known_place
 from app.services.hashers import fingerprint_tokens, normalize_text_for_fingerprint, token_similarity
 from app.services.normalization_models import (
@@ -290,7 +290,7 @@ def _company_core(normalized_company: str | None) -> str:
     """
     if not normalized_company:
         return ""
-    tokens = normalized_company.split()
+    tokens = compact_initials(normalized_company).split()
     while len(tokens) > 1:
         tail = tokens[-1]
         if tail in _COMPANY_BRANCH_TOKENS or is_known_place(tail):

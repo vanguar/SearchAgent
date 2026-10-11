@@ -36,6 +36,27 @@ _OPTIONAL_NEARBY_RE = re.compile(
 )
 _WITHOUT_RE = re.compile(r"\b(?:auch\s+)?ohne\s+(?:\w+\s+){0,2}$|\bkein\w*\s+(?:\w+\s+){0,2}$")
 
+# Допуски к складской технике: (код, шаблон). Голое «Stapler» допуском не
+# считается — «Arbeit mit Stapler und Hubwagen» описывает работу, а не требование.
+_EQUIPMENT_PERMIT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("forklift", re.compile(
+        r"\b(?:gabel|front|hochregal|schubmast)?stapler\s*(?:schein|fuhrerschein|nachweis|berechtigung|ausweis|lizenz)\w*"
+        r"|\b(?:gabel)?stapler\s+(?:und|bzw|oder)\s+\w*(?:schein|berechtigung)\b"
+        r"|\bflurforderzeug\w*\s*(?:schein|ausweis|berechtigung)\w*"
+        r"|\bforklift\s+licen[cs]e\b"
+    )),
+    ("crane", re.compile(r"\bkran\s*(?:schein|berechtigung|fuhrerschein|bedienerschein|nachweis)\w*")),
+)
+# Допуск, который можно получить на месте или который не обязателен: «Möglichkeit,
+# einen Staplerschein zu machen», «beim Erwerb des Staplerscheins»,
+# «wünschenswerterweise …, nicht Bedingung».
+_PERMIT_NOT_REQUIRED_RE = re.compile(
+    r"\bmoglichkeit\w*|\bzu\s+(?:machen|erwerben)\b|\berwerb\w*|\bnicht\s+(?:bedingung|zwingend|erforderlich)\b"
+    r"|\bwunschenswert\w*|\bkein\s+(?:muss|problem)\b"
+)
+# Заголовок-профессия сам означает допуск: Staplerfahrer без Staplerschein не бывает.
+_FORKLIFT_TITLE_ROLE_RE = re.compile(r"\b(?:gabel|hochregal|schubmast|front)?staplerfahrer\w*")
+
 
 @dataclass(frozen=True, slots=True)
 class LicenseRequirementSignals:
@@ -49,6 +70,8 @@ class LicenseRequirementSignals:
     medical_transport_required: bool = False
     # Риски: (код, подпись).
     risk_markers: tuple[tuple[str, str], ...] = ()
+    # Допуски к складской технике: (код, "required" | "optional").
+    equipment_permits: tuple[tuple[str, str], ...] = ()
 
 
 @lru_cache(maxsize=4)
@@ -118,7 +141,42 @@ def extract_license_requirement_signals(
         p_schein_optional=p_optional and not p_required,
         medical_transport_required=medical,
         risk_markers=tuple(risks),
+        equipment_permits=_equipment_permits(title_text, body),
     )
+
+
+def _equipment_permits(title_text: str, body: str) -> tuple[tuple[str, str], ...]:
+    """Staplerschein и допуск на кран: обязателен или желателен.
+
+    В заголовке допуск обязателен, если в нём нет слов вроде «optional»; в
+    тексте — если он не отменён («ohne Staplerschein») и не назван желательным
+    («von Vorteil», «kann erworben werden»). Обязательность из любого места
+    сильнее желательности из другого.
+    """
+    found: dict[str, str] = {}
+    if _FORKLIFT_TITLE_ROLE_RE.search(title_text):
+        found["forklift"] = "required"
+    for code, pattern in _EQUIPMENT_PERMIT_PATTERNS:
+        for text, is_title in ((title_text, True), (body, False)):
+            for match in pattern.finditer(text):
+                if _is_waived(text, match):
+                    continue
+                optional = (
+                    bool(_OPTIONAL_NEARBY_RE.search(text)) if is_title
+                    else _is_optional(text, match) or _permit_not_required(text, match)
+                )
+                if found.get(code) != "required":
+                    found[code] = "optional" if optional else "required"
+    return tuple(found.items())
+
+
+def _permit_not_required(text: str, match: re.Match[str]) -> bool:
+    """Рядом с допуском сказано, что его можно получить или что он не обязателен."""
+    start = text.rfind(";", 0, match.start()) + 1
+    end = text.find(";", match.end())
+    before = text[max(start, match.start() - 60): match.start()]
+    after = text[match.end(): end if end >= 0 else len(text)][:60]
+    return bool(_PERMIT_NOT_REQUIRED_RE.search(before) or _PERMIT_NOT_REQUIRED_RE.search(after))
 
 
 def _title_categories(title_text: str) -> tuple[str, ...]:

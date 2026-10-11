@@ -3,9 +3,12 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from typing import Any
+from urllib.parse import unquote
 
 from app.core.config import Settings
 from app.core.logging import logger
+from app.services.hashers import normalize_text_for_fingerprint
+from app.services.role_family import RoleFamily, classify_vacancy_de
 from app.services.source_adapters.base import BaseSourceAdapter
 from app.services.source_adapters.errors import (
     AdapterConfigurationError,
@@ -243,13 +246,60 @@ def _parse_record(
         source_name=source_name,
         external_id=external_id,
         source_reference=external_id,
-        title=_to_text(raw_job.get("title")) or "Без названия",
+        title=_effective_title(raw_job.get("title"), _to_text(raw_job.get("description"))) or "Без названия",
         company=company,
         location=location,
         posted_at=posted_at,
         detail_url=_to_text(raw_job.get("redirect_url")),
         raw_payload=raw_payload,
     )
+
+
+_URL_ESCAPE_RE = re.compile(r"%[0-9A-Fa-f]{2}")
+_GENDER_MARKER_RE = re.compile(r"\((?:[mwdfx]\s*/\s*){1,3}[mwdfx]\)|\((?:gn|mwd|wmd|all genders)\)", re.IGNORECASE)
+# Слова, с которых после названия начинается текст объявления: «… mit
+# Kranberechtigung Für unseren Kunden …». Только с заглавной буквы.
+_BODY_SENTENCE_START_RE = re.compile(r"\b(?:Für|Wir|Sie|Du|Die|Der|Das|Unser\w*|Ihr\w*|Als|Bei|Zum|Zur|Im|In|Am|Ab)\b")
+_BODY_TITLE_MAX_CHARS = 90
+_BODY_TITLE_MAX_TAIL_WORDS = 6
+
+
+def _effective_title(raw_title: Any, description: str | None) -> str | None:
+    """Название вакансии, как его увидит человек.
+
+    Adzuna иногда отдаёт заголовок в URL-кодировке («Lagermitarbeiter%28m%2Fw%2Fd%29»)
+    и иногда — подзаголовок раздела вместо названия («Starte Deine Zukunft mit
+    uns», «Das wird Sie überzeugen»), хотя само название стоит первой строкой
+    описания. Такую карточку не узнаёт ни человек, ни дедупликация: та же
+    вакансия из Careerjet показывалась второй карточкой.
+
+    Подзаголовок заменяется, только когда всё сходится: в нём нет ни роли, ни
+    гендерной пометки, он сам встречается в тексте объявления, а текст
+    начинается с названия роли с пометкой (m/w/d).
+    """
+    title = _to_text(raw_title)
+    if title and _URL_ESCAPE_RE.search(title):
+        title = unquote(title).strip() or title
+    if not title or not description or _GENDER_MARKER_RE.search(title):
+        return title
+    normalized_title = normalize_text_for_fingerprint(title)
+    if classify_vacancy_de(normalized_title) is not RoleFamily.GENERIC:
+        return title
+    body = " ".join(description.split())
+    if not normalized_title or normalized_title not in normalize_text_for_fingerprint(body):
+        return title
+    marker = _GENDER_MARKER_RE.search(body[:_BODY_TITLE_MAX_CHARS])
+    if marker is None:
+        return title
+    heading = body[: marker.end()].strip()
+    tail = body[marker.end():]
+    stop = _BODY_SENTENCE_START_RE.search(tail)
+    clause = tail[: stop.start()].strip() if stop else ""
+    if clause and len(clause.split()) <= _BODY_TITLE_MAX_TAIL_WORDS and not re.search(r"[\d•|.!?:;]", clause):
+        heading = f"{heading} {clause}"
+    if classify_vacancy_de(normalize_text_for_fingerprint(heading)) is RoleFamily.GENERIC:
+        return title
+    return heading
 
 
 _LOCATION_SPLIT_RE = re.compile(r"[,;|/]+")

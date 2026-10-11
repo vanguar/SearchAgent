@@ -907,6 +907,7 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         p_schein_optional=license_signals.p_schein_optional,
         medical_transport_required=license_signals.medical_transport_required,
         license_risk_markers=license_signals.risk_markers,
+        equipment_permits=license_signals.equipment_permits,
         title_transport_modes=transport_signals.title_modes,
         body_transport_modes=transport_signals.body_modes,
         car_in_title=transport_signals.car_in_title,

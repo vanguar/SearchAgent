@@ -186,6 +186,7 @@ class FilterEngine:
         passenger_rejections, license_risks = _passenger_and_medical_hits(resolved_signals, profile)
         rejection_hits.extend(passenger_rejections)
         risk_hits.extend(license_risks)
+        risk_hits.extend(_work_permit_risk_hits(resolved_signals, profile))
 
         family_mismatch = (
             resolved_signals.light_goods_transport_match not in {"target", "adjacent"}
@@ -601,6 +602,44 @@ def _passenger_and_medical_hits(
             continue
         risks.append(RuleHit(code=f"license_risk_{code}", label_ru=label))
     return rejections, risks
+
+
+_EQUIPMENT_PERMIT_LABELS: dict[tuple[str, str], str] = {
+    ("forklift", "required"): "нужен Staplerschein (удостоверение на погрузчик) — проверьте, есть ли он у вас",
+    ("forklift", "optional"): "Staplerschein (удостоверение на погрузчик) желателен или его помогут получить",
+    ("crane", "required"): "нужен допуск на кран (Kranschein)",
+    ("crane", "optional"): "допуск на кран (Kranschein) желателен",
+}
+_TRUCK_LICENSE_CLASSES = ("C1", "C1E", "C", "CE")
+
+
+def _work_permit_risk_hits(signals: VacancySignalSnapshot, profile: SearchProfileContext) -> list[RuleHit]:
+    """Допуски, которых в профиле может не быть: погрузчик, кран, права на грузовик.
+
+    Только для профилей не про вождение: у водительских профилей права и
+    погрузчик уже разбирают свои правила (отказы по категории, license_risk_markers).
+    Вакансию это не скрывает — профиль о погрузчике и кране ничего не знает.
+    """
+    if classify_role_families(profile_role_texts(profile)) & DRIVING_LIKE_FAMILIES:
+        return []
+    hits = [
+        RuleHit(code=f"permit_{code}_{status}", label_ru=_EQUIPMENT_PERMIT_LABELS[(code, status)])
+        for code, status in signals.equipment_permits
+    ]
+    covered = covered_license_classes(profile.license_classes)
+    missing = [
+        category for category in _TRUCK_LICENSE_CLASSES
+        if category in signals.required_driver_license_categories
+        and category not in covered
+        and category not in signals.negated_driver_license_categories
+    ]
+    if missing:
+        have = ", ".join(profile.license_classes) if profile.license_classes else "права не указаны"
+        hits.append(RuleHit(
+            code="permit_truck_license",
+            label_ru=f"нужны права категории {'/'.join(missing)} (грузовик), в профиле: {have}",
+        ))
+    return hits
 
 
 def _early_shift_commute_hit(signals: VacancySignalSnapshot) -> RuleHit | None:

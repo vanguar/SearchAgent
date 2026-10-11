@@ -307,6 +307,25 @@ class RelevanceConfig:
         r"\bpersonalberatung\w*",
         r"\bjobvermittlung\w*",
     )
+    # Названия агентств, по которым отрасль не видна. Только для распознавания
+    # агентства: дедупликация по ним осторожнее не становится, иначе «Dekra» и
+    # «DEKRA Arbeit» с одной вакансией разъезжаются на две карточки.
+    staffing_agency_name_patterns: tuple[str, ...] = (
+        # «Hofmann Personal», «KÖTTER Personal Service», «Arena Personal Mgmt.»,
+        # «SYNERGIE Personal Solutions»: отдельное слово Personal в названии фирмы.
+        # «Bezirksamt … Serviceeinheit Personal» — кадровый отдел ведомства, не агентство.
+        r"(?<!serviceeinheit )\bpersonal\b",
+        r"\bfachpersonal\w*",
+        r"\bindustriepersonal\w*",
+        r"\bfachkrafte\b",
+        r"\btemp\b",
+        # Крупные агентства, в названии которых нет слов отрасли.
+        r"\brandstad\b", r"\badecco\b", r"\bmanpower\b", r"\borizon\b", r"\bpersona\s+service\b",
+        r"\bdis\s+ag\b", r"\btrenkwalder\b", r"\bsynergie\b", r"\bgi\s+group\b", r"\btempton\b",
+        r"\btimepartner\b", r"\bjobtimum\b", r"\bjobactive\b", r"\bjobimpulse\b", r"\biperdi\b",
+        r"\bi\s?k\s+hofmann\b", r"\bdekra\s+arbeit\b", r"\boffice\s+people\b", r"\bstart\s+people\b",
+        r"\bhays\b", r"\bbrunel\b", r"\bamadeus\s+fire\b", r"\ballbecon\b", r"\bzag\b", r"\bactief\b",
+    )
     staffing_agency_body_patterns: tuple[str, ...] = (
         r"\barbeitnehmeruberlassung\w*",
         r"\bpersonaldienstleister\w*",

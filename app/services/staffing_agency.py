@@ -27,6 +27,7 @@ from functools import lru_cache
 
 from app.core.relevance_config import RelevanceConfig, get_relevance_config
 from app.services.employer_identity import employer_key
+from app.services.geo_distance import is_known_place
 from app.services.hashers import normalize_text_for_fingerprint
 from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.search_models import SearchResultItem, VacancySignalSnapshot
@@ -36,7 +37,10 @@ from app.services.signal_negation import is_negated_signal, normalize_signal_tex
 @lru_cache(maxsize=4)
 def _compiled(config: RelevanceConfig) -> tuple[tuple[re.Pattern[str], ...], tuple[re.Pattern[str], ...]]:
     return (
-        tuple(re.compile(pattern) for pattern in config.staffing_agency_company_patterns),
+        tuple(
+            re.compile(pattern)
+            for pattern in (*config.staffing_agency_company_patterns, *config.staffing_agency_name_patterns)
+        ),
         tuple(re.compile(pattern) for pattern in config.staffing_agency_body_patterns),
     )
 
@@ -52,7 +56,8 @@ def staffing_agency_evidence(
     companies = {canonical.company_name or ""} | {
         record.original_company or record.normalized_company or "" for record in canonical.source_records
     }
-    for company in companies:
+    # sorted: из множества имя берётся в случайном порядке, и подпись менялась от прогона к прогону.
+    for company in sorted(companies):
         normalized = normalize_text_for_fingerprint(company)
         if normalized and any(pattern.search(normalized) for pattern in company_patterns):
             return f"компания «{company}»"
@@ -145,7 +150,34 @@ def demote_staffing_agencies(
 
 
 def _item_agency_key(item: SearchResultItem) -> str:
-    return _group_employer_key(item.canonical_group) or item.canonical_group.canonical_key
+    key = _group_employer_key(item.canonical_group)
+    return agency_brand_key(key) if key else item.canonical_group.canonical_key
+
+
+# Слова, с которых в названии агентства начинается филиал, где бы они ни стояли.
+_AGENCY_BRANCH_MARKERS = frozenset({"nl", "niederlassung", "filiale", "standort", "zweigstelle"})
+# Регион или город: филиал, только если до конца названия идут одни места.
+_AGENCY_REGION_TOKENS = frozenset({"deutschland", "germany", "nord", "sud", "ost", "west", "mitte", "o"})
+
+
+def agency_brand_key(employer: str) -> str:
+    """Ключ агентства без филиала: «Randstad Deutschland» и «Randstad» — одно агентство.
+
+    Правило «от агентства одна вакансия» без этого распадалось по филиалам:
+    «persona service … Berlin Wedding» и «persona service … Rostock» шли как
+    два агентства. Город внутри названия («Franke + Pahl Fachkräfte»: Pahl —
+    тоже деревня) филиалом не считается. Только для группировки агентств —
+    дедупликацию не трогает.
+    """
+    tokens = employer.split()
+    for index in range(1, len(tokens)):
+        if tokens[index] in _AGENCY_BRANCH_MARKERS or all(_is_region_token(token) for token in tokens[index:]):
+            return " ".join(tokens[:index])
+    return employer
+
+
+def _is_region_token(token: str) -> bool:
+    return token in _AGENCY_REGION_TOKENS or (len(token) > 3 and is_known_place(token))
 
 
 def _freshness_rank(item: SearchResultItem) -> tuple[date, int]:

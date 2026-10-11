@@ -296,6 +296,8 @@ class VacancySignalSnapshot:
     medical_transport_required: bool = False
     # Признаки риска по допускам: (код, подпись). Не скрывают вакансию.
     license_risk_markers: tuple[tuple[str, str], ...] = ()
+    # Staplerschein и допуск на кран: (код, "required" | "optional").
+    equipment_permits: tuple[tuple[str, str], ...] = ()
     # Способ передвижения: названный в заголовке / в описании (кроме машины).
     title_transport_modes: tuple[str, ...] = ()
     body_transport_modes: tuple[str, ...] = ()
