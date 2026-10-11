@@ -75,3 +75,37 @@ def test_match_explainer_default_band_is_high() -> None:
     )
 
     assert explanation.startswith("Подходит:")
+
+
+def test_medium_band_with_title_role_is_not_called_adjacent() -> None:
+    explainer = MatchExplainer()
+    explanation = explainer.explain(
+        filter_result=FilterResult(
+            decision="allow",
+            positive_hits=(RuleHit(code="light_goods_transport_family", label_ru="перевозка грузов на лёгком автомобиле"),),
+        ),
+        score_result=ScoreResult(
+            score=69,
+            positive_hits=(RuleHit(code="priority_role", label_ru="перевозка грузов на лёгком автомобиле", weight=26),),
+            negative_hits=(RuleHit(code="commute_distance", label_ru="112 км от дома — реально только с переездом", weight=-8),),
+        ),
+        relevance_band="medium",
+    )
+
+    assert explanation == (
+        "Роль совпадает: перевозка грузов на лёгком автомобиле; минус: 112 км от дома — реально только с переездом."
+    )
+
+
+def test_medium_band_with_title_role_and_no_minus_says_data_is_thin() -> None:
+    explainer = MatchExplainer()
+    explanation = explainer.explain(
+        filter_result=FilterResult(decision="allow"),
+        score_result=ScoreResult(
+            score=60,
+            positive_hits=(RuleHit(code="priority_role", label_ru="перевозка грузов на лёгком автомобиле", weight=26),),
+        ),
+        relevance_band="medium",
+    )
+
+    assert explanation == "Роль совпадает: перевозка грузов на лёгком автомобиле; других плюсов в объявлении не указано."

@@ -43,6 +43,12 @@ class MatchExplainer:
             return f"С осторожностью: {', '.join(parts)}."
 
         reasons = positive_labels[:3] or ["базово выглядит реалистично"]
+        if relevance_band == "medium" and any(hit.code == "priority_role" for hit in score_result.positive_hits):
+            # Роль подтверждена заголовком, балл средний по другим причинам —
+            # назвать её «смежной» значит ввести в заблуждение.
+            if negative_labels:
+                return f"Роль совпадает: {', '.join(reasons[:2])}; минус: {negative_labels[0]}."
+            return f"Роль совпадает: {', '.join(reasons)}; других плюсов в объявлении не указано."
         if relevance_band == "medium":
             return f"Смежная роль: {', '.join(reasons)}."
         return f"Подходит: {', '.join(reasons)}."
