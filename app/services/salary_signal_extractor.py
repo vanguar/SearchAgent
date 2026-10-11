@@ -116,13 +116,17 @@ _UPPER_BOUND_BEFORE_RE = re.compile(
 _UPPER_BOUND_WINDOW = 20
 # Сумма без периода, за которой названа не зарплата: суточные, премии, доплаты.
 _NOT_A_WAGE_AFTER_RE = re.compile(
-    r"[\s.,]*(?:netto\s*|brutto\s*)?(?:/\s*tag|pro\s+tag|am\s+tag|tages\w*|spesen|pauschale|urlaubsgeld|"
+    r"[\s.,]*(?:netto\s*|brutto\s*)?(?:steuerfrei\w*\s+)?(?:/\s*tag|pro\s+tag|am\s+tag|tages\w*|spesen|pauschale|urlaubsgeld|"
     r"weihnachtsgeld|pr[aä]mie|bonus|zuschlag|zulage|gutschein|einmalig)",
     re.IGNORECASE,
 )
 
 _GROSS_RE = re.compile(r"\bbrutto\b|\bgross\b", re.IGNORECASE)
 _NET_RE = re.compile(r"\bnetto\w*|\bnet\b|\bauf\s+die\s+hand\b", re.IGNORECASE)
+# «zzgl. 14 € Netto/Tag Spesen» — нетто относится к суточным, а не к зарплате.
+_ALLOWANCE_NEAR_NET_RE = re.compile(
+    r"/\s*tag|pro\s+tag|am\s+tag|tages\w*|spesen|pauschale|verpflegung", re.IGNORECASE,
+)
 _ANY_PAY_MENTION_RE = re.compile(
     rf"{_CURRENCY}|\bgehalt\b|\bstundenlohn\b|\bverdienst\b|\bbezahlung\b|\bvergutung\b|\blohn\b",
     re.IGNORECASE,
@@ -216,7 +220,7 @@ def extract_salary_signals(
     monthly_hours = hours * _WEEKS_PER_MONTH if hours is not None else _MONTHLY_HOURS
 
     mentioned = bool(_ANY_PAY_MENTION_RE.search(text))
-    is_net = bool(_NET_RE.search(text))
+    is_net = _mentions_net_wage(text)
     is_gross = bool(_GROSS_RE.search(text))
 
     explicit = _amounts_with_period(text, resolved)
@@ -352,6 +356,13 @@ def _is_upper_bound(text: str, start: int) -> bool:
     return bool(_UPPER_BOUND_BEFORE_RE.search(text[max(0, start - _UPPER_BOUND_WINDOW): start]))
 
 
+def _mentions_net_wage(text: str) -> bool:
+    return any(
+        not _ALLOWANCE_NEAR_NET_RE.search(text[max(0, match.start() - 25):match.end() + 20])
+        for match in _NET_RE.finditer(text)
+    )
+
+
 def _amounts_with_period(text: str, config: RelevanceConfig) -> list[_Amount]:
     """Суммы, рядом с которыми прямо назван период. Одна сумма — одна запись."""
     bounds = _bounds(config)
@@ -360,6 +371,14 @@ def _amounts_with_period(text: str, config: RelevanceConfig) -> list[_Amount]:
         for match in pattern.finditer(text):
             amount = _parse_amount(match.group("amount"))
             if amount is None or amount <= 0:
+                continue
+            # Обратный порядок, период перед суммой: «pro Stunde 14 € steuerfreie
+            # Tagespauschale» или «pro Stunde, Tagespauschale 14 €» — эта сумма
+            # про суточные, а не про ставку.
+            if match.start("amount") > match.start() and (
+                _NOT_A_WAGE_AFTER_RE.match(text, match.end())
+                or _ALLOWANCE_NEAR_NET_RE.search(text, match.start(), match.start("amount"))
+            ):
                 continue
             start = match.start("amount")
             low, high = bounds[period]

@@ -172,3 +172,31 @@ def test_salary_label_names_the_weekly_hours() -> None:
     hit = _salary_hit(inspect_vacancy(canonical, profile), profile)
 
     assert hit is not None and "(при 20 ч/нед)" in hit.label_ru
+
+
+@pytest.mark.parametrize(
+    ("text", "hourly"),
+    [
+        ("Arbeitsvertrag ab dem ersten Tag 16,20 € brutto pro Stunde 14 € steuerfreie Tagespauschale", 16.2),
+        ("15 € pro Stunde, Tagespauschale 14 €", 15.0),
+        ("17,20 € Tarif-Stundenlohn 332 € Urlaubsgeld im Juli", 17.2),
+        ("Fester Stundenlohn von 13,90 € Zusätzlich Bonuszahlungen", 13.9),
+    ],
+)
+def test_allowance_after_hourly_word_is_not_the_rate(text: str, hourly: float) -> None:
+    assert extract_salary_signals(text).hourly_eur == pytest.approx(hourly)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Vollzeit 2410-3400€ zzgl. 14€ Netto/Tag Spesen",
+        "Vergütung ab 17,11 € (gem. Tarifvertrag) 14 € netto Verpflegungsmehraufwand arbeitstäglich",
+        "Stundenlohn 14 € brutto, 14 EUR | Tag (Spesen | netto)",
+    ],
+)
+def test_netto_of_daily_allowance_does_not_make_the_wage_net(text: str) -> None:
+    salary = extract_salary_signals(text)
+
+    assert not salary.is_net
+    assert salary.is_comparable
