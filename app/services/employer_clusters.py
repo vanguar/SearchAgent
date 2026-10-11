@@ -1,15 +1,19 @@
 """Один работодатель не должен забивать выдачу.
 
 Агентство публикует десятки похожих вакансий, и без свёртки они занимали
-весь раздел «горячих». Карточки «горячих» группируются по работодателю:
-каноническое имя (employer_identity), общий e-mail или телефон в тексте.
+весь раздел. Карточки группируются по работодателю: каноническое имя
+(employer_identity), общий e-mail или телефон в тексте.
 
-* кластер больше employer_cluster_min_size горячих вакансий показывается одной
+* кластер больше employer_cluster_min_size вакансий показывается одной
   сводной карточкой — лучшей по месту в списке, остальные внутри неё;
 * меньший кластер показывает не больше max_cards_per_employer_in_top
   карточек, остальные сворачиваются в первую.
 
-Раздел «на проверку» не сворачивается: там человек сам разбирает варианты.
+Сворачиваются «горячие» и «на проверку» (решение пользователя 2026-10-11:
+восемь карточек «Deutsche Post Abrufkraft» подряд мешали). Каждый раздел и
+каждый город поиска — отдельно: вакансия из Грайфсвальда не уезжает в
+берлинскую карточку, а «горячая» — в карточку «на проверку».
+«Нерелевантные» не сворачиваются.
 
 Ничего не скрывается: свёрнутая вакансия остаётся в сводной карточке со
 своей ссылкой.
@@ -28,6 +32,7 @@ from app.services.search_models import SearchResultItem
 _EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", re.IGNORECASE)
 _PHONE_RE = re.compile(r"(?:\+|\b0)\d[\d\s/()-]{6,}\d")
 _MIN_PHONE_DIGITS = 8
+_COLLAPSED_BUCKETS = frozenset({"hot", "maybe"})
 
 
 def item_contacts(item: SearchResultItem) -> tuple[str, ...]:
@@ -54,27 +59,35 @@ def collapse_employer_clusters(
     *,
     config: RelevanceConfig | None = None,
 ) -> tuple[SearchResultItem, ...]:
-    """Тот же упорядоченный список, но кластеры работодателей в «горячих» свёрнуты."""
+    """Тот же упорядоченный список, но кластеры работодателей свёрнуты."""
     resolved = config or get_relevance_config()
-    hot = [item for item in items if item.bucket == "hot"]
-    cluster_of = _cluster_ids(hot)
-    cluster_sizes = Counter(cluster_of.values())
+    sections: dict[tuple[str, str | None], list[SearchResultItem]] = {}
+    for item in items:
+        if item.bucket in _COLLAPSED_BUCKETS:
+            # Город раздела — как в разбивке выдачи по регионам поиска.
+            city = item.signals.matched_search_city or item.search_city
+            sections.setdefault((item.bucket, city), []).append(item)
 
     collapsed_into: dict[str, str] = {}
     members: dict[str, list[SearchResultItem]] = {}
-    shown: dict[int, list[str]] = {}
-    for item in hot:
-        cluster = cluster_of[_key(item)]
-        limit = 1 if cluster_sizes[cluster] > resolved.employer_cluster_min_size else (
-            resolved.max_cards_per_employer_in_top
-        )
-        already = shown.setdefault(cluster, [])
-        if len(already) < limit:
-            already.append(_key(item))
-            continue
-        host = already[0]
-        collapsed_into[_key(item)] = host
-        members.setdefault(host, []).append(item)
+    cluster_size_of: dict[str, int] = {}
+    for section in sections.values():
+        cluster_of = _cluster_ids(section)
+        cluster_sizes = Counter(cluster_of.values())
+        shown: dict[int, list[str]] = {}
+        for item in section:
+            cluster = cluster_of[_key(item)]
+            cluster_size_of[_key(item)] = cluster_sizes[cluster]
+            limit = 1 if cluster_sizes[cluster] > resolved.employer_cluster_min_size else (
+                resolved.max_cards_per_employer_in_top
+            )
+            already = shown.setdefault(cluster, [])
+            if len(already) < limit:
+                already.append(_key(item))
+                continue
+            host = already[0]
+            collapsed_into[_key(item)] = host
+            members.setdefault(host, []).append(item)
 
     result: list[SearchResultItem] = []
     for item in items:
@@ -89,7 +102,7 @@ def collapse_employer_clusters(
             item = dataclasses.replace(
                 item,
                 cluster_members=cluster_members,
-                cluster_size=cluster_sizes[cluster_of[key]],
+                cluster_size=cluster_size_of[key],
                 cluster_contacts=_shared_contacts((item, *hosted)),
             )
         result.append(item)

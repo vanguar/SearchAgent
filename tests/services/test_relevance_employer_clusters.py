@@ -1,6 +1,7 @@
 """Проблема 4: одно агентство не забивает «горячие»."""
 from __future__ import annotations
 
+import dataclasses
 from datetime import datetime
 
 from app.core.relevance_config import RelevanceConfig
@@ -65,10 +66,42 @@ def test_small_cluster_is_capped_per_employer_in_top() -> None:
     assert len(result[0].cluster_members) == 2
 
 
-def test_maybe_and_rejected_are_not_collapsed() -> None:
-    items = [_item(index, "perZukunft", bucket="maybe") for index in range(8)]
+def test_maybe_is_collapsed_like_hot() -> None:
+    items = [_item(index, "Deutsche Post AG", bucket="maybe") for index in range(8)]
+
+    result = collapse_employer_clusters(items, config=_CONFIG)
+
+    assert len(result) == 1
+    assert result[0].cluster_size == 8
+    assert len(result[0].cluster_members) == 7
+
+
+def test_rejected_are_not_collapsed() -> None:
+    items = [_item(index, "perZukunft", bucket="rejected") for index in range(8)]
 
     assert len(collapse_employer_clusters(items, config=_CONFIG)) == 8
+
+
+def test_buckets_and_search_cities_collapse_separately() -> None:
+    def placed(index: int, bucket: str, city: str) -> SearchResultItem:
+        return dataclasses.replace(_item(index, "Deutsche Post AG", bucket=bucket), search_city=city)
+
+    items = [
+        *(placed(index, "hot", "Berlin") for index in range(4)),
+        *(placed(index, "maybe", "Berlin") for index in range(4, 8)),
+        placed(8, "maybe", "Greifswald"),
+    ]
+
+    result = collapse_employer_clusters(items, config=_CONFIG)
+
+    by_section = [(item.bucket, item.search_city, len(item.cluster_members)) for item in result]
+    # 4 горячих в Берлине: 3 карточки, четвёртая свёрнута в первую; то же в
+    # «на проверку»; Грайфсвальд не уезжает в берлинскую карточку.
+    assert by_section == [
+        ("hot", "Berlin", 1), ("hot", "Berlin", 0), ("hot", "Berlin", 0),
+        ("maybe", "Berlin", 1), ("maybe", "Berlin", 0), ("maybe", "Berlin", 0),
+        ("maybe", "Greifswald", 0),
+    ]
 
 
 def test_export_keeps_collapsed_vacancies_and_marks_them() -> None:
