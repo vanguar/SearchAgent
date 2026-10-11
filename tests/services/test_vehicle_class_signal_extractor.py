@@ -1,3 +1,4 @@
+import pytest
 from app.services.vehicle_class_signal_extractor import extract_vehicle_class_signals
 
 
@@ -144,3 +145,24 @@ def test_berufskraftfahrer_is_context_without_proof_of_heavy_transport() -> None
 
     assert "Berufskraftfahrer" in result.heavy_vehicle_context
     assert not result.heavy_vehicle
+
+
+def test_colleague_enumeration_with_lkw_drivers_is_not_a_heavy_requirement() -> None:
+    text = (
+        "Pakete, Briefe und Waren jeden Tag möglich machen: die Zusteller:innen, "
+        "die Beschäftigten im Lager, die Lkw-Fahrer:innen und viele mehr."
+    )
+    assert extract_vehicle_class_signals(text).heavy_vehicle == ()
+
+
+@pytest.mark.parametrize("text", [
+    "Wir suchen LKW-Fahrer:innen (m/w/d) für den Nahverkehr",
+    "Wir suchen Fahrer:innen und LKW-Fahrer:innen (m/w/d)",
+])
+def test_sought_lkw_driver_group_stays_heavy(text: str) -> None:
+    assert extract_vehicle_class_signals(text).heavy_vehicle == ("LKW",)
+
+
+@pytest.mark.parametrize("text", ["Fahrer m/w/d für Silotransporte", "Fahrer für Siloverkehr im Nahverkehr"])
+def test_silo_transport_is_heavy(text: str) -> None:
+    assert extract_vehicle_class_signals(text).heavy_vehicle == ("Silofahrzeug",)

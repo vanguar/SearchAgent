@@ -45,7 +45,7 @@ _HEAVY_VEHICLE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     (
         "Silofahrzeug",
         re.compile(
-            r"\b(?:silofahrzeug|silowagen|silofahrer)\w*\b|"
+            r"\b(?:silofahrzeug|silowagen|silofahrer|silotransport|siloverkehr|silozug)\w*\b|"
             r"\bsilo\s+lkw\b|\b(?:kraftfahrer|fahrer)\w*\s+(?:fur\s+)?silo\b|"
             r"\bsilo\s+(?:fahrzeug|wagen|fahrer|verkehr|transport)\w*\b"
         ),
@@ -110,10 +110,31 @@ _DRIVER_OR_VEHICLE_CONTEXT_RE = re.compile(
 )
 
 
+# «die Zusteller:innen, die Beschäftigten im Lager, die Lkw-Fahrer:innen und viele
+# mehr» — шаблон работодателя перечисляет коллег, а не требования к кандидату.
+# Групповое «LKW-Fahrer:innen» маскируется, только когда рядом названа ещё одна
+# группа во множественном числе: «Wir suchen LKW-Fahrer:innen (m/w/d)» остаётся.
+_COLLEAGUE_HEAVY_RE = re.compile(r"\blkw\s+fahrer\s+innen\b")
+_OTHER_GROUP_RE = re.compile(r"\b(?!\w*fahrer\b)\w{4,}\s+innen\b|\bbeschaftigten\b|\bkolleg\w*\b")
+_COLLEAGUE_WINDOW = 100
+
+
+def _mask_colleague_mentions(normalized: str) -> str:
+    def mask(match: re.Match[str]) -> str:
+        before = _COLLEAGUE_HEAVY_RE.sub(" ", normalized[max(0, match.start() - _COLLEAGUE_WINDOW):match.start()])
+        after = _COLLEAGUE_HEAVY_RE.sub(" ", normalized[match.end():match.end() + _COLLEAGUE_WINDOW])
+        if _OTHER_GROUP_RE.search(before) or _OTHER_GROUP_RE.search(after):
+            return "kollegen"
+        return match.group()
+
+    return _COLLEAGUE_HEAVY_RE.sub(mask, normalized)
+
+
 def extract_vehicle_class_signals(text: str | None) -> VehicleClassSignals:
     normalized = normalize_signal_text(text)
     if not normalized:
         return VehicleClassSignals()
+    normalized = _mask_colleague_mentions(normalized)
 
     light_commercial = _matching_labels(normalized, _LIGHT_COMMERCIAL_PATTERNS)
     heavy_vehicle = list(_matching_labels(normalized, _HEAVY_VEHICLE_PATTERNS, ignore_negated=True))
