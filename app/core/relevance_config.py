@@ -343,6 +343,20 @@ class RelevanceConfig:
     # Сколько разных признаков агентства в тексте нужно, чтобы считать
     # вакансию агентской без признака в названии компании.
     staffing_agency_body_min_markers: int = 2
+    # Одно агентство под разными именами — только для правила «одна вакансия от
+    # агентства», дедупликацию не трогает: (шаблон ключа работодателя, бренд).
+    staffing_agency_brand_aliases: tuple[tuple[str, str], ...] = (
+        # «I. K. Hofmann GmbH» публикует и как «Hofmann Personal».
+        (r"^(?:ik\s+hofmann|hofmann\s+personal)\b", "hofmann personal"),
+    )
+    # Признаки, которых достаточно и поодиночке: тарифы временной работы iGZ/BAP/GVP
+    # («Arbeitsvertrag nach dem iGZ-Tariflohn») и сама «Zeitarbeit», если это не отрицание.
+    staffing_agency_body_strong_patterns: tuple[str, ...] = (
+        r"\b(?:igz|bap|gvp)\b(?:\s+\w+){0,2}?\s*tarif\w*",
+        r"\btarif\w*\s+(?:\w+\s+){0,3}(?:igz|bap|gvp)\b",
+        r"\b(?:igz|dgb)\s+(?:dgb|igz)\b",
+        r"\bzeitarbeit\w*",
+    )
 
 
 _ENV_NUMBERS: dict[str, str] = {

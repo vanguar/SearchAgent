@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 from app.services.search_service import SearchService
 from app.services.source_merge import SourceMergeService
-from tests.services.relevance_support import courier_run, items_titled, visible_items
+from tests.services.relevance_support import courier_run, hidden_reasons, items_titled, visible_items
 from tests.services.test_live_vehicle_logistics_regressions import PROFILE as TRANSFER_PROFILE
 from tests.services.test_live_vehicle_logistics_regressions import live_record
 
@@ -27,13 +27,21 @@ def test_best_courier_vacancies_stay_visible(fragment: str, company: str) -> Non
     assert all(card.bucket in {"hot", "maybe"} for card in cards)
 
 
-@pytest.mark.parametrize("company", ["Lalamove", "Otoqi", "Good Bank"])
+@pytest.mark.parametrize("company", ["Lalamove", "Good Bank"])
 def test_freelance_vacancies_keep_the_not_employment_risk(company: str) -> None:
     cards = items_titled(visible_items(courier_run()), "", company=company)
 
     assert cards
     for card in cards:
         assert "self_employment_review" in {hit.code for hit in card.filter_result.review_hits}
+
+
+def test_freelance_posting_older_than_a_year_is_hidden_as_stale() -> None:
+    # Otoqi опубликован 01.04.2025 — к прогону 07.10.2026 ему полтора года.
+    result = courier_run()
+
+    assert not items_titled(visible_items(result), "", company="Otoqi")
+    assert "stale_posting" in hidden_reasons(result, "Selbständiger Fahrer in Deutschland")
 
 
 def test_agency_vehicle_transfer_with_class_b_stays_visible() -> None:

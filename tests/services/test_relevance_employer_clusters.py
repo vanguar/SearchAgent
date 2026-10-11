@@ -118,10 +118,11 @@ def test_export_keeps_collapsed_vacancies_and_marks_them() -> None:
 def test_real_run_top_has_at_most_three_cards_per_employer() -> None:
     from app.services.employer_clusters import item_employer_key
 
+    # Лимит действует в каждом городе поиска отдельно, как и свёртка.
     hot = courier_run().hot_results
-    counts: dict[str, int] = {}
+    counts: dict[tuple[str, str], int] = {}
     for item in hot:
-        key = item_employer_key(item)
+        key = (item_employer_key(item), item.signals.matched_search_city or item.search_city or "")
         counts[key] = counts.get(key, 0) + 1
 
     assert max(counts.values(), default=0) <= _CONFIG.max_cards_per_employer_in_top

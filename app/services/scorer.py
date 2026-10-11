@@ -16,6 +16,7 @@ from app.services.employment_signal_extractor import EMPLOYMENT_TYPE_LABELS_RU
 from app.services.filter_engine import FilterEngine, is_b_only_driving_profile, work_authorization_label
 from app.services.hashers import normalize_text_for_fingerprint
 from app.services.it_candidate_eligibility import inspect_it_eligibility, is_it_candidate_profile
+from app.services.license_requirement_signals import missing_truck_classes
 from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.profile_parser import (
     DRIVER_B_FERNVERKEHR_ROLE,
@@ -248,6 +249,16 @@ def _commute_distance_hit(
             break
 
     if weight < 0 and profile.relocation_ready:
+        # Город, который человек сам вписал в поиск, при готовности к переезду —
+        # это выбор, а не дальняя дорога. Штраф −8 здесь ставил каждую обычную
+        # ростокскую вакансию ровно на 69, на балл ниже горячих, и категорию
+        # решало расстояние, а не сама вакансия.
+        if signals.matched_search_city and not signals.outside_requested_cities:
+            return RuleHit(
+                code="commute_distance",
+                label_ru=f"{distance:.0f} км от дома — в выбранном городе, с переездом",
+                weight=0,
+            )
         weight = max(weight, _COMMUTE_RELOCATION_FLOOR)
 
     # Ноль баллов не значит «молчать». Расстояние — это то, что человек хочет
@@ -872,6 +883,16 @@ class VacancyScorer:
             cap_reasons.append(("incomplete_requirements_review", "неполное описание: ключевые требования не подтверждены"))
         if canonical.posted_date and ((today or utc_now().date()) - canonical.posted_date).days > 180:
             cap_reasons.append(("stale_posting_review", "объявлению больше полугода: актуальность требует проверки"))
+        # Похожие вакансии человек отметил нерелевантными: понижение не должно
+        # растворяться в других плюсах — горячей такая вакансия не бывает.
+        if any(hit.code == "feedback_penalty" for hit in negative_hits):
+            cap_reasons.append(("feedback_penalty_review", "похожие вакансии вы отмечали нерелевантными — только на проверку"))
+        missing_truck = missing_truck_classes(resolved_signals, profile)
+        if missing_truck:
+            cap_reasons.append((
+                "truck_license_review",
+                f"нужны права категории {'/'.join(missing_truck)}, а в профиле их нет — только на проверку",
+            ))
         for code, label in cap_reasons:
             capped = min(score, HOT_BUCKET_MIN_SCORE - 1)
             negative_hits.append(RuleHit(code=code, label_ru=label, weight=capped - score))

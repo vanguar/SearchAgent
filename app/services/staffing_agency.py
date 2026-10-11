@@ -35,13 +35,16 @@ from app.services.signal_negation import is_negated_signal, normalize_signal_tex
 
 
 @lru_cache(maxsize=4)
-def _compiled(config: RelevanceConfig) -> tuple[tuple[re.Pattern[str], ...], tuple[re.Pattern[str], ...]]:
+def _compiled(
+    config: RelevanceConfig,
+) -> tuple[tuple[re.Pattern[str], ...], tuple[re.Pattern[str], ...], tuple[re.Pattern[str], ...]]:
     return (
         tuple(
             re.compile(pattern)
             for pattern in (*config.staffing_agency_company_patterns, *config.staffing_agency_name_patterns)
         ),
         tuple(re.compile(pattern) for pattern in config.staffing_agency_body_patterns),
+        tuple(re.compile(pattern) for pattern in config.staffing_agency_body_strong_patterns),
     )
 
 
@@ -52,7 +55,7 @@ def staffing_agency_evidence(
 ) -> str | None:
     """Чем вакансия выдаёт агентство; None — признаков нет."""
     resolved = config or get_relevance_config()
-    company_patterns, body_patterns = _compiled(resolved)
+    company_patterns, body_patterns, strong_patterns = _compiled(resolved)
     companies = {canonical.company_name or ""} | {
         record.original_company or record.normalized_company or "" for record in canonical.source_records
     }
@@ -63,6 +66,10 @@ def staffing_agency_evidence(
             return f"компания «{company}»"
 
     text = normalize_signal_text(" ".join(_original_text(record) for record in canonical.source_records))
+    for pattern in strong_patterns:
+        strong = next((match for match in pattern.finditer(text) if not is_negated_signal(text, match)), None)
+        if strong is not None:
+            return f"признак в тексте объявления ({strong.group()})"
     matched = [
         pattern for pattern in body_patterns
         if any(not is_negated_signal(text, match) for match in pattern.finditer(text))
@@ -114,11 +121,11 @@ def demote_staffing_agencies(
     *,
     config: RelevanceConfig | None = None,
 ) -> tuple[tuple[SearchResultItem, ...], tuple[SearchResultItem, ...]]:
-    """Вакансии агентств — в самый конец выдачи, по одной на агентство.
+    """Вакансии агентств — в самый конец выдачи, по одной на агентство в каждом городе.
 
     Возвращает (упорядоченные карточки, отброшенные вакансии агентств). Из
-    видимых вакансий одного агентства остаётся самая свежая (при равной дате —
-    с большим баллом); она идёт последней в «на проверку». Остальные уходят в
+    видимых вакансий одного агентства в одном городе поиска остаётся самая
+    свежая (при равной дате — с большим баллом); она идёт последней в «на проверку». Остальные уходят в
     скрытые с понятной причиной. Отклонённые карточки не трогаются.
     """
     if (config or get_relevance_config()).staffing_agency_policy != "demote":
@@ -127,7 +134,7 @@ def demote_staffing_agencies(
     if not agency_items:
         return tuple(items), ()
 
-    best_by_agency: dict[str, SearchResultItem] = {}
+    best_by_agency: dict[tuple[str, str], SearchResultItem] = {}
     for item in agency_items:
         key = _item_agency_key(item)
         current = best_by_agency.get(key)
@@ -149,9 +156,15 @@ def demote_staffing_agencies(
     return ordered, dropped
 
 
-def _item_agency_key(item: SearchResultItem) -> str:
+def _item_agency_key(item: SearchResultItem) -> tuple[str, str]:
+    """Агентство и город поиска: от агентства одна вакансия в каждом городе.
+
+    Город — тот же, что делит выдачу на разделы: иначе Randstad, оставленный в
+    Нойбранденбурге, пропадал из берлинского и ростокского разделов целиком.
+    """
     key = _group_employer_key(item.canonical_group)
-    return agency_brand_key(key) if key else item.canonical_group.canonical_key
+    city = item.signals.matched_search_city or item.search_city or ""
+    return (agency_brand_key(key) if key else item.canonical_group.canonical_key, city)
 
 
 # Слова, с которых в названии агентства начинается филиал, где бы они ни стояли.
@@ -169,6 +182,9 @@ def agency_brand_key(employer: str) -> str:
     тоже деревня) филиалом не считается. Только для группировки агентств —
     дедупликацию не трогает.
     """
+    for pattern, brand in get_relevance_config().staffing_agency_brand_aliases:
+        if re.search(pattern, employer):
+            return brand
     tokens = employer.split()
     for index in range(1, len(tokens)):
         if tokens[index] in _AGENCY_BRANCH_MARKERS or all(_is_region_token(token) for token in tokens[index:]):

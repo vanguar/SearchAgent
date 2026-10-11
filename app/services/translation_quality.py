@@ -68,8 +68,19 @@ def is_valid_title_translation(original: str, translated: str | None) -> bool:
     return True
 
 
+# Ответ модели вместо пересказа: «Извините, текст вакансии не содержит информации
+# о конкретной позиции». Показывать такое на карточке нельзя.
+_SUMMARY_REFUSAL_RE = re.compile(
+    r"\bизвините\b|\bк сожалению\b|\bне могу\b|\bне содержит (?:\w+\s+){0,2}информаци"
+    r"|\bнет (?:\w+\s+){0,2}информации\b|\bнедостаточно (?:\w+\s+){0,2}(?:информации|данных)\b",
+    re.IGNORECASE,
+)
+
+
 def is_valid_summary(source_text: str, summary: str | None) -> bool:
     if not summary or not summary.strip() or has_cjk(summary):
+        return False
+    if _SUMMARY_REFUSAL_RE.search(summary):
         return False
     return numbers_in(summary) <= numbers_in(source_text)
 

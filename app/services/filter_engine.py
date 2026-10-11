@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 
 from app.core.relevance_config import get_relevance_config
+from app.core.time import utc_now
 from app.services.ai_tools_profile import (
     build_ai_tools_match_text,
     build_ai_tools_title_text,
@@ -15,8 +16,9 @@ from app.services.driver_license_signal_extractor import extract_profile_driver_
 from app.services.employment_signal_extractor import EMPLOYMENT_TYPE_LABELS_RU
 from app.services.hashers import normalize_text_for_fingerprint
 from app.services.it_candidate_eligibility import inspect_it_eligibility, is_it_candidate_profile
-from app.services.license_requirement_signals import covered_license_classes, has_truck_class
+from app.services.license_requirement_signals import covered_license_classes, has_truck_class, missing_truck_classes
 from app.services.normalization_models import CanonicalVacancyGroup
+from app.services.posting_staleness import stale_posting_hit
 from app.services.profile_condition_review import condition_review_hits
 from app.services.profile_parser import (
     DRIVER_B_FERNVERKEHR_ROLE,
@@ -157,6 +159,14 @@ class FilterEngine:
         if heavy_vehicle_mismatch is not None:
             rejection_hits.append(heavy_vehicle_mismatch)
 
+        stale_hit = stale_posting_hit(
+            posted_date=canonical.posted_date,
+            raw_text=build_raw_analysis_text(canonical),
+            today=utc_now().date(),
+        )
+        if stale_hit is not None:
+            rejection_hits.append(stale_hit)
+
         risk_hits.extend(_salary_risk_hits(resolved_signals))
         early_shift_risk = _early_shift_commute_hit(resolved_signals)
         if early_shift_risk is not None:
@@ -186,7 +196,7 @@ class FilterEngine:
         passenger_rejections, license_risks = _passenger_and_medical_hits(resolved_signals, profile)
         rejection_hits.extend(passenger_rejections)
         risk_hits.extend(license_risks)
-        risk_hits.extend(_work_permit_risk_hits(resolved_signals, profile))
+        risk_hits.extend(_work_permit_risk_hits(resolved_signals, profile, canonical))
 
         family_mismatch = (
             resolved_signals.light_goods_transport_match not in {"target", "adjacent"}
@@ -613,7 +623,16 @@ _EQUIPMENT_PERMIT_LABELS: dict[tuple[str, str], str] = {
 _TRUCK_LICENSE_CLASSES = ("C1", "C1E", "C", "CE")
 
 
-def _work_permit_risk_hits(signals: VacancySignalSnapshot, profile: SearchProfileContext) -> list[RuleHit]:
+# «Kraftfahrer», «Berufskraftfahrer», «LKW-Fahrer» в названии складской вакансии:
+# категория не названа, но обычно это грузовик.
+_TRUCK_DRIVER_TITLE_RE = re.compile(r"\b(?:berufs)?kraftfahrer\w*|\blkw\s*fahrer\w*")
+
+
+def _work_permit_risk_hits(
+    signals: VacancySignalSnapshot,
+    profile: SearchProfileContext,
+    canonical: CanonicalVacancyGroup,
+) -> list[RuleHit]:
     """Допуски, которых в профиле может не быть: погрузчик, кран, права на грузовик.
 
     Только для профилей не про вождение: у водительских профилей права и
@@ -627,17 +646,22 @@ def _work_permit_risk_hits(signals: VacancySignalSnapshot, profile: SearchProfil
         for code, status in signals.equipment_permits
     ]
     covered = covered_license_classes(profile.license_classes)
-    missing = [
-        category for category in _TRUCK_LICENSE_CLASSES
-        if category in signals.required_driver_license_categories
-        and category not in covered
-        and category not in signals.negated_driver_license_categories
-    ]
+    missing = missing_truck_classes(signals, profile)
+    have =", ".join(profile.license_classes) if profile.license_classes else "права не указаны"
     if missing:
-        have = ", ".join(profile.license_classes) if profile.license_classes else "права не указаны"
         hits.append(RuleHit(
             code="permit_truck_license",
             label_ru=f"нужны права категории {'/'.join(missing)} (грузовик), в профиле: {have}",
+        ))
+    elif (
+        not (covered & set(_TRUCK_LICENSE_CLASSES))
+        and not signals.required_driver_license_categories
+        and not signals.optional_driver_license_categories
+        and _TRUCK_DRIVER_TITLE_RE.search(normalize_text_for_fingerprint(canonical.normalized_title))
+    ):
+        hits.append(RuleHit(
+            code="permit_truck_license_likely",
+            label_ru=f"в названии «Kraftfahrer» — обычно нужны права на грузовик (C/CE), в профиле: {have}",
         ))
     return hits
 

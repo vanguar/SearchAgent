@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from collections.abc import Mapping
 from email.utils import parsedate_to_datetime
 from typing import Any
@@ -346,12 +347,30 @@ def _parse_record(
         external_id=external_id,
         source_reference=url,
         title=_to_text(raw_job.get("title")) or "Без названия",
-        company=_to_text(raw_job.get("company")),
+        company=_effective_company(_to_text(raw_job.get("company")), _to_text(raw_job.get("description"))),
         location=_to_text(raw_job.get("locations")),
         posted_at=_format_posted_at(_to_text(raw_job.get("date"))),
         detail_url=url,
         raw_payload=dict(raw_job),
     )
+
+
+# Порталы, которые Careerjet подставляет вместо работодателя; настоящий
+# работодатель у них — первая строка текста: «Arbeitgeber: Adecco Germany  Einsatzort: …».
+_JOB_PORTAL_COMPANIES = frozenset({"meinestadt.de"})
+_BODY_EMPLOYER_RE = re.compile(r"^\s*Arbeitgeber:\s*(?P<name>.+?)\s{2,}|^\s*Arbeitgeber:\s*(?P<short>.+?)\s+Einsatzort:")
+
+
+def _effective_company(company: str | None, description: str | None) -> str | None:
+    """Работодатель вместо портала: без этого агентство Adecco и посольство США
+    шли под одним именем «meinestadt.de» и не распознавались."""
+    if not company or company.casefold() not in _JOB_PORTAL_COMPANIES or not description:
+        return company
+    match = _BODY_EMPLOYER_RE.search(description)
+    if match is None:
+        return company
+    name = (match.group("name") or match.group("short") or "").strip()
+    return name[:120] or company
 
 
 def _format_posted_at(raw: str | None) -> str | None:

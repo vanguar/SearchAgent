@@ -1832,7 +1832,7 @@ def _collapse_items_sharing_a_source_record(
 
 _AGENCY_DUPLICATE_HIT = RuleHit(
     code="staffing_agency_duplicate",
-    label_ru="ещё одна вакансия того же кадрового агентства — в выдаче оставлена только самая свежая",
+    label_ru="ещё одна вакансия того же кадрового агентства в этом городе — в выдаче оставлена только самая свежая",
 )
 
 

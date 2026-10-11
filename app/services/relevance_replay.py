@@ -68,7 +68,10 @@ def replay_run_fixture(
     if today is None:
         return run()
     frozen = datetime(today.year, today.month, today.day, 12, tzinfo=UTC)
-    with mock.patch("app.services.scorer.utc_now", return_value=frozen):
+    with (
+        mock.patch("app.services.scorer.utc_now", return_value=frozen),
+        mock.patch("app.services.filter_engine.utc_now", return_value=frozen),
+    ):
         return run()
 
 

@@ -17,6 +17,8 @@ from functools import lru_cache
 
 from app.core.relevance_config import RelevanceConfig, get_relevance_config
 from app.services.hashers import normalize_text_for_fingerprint
+from app.services.role_family import DRIVING_LIKE_FAMILIES, classify_role_families
+from app.services.search_models import SearchProfileContext, VacancySignalSnapshot, profile_role_texts
 from app.services.signal_negation import is_negated_signal, normalize_signal_text
 
 # Голый код категории в заголовке. «C» без цифры и пары не берётся: слишком много
@@ -243,3 +245,20 @@ def covered_license_classes(classes: tuple[str, ...]) -> frozenset[str]:
 
 def has_truck_class(classes: tuple[str, ...]) -> bool:
     return bool(covered_license_classes(classes) & _TRUCK_CLASSES)
+
+
+def missing_truck_classes(signals: VacancySignalSnapshot, profile: SearchProfileContext) -> tuple[str, ...]:
+    """Обязательные грузовые категории, которых нет в профиле не про вождение.
+
+    Водительские профили сюда не попадают: у них права разбирают свои правила
+    отказа. Пустой кортеж — грузовые права не требуются или профиль их закрывает.
+    """
+    if classify_role_families(profile_role_texts(profile)) & DRIVING_LIKE_FAMILIES:
+        return ()
+    covered = covered_license_classes(profile.license_classes)
+    return tuple(
+        category for category in ("C1", "C1E", "C", "CE")
+        if category in signals.required_driver_license_categories
+        and category not in covered
+        and category not in signals.negated_driver_license_categories
+    )
