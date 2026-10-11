@@ -8,7 +8,10 @@
 
 * «15,50 € pro Stunde» — уже ставка;
 * «2 600 € monatlich» — делится на 173 часа (40 часов в неделю по немецкой норме);
-* «45.000 € pro Jahr» — делится на 12 и затем на те же 173 часа.
+* «45.000 € pro Jahr» — делится на 12 и затем на те же 173 часа;
+* если объявление называет одно недельное число часов («Ø 20 Std./Woche»,
+  «30h/Woche»), месячная сумма делится на эти часы: 1 470 € за 20 ч/нед — это
+  около 17 €/ч, а не 8,50. Несколько разных чисел часов — норма 40 ч.
 
 Правила выбора, когда сумм несколько:
 
@@ -45,6 +48,27 @@ SalaryField = Literal["title", "body", "metadata.salary"]
 # Немецкая полная норма: 40 часов в неделю ≈ 173,33 часа в месяц.
 _MONTHLY_HOURS = 173.0
 _MONTHS_PER_YEAR = 12
+_WEEKS_PER_MONTH = 52 / 12
+_WEEKLY_HOURS_RANGE = (8.0, 48.0)
+
+# «20 Std./Woche», «30h/Woche», «20–30 Stunden pro Woche», «35-Stunden-Woche»,
+# «20 hours per week». Во вилке берётся верхняя граница: ставка тогда ниже, а не
+# завышена.
+_WEEKLY_HOURS_RE = re.compile(
+    r"(?P<low>\d{1,2}(?:[.,]5)?)(?:\s*(?:-|–|bis)\s*(?P<high>\d{1,2}(?:[.,]5)?))?\s*-?\s*"
+    r"(?:std\.?|stunden|h|hours?)\s*(?:-\s*woche|/\s*woche|/\s*wo\.?|pro\s+woche|je\s+woche|in\s+der\s+woche|"
+    r"wöchentlich|wochentlich|per\s+week|a\s+week|/\s*week)\b",
+    re.IGNORECASE,
+)
+# «1.470 € brutto im Monat bei Ø 20 Std./Woche», «(bei 20 Stunden)» — часы,
+# прямо привязанные к сумме. Они важнее любого другого упоминания часов.
+# После часов — «/Woche» или конец фразы: «(bei 8 Stunden Abwesenheit)» — это
+# условие суточных, а не рабочая неделя.
+_BASIS_HOURS_RE = re.compile(
+    r"\bbei\s+(?:Ø\s*|durchschnittlich\s+|ca\.?\s*|rund\s+)?(?P<low>\d{1,2}(?:[.,]5)?)(?P<high>)\s*"
+    r"(?:std\.?|stunden|h)(?:\s*(?:/\s*woche|/\s*wo\.?|pro\s+woche|je\s+woche|in\s+der\s+woche)\b|\s*(?=[),;]|\.(?:\s|$)|$))",
+    re.IGNORECASE,
+)
 
 # Число не должно продолжаться процентом или следующей цифрой.
 _AMOUNT = r"(?P<amount>\d{1,3}(?:[.\s]\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?!\s*%)(?![\d.,]\d)"
@@ -137,6 +161,9 @@ class SalarySignals:
     # Названа только верхняя граница («bis zu …»): расчётной ставки нет.
     upper_bound_only: bool = False
     upper_bound_amount: str | None = None
+    # Недельные часы из объявления, по которым пересчитана месячная сумма;
+    # None — расчёт по норме 40 ч.
+    weekly_hours: float | None = None
 
     @property
     def is_comparable(self) -> bool:
@@ -152,10 +179,41 @@ class _Amount:
     plausible: bool
 
 
-def extract_salary_signals(text: str | None, *, config: RelevanceConfig | None = None) -> SalarySignals:
+def stated_weekly_hours(text: str | None, *, basis_only: bool = False) -> float | None:
+    """Одно недельное число часов, названное в тексте; иначе None (норма 40 ч).
+
+    Часы с прямой привязкой к сумме («bei 20 Std.») важнее прочих упоминаний.
+    `basis_only` — только такие: суммы из метаданных агрегатора часто даны за
+    полную ставку, и делить их на часы из заголовка нельзя.
+    """
+    patterns = (_BASIS_HOURS_RE,) if basis_only else (_BASIS_HOURS_RE, _WEEKLY_HOURS_RE)
+    for pattern in patterns:
+        values: set[float] = set()
+        for match in pattern.finditer(text or ""):
+            hours = float((match.group("high") or match.group("low")).replace(",", "."))
+            if _WEEKLY_HOURS_RANGE[0] <= hours <= _WEEKLY_HOURS_RANGE[1]:
+                values.add(hours)
+        if len(values) == 1:
+            hours = values.pop()
+            return None if hours == 40 else hours
+        if values:
+            return None
+    return None
+
+
+def extract_salary_signals(
+    text: str | None,
+    *,
+    config: RelevanceConfig | None = None,
+    weekly_hours: float | None = None,
+    detect_hours: bool = True,
+) -> SalarySignals:
+    """`weekly_hours` задаёт часы снаружи (вся вакансия); иначе они ищутся в `text`."""
     if not text or not text.strip():
         return SalarySignals()
     resolved = config or get_relevance_config()
+    hours = weekly_hours if weekly_hours is not None or not detect_hours else stated_weekly_hours(text)
+    monthly_hours = hours * _WEEKS_PER_MONTH if hours is not None else _MONTHLY_HOURS
 
     mentioned = bool(_ANY_PAY_MENTION_RE.search(text))
     is_net = bool(_NET_RE.search(text))
@@ -185,11 +243,12 @@ def extract_salary_signals(text: str | None, *, config: RelevanceConfig | None =
             ),
         )
 
-    best = min(candidates, key=lambda item: _to_hourly(item.amount, item.period))
+    best = min(candidates, key=lambda item: _to_hourly(item.amount, item.period, monthly_hours))
     return SalarySignals(
         mentioned=True,
-        hourly_eur=_to_hourly(best.amount, best.period),
+        hourly_eur=_to_hourly(best.amount, best.period, monthly_hours),
         period=best.period,
+        weekly_hours=hours if best.period != "hour" else None,
         raw_amount_eur=best.amount,
         is_net=is_net,
         is_gross=is_gross,
@@ -211,6 +270,17 @@ def extract_canonical_salary_signals(canonical: CanonicalVacancyGroup, *, analys
     `analysis_text` оставлен ради совместимости вызова и признака «оплата упомянута».
     """
     evidence: list[SalaryEvidence] = []
+    # Часы ищутся по всей вакансии: сумма может стоять в метаданных, а
+    # «20 Std./Woche» — в описании.
+    vacancy_text = "\n".join(
+        text for record in canonical.source_records for text in (record.original_title, record.body_text) if text
+    )
+    text_hours = stated_weekly_hours(vacancy_text)
+    hours_by_field: dict[SalaryField, float | None] = {
+        "body": text_hours,
+        "title": text_hours,
+        "metadata.salary": stated_weekly_hours(vacancy_text, basis_only=True),
+    }
     by_field: dict[SalaryField, list[tuple[SalarySignals, str]]] = {field: [] for field in _FIELD_PRIORITY}
     for record in canonical.source_records:
         fields: list[tuple[SalaryField, str | None]] = [
@@ -220,7 +290,7 @@ def extract_canonical_salary_signals(canonical: CanonicalVacancyGroup, *, analys
         if isinstance(metadata, str):
             fields.append(("metadata.salary", metadata))
         for field, text in fields:
-            salary = extract_salary_signals(text)
+            salary = extract_salary_signals(text, weekly_hours=hours_by_field[field], detect_hours=False)
             by_field[field].append((salary, text or ""))
             if salary.hourly_eur is None or salary.raw_amount_eur is None or salary.period is None:
                 continue
@@ -328,12 +398,12 @@ def _guess_period(amount: float, config: RelevanceConfig) -> SalaryPeriod | None
     return None
 
 
-def _to_hourly(amount: float, period: SalaryPeriod) -> float:
+def _to_hourly(amount: float, period: SalaryPeriod, monthly_hours: float = _MONTHLY_HOURS) -> float:
     if period == "hour":
         return amount
     if period == "month":
-        return amount / _MONTHLY_HOURS
-    return amount / _MONTHS_PER_YEAR / _MONTHLY_HOURS
+        return amount / monthly_hours
+    return amount / _MONTHS_PER_YEAR / monthly_hours
 
 
 def _format_amount(amount: float) -> str:

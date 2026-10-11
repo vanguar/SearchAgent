@@ -927,6 +927,7 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         salary_mentioned=salary_signals.mentioned,
         salary_hourly_eur=salary_signals.hourly_eur,
         salary_period=salary_signals.period,
+        salary_weekly_hours=salary_signals.weekly_hours,
         salary_is_net=salary_signals.is_net,
         salary_is_comparable=salary_signals.is_comparable,
         salary_conflict=salary_signals.conflict,

@@ -270,6 +270,8 @@ class VacancySignalSnapshot:
     # Ставка, приведённая к евро в час. None — сумму определить не удалось.
     salary_hourly_eur: float | None = None
     salary_period: str | None = None
+    # Недельные часы из объявления, по которым пересчитана месячная сумма.
+    salary_weekly_hours: float | None = None
     salary_is_net: bool = False
     # Можно ли сравнивать ставку с ориентиром профиля (нетто сравнивать нельзя).
     salary_is_comparable: bool = False

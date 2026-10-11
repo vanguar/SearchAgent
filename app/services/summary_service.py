@@ -113,5 +113,9 @@ def _salary_conflict_summary(signals: VacancySignalSnapshot) -> str:
     summary = "Оплата требует уточнения: " + "; ".join(facts) + "."
     if signals.salary_hourly_eur is not None:
         amount = f"{signals.salary_hourly_eur:.2f}".replace(".", ",")
-        summary += f" Расчётная ставка для оценки: {amount} €/ч; сумма не подтверждена."
+        hours = (
+            f" при {signals.salary_weekly_hours:g} ч/нед".replace(".", ",")
+            if signals.salary_weekly_hours is not None else ""
+        )
+        summary += f" Расчётная ставка для оценки: {amount} €/ч{hours}; сумма не подтверждена."
     return summary

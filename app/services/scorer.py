@@ -328,21 +328,23 @@ def _salary_hit(
         return None
 
     hourly = signals.salary_hourly_eur
+    # Ставка из месячной суммы при неполной неделе: часы видны в метке.
+    basis = f" (при {signals.salary_weekly_hours:g} ч/нед)" if signals.salary_weekly_hours is not None else ""
     if hourly >= target:
         return RuleHit(
             code="salary_above_target",
-            label_ru=f"оплата {hourly:.2f} €/час — не ниже ориентира {target:.2f} €/час",
+            label_ru=f"оплата {hourly:.2f} €/час{basis} — не ниже ориентира {target:.2f} €/час",
             weight=_SALARY_ABOVE_TARGET_BONUS,
         )
     if hourly >= target * _SALARY_NEAR_TARGET_TOLERANCE:
         return RuleHit(
             code="salary_near_target",
-            label_ru=f"оплата {hourly:.2f} €/час — почти ориентир {target:.2f} €/час",
+            label_ru=f"оплата {hourly:.2f} €/час{basis} — почти ориентир {target:.2f} €/час",
             weight=_SALARY_NEAR_TARGET_BONUS,
         )
     return RuleHit(
         code="salary_below_target",
-        label_ru=f"оплата {hourly:.2f} €/час ниже ориентира {target:.2f} €/час",
+        label_ru=f"оплата {hourly:.2f} €/час{basis} ниже ориентира {target:.2f} €/час",
         weight=_SALARY_BELOW_TARGET_PENALTY,
     )
 

@@ -1,10 +1,13 @@
 """Проблема 9: мусор в зарплатах."""
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 from app.services.filter_engine import FilterEngine
 from app.services.rule_catalog import inspect_vacancy
 from app.services.salary_signal_extractor import extract_salary_signals
+from app.services.scorer import _salary_hit
 from tests.services.relevance_support import (
     build_canonical,
     courier_profile,
@@ -110,3 +113,62 @@ def test_tarif_stundenlohn_after_a_year_sentence_is_an_hourly_rate() -> None:
 
     assert salary.hourly_eur == 17.2
     assert not salary.doubtful
+
+
+@pytest.mark.parametrize(
+    ("body", "hourly", "weekly_hours"),
+    [
+        ("Ca. 1.470 € brutto im Monat bei Ø 20 Std./Woche, pünktliche Auszahlung.", 1470 / (20 * 52 / 12), 20.0),
+        ("1.419 € brutto im Monat (bei 20 Stunden) plus Bonus. Mindestens 12 Std./Woche.", 1419 / (20 * 52 / 12), 20.0),
+        ("Teilzeit 30h/Woche, 1.950 € brutto monatlich.", 1950 / (30 * 52 / 12), 30.0),
+    ],
+)
+def test_monthly_amount_uses_stated_weekly_hours(body: str, hourly: float, weekly_hours: float) -> None:
+    signals = inspect_vacancy(build_canonical(title="Fahrer (m/w/d)", body=body), courier_profile())
+
+    assert signals.salary_hourly_eur == pytest.approx(hourly, rel=0.001)
+    assert signals.salary_weekly_hours == weekly_hours
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        # Суточные, а не рабочая неделя.
+        "Einstiegsgehalt von 2410€ Brutto +14€ Spesen (bei 8 Stunden Abwesenheit) für eine 5 Tage Woche.",
+        # Два разных числа часов — неясно, к какому относится сумма.
+        "Vollzeit 40 Std./Woche oder Teilzeit 20 Std./Woche. 2.410 € brutto monatlich.",
+        "Vollzeit, 40 Stunden pro Woche. 2.410 € brutto monatlich.",
+        "2.410 € brutto monatlich.",
+    ],
+)
+def test_monthly_amount_keeps_full_time_norm_without_one_clear_week(body: str) -> None:
+    signals = inspect_vacancy(build_canonical(title="Fahrer (m/w/d)", body=body), courier_profile())
+
+    assert signals.salary_hourly_eur == pytest.approx(2410 / 173.0, rel=0.001)
+    assert signals.salary_weekly_hours is None
+
+
+def test_metadata_amount_ignores_hours_without_explicit_link() -> None:
+    # Агрегатор часто даёт годовую сумму за полную ставку: делить её на часы
+    # из заголовка нельзя.
+    canonical = build_canonical(
+        title="Staplerfahrer im Logistikzentrum 28 Std./Woche Teilzeit (m/w/d)",
+        body="Wir suchen Verstärkung im Lager.", source_id="careerjet",
+    )
+    record = canonical.source_records[0]
+    canonical = replace(canonical, source_records=(
+        replace(record, raw_payload={**record.raw_payload, "salary": "31200 EUR per year"}),
+    ))
+
+    signals = inspect_vacancy(canonical, courier_profile())
+
+    assert signals.salary_hourly_eur == pytest.approx(31200 / 12 / 173.0, rel=0.001)
+    assert signals.salary_weekly_hours is None
+
+
+def test_salary_label_names_the_weekly_hours() -> None:
+    canonical = build_canonical(title="Fahrer (m/w/d)", body="Ca. 1.470 € brutto im Monat bei Ø 20 Std./Woche.")
+    profile = replace(courier_profile(), min_salary_eur_per_hour=16.0)
+    hit = _salary_hit(inspect_vacancy(canonical, profile), profile)
+
+    assert hit is not None and "(при 20 ч/нед)" in hit.label_ru
