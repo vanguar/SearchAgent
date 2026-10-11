@@ -84,6 +84,37 @@ def test_negative_context_does_not_cross_a_list_boundary() -> None:
     assert extract_employment_signals("Keine Nachtschicht. Gewerbeschein erforderlich").requires_self_employment
 
 
+@pytest.mark.parametrize("text", [
+    "Nach einer Eingewöhnungszeit können die Fahrer einfachere Touren auch gern selbstständig planen.",
+    "Warentransport im Nahverkehr, selbstständiges Be- und Entladen von LKWs mittels Gabelstapler.",
+    "Selbstständiges Arbeiten auf deiner Tour, zuverlässiger Umgang mit dem Fahrzeug.",
+    "Auslieferung nach Tourenplan, selbstständige Reinigungsarbeiten, wenn welche anfallen.",
+    "Kommunikationsfähigkeit in Deutsch, Engagement, Selbständigkeit, Sorgfalt und Flexibilität.",
+    "Sie sind teamfähig, auch in der Lage weitestgehend selbstständig zu arbeiten.",
+    "Verantwortungsbewusstsein und Verlässlichkeit, du arbeitest gerne selbstständig.",
+])
+def test_work_style_selbststaendig_is_not_self_employment(text: str) -> None:
+    assert extract_employment_signals(text).self_employment_signals == ()
+
+
+@pytest.mark.parametrize("text", [
+    "Selbstständiger Fahrer / Freelance Driver Kühltransport (m/w/d/x)",
+    "Selbständiger Transporterfahrer mit Gewerbeschein",
+    "Selbstständige Kurierfahrer gesucht (m/w/d) in Berlin mit eigenem PKW",
+    "Wir suchen zuverlässige selbstständige <b>Fahrer</b>, die auf Auftragsbasis unsere Produkte ausliefern.",
+    "Starten Sie als selbstständiger Kurierfahrer in Berlin.",
+    "Werde selbstständiger Lieferpartner bei Lalamove in Berlin.",
+    "Du bist selbstständig mit angemeldetem Gewerbe und kannst Rechnungen stellen.",
+    "Kurierfahrer in selbständig gesucht",
+    "Plattform, die Unternehmen mit selbstständigen und unabhängigen Fahrern verbindet.",
+    "Reinigung auf selbstständiger Basis.",
+])
+def test_contract_selbststaendig_is_self_employment(text: str) -> None:
+    signals = extract_employment_signals(text)
+    assert signals.self_employment_signals
+    assert signals.requires_self_employment
+
+
 @pytest.mark.parametrize("district", ["Adlershof", "Spandau", "Kreuzberg", "Friedrichshain", "Charlottenburg", "Neukölln"])
 def test_berlin_district_dictionary(district: str) -> None:
     assert canonical_city(district) == "berlin"

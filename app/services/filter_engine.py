@@ -131,9 +131,15 @@ class FilterEngine:
                 code="light_goods_transport_mismatch", label_ru="нет подтверждения перевозки товаров на лёгком автомобиле",
             ))
         elif resolved_signals.light_goods_transport_match == "adjacent":
-            review_hits.append(RuleHit(
-                code="light_goods_transport_review", label_ru="перевозка товаров подтверждается обязанностями: проверить основную работу",
-            ))
+            if any((record.body_text or "").strip() for record in canonical.source_records):
+                review_hits.append(RuleHit(
+                    code="light_goods_transport_review", label_ru="перевозка товаров подтверждается обязанностями: проверить основную работу",
+                ))
+            else:
+                review_hits.append(RuleHit(
+                    code="light_goods_transport_title_only",
+                    label_ru="описание не пришло — проверьте в оригинале тип машины (до 3,5 т или грузовик)",
+                ))
 
         if resolved_signals.excluded_role_hits:
             rejection_hits.append(RuleHit(code="excluded_role", label_ru="роль исключена профилем"))

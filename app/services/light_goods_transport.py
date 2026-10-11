@@ -40,6 +40,12 @@ _DUTY = re.compile(
     r"\b(?:sie|du)\s+(?:transportieren|transportierst|fahren|fahrst|liefern|lieferst|befordern|beforderst)\b"
     r"|\b(?:transport|auslieferung|beforderung)\s+von\s+(?:waren|gutern)\b"
 )
+# Заголовки, которые сами по себе называют развоз товаров. BA присылает только
+# заголовок, и подтвердить в нём «транспортер» нечем, поэтому без описания
+# такая вакансия идёт на проверку, а не скрывается. С описанием действует
+# обычное правило ниже. LKW/C1 в заголовке по-прежнему скрывает отдельный фильтр.
+_TITLE_ONLY_GOODS_DRIVER = re.compile(r"\b(?:auslieferungs|liefer|transport|boten)fahrer(?:in(?:nen)?)?\b")
+_TITLE_ONLY_HEAVY = re.compile(r"\b(?:\w*kraftfahrer\w*|lkw\w*|c1e?|ce|\d+\s*(?:t|tonn\w*))\b")
 _REGULAR = re.compile(r"\b(?:taglich|hauptaufgabe|hauptsachlich|regelma[ßs]+ig|feste\w*\s+touren)\b")
 _INCIDENTAL = re.compile(r"\b(?:gelegentlich|gelegentliche\w*|bei\s+bedarf|aushilfsweise|manchmal)\b")
 
@@ -84,6 +90,8 @@ def match_light_goods_transport(title: str, body: str = "") -> LightTransportMat
         return "none"
     if has_light_transport_title(title):
         return "target"
+    if not body_text and _TITLE_ONLY_GOODS_DRIVER.search(title_text) and not _TITLE_ONLY_HEAVY.search(title_text):
+        return "adjacent"
     if _DRIVER.search(title_text) and _positive(_LIGHT, combined) and _positive(_GOODS, combined):
         # Service and shuttle titles need actual transport duties, not company vocabulary.
         if re.search(r"\b(?:service|shuttle)fahrer", title_text) and not _DUTY.search(body_text):

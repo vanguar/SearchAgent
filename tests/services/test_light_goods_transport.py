@@ -20,6 +20,10 @@ def test_frozen_semantic_contract(case):
     result = FilterEngine().evaluate(group, PROFILE)
     if case["label"] == "GOOD":
         assert not result.hard_reject, result.rejection_hits
+    elif case["label"] == "REVIEW":
+        # Заголовок называет развоз, но описания нет: показать на проверку.
+        assert not result.hard_reject, result.rejection_hits
+        assert any(hit.code == "light_goods_transport_title_only" for hit in result.review_hits)
     else:
         assert result.hard_reject  # No light + goods evidence: not this specialization.
 
@@ -141,3 +145,26 @@ def test_optional_language_in_next_sentence_does_not_waive_ce():
 
 def test_profile_label_cannot_override_an_office_profession():
     assert classify_role_text("Sachbearbeiter Transporter Klasse B") != RoleFamily.LIGHT_GOODS_TRANSPORT
+
+
+@pytest.mark.parametrize("title", [
+    "Auslieferungsfahrer (m/w/d)", "Lieferfahrer Wäscherei (m/w/d)", "Botenfahrer/in / Fahrer/in",
+    "Transportfahrer/Transportfahrerin I Festanstellung (m/w/d)",
+])
+def test_goods_driver_title_without_description_goes_to_review(title):
+    result = evaluate(title)[1]
+    assert not result.hard_reject, result.rejection_hits
+    assert any(hit.code == "light_goods_transport_title_only" for hit in result.review_hits)
+
+
+@pytest.mark.parametrize("title", [
+    "Auslieferungsfahrer LKW 7,5 t (m/w/d)", "Auslieferungsfahrer C1 (m/w/d)", "Auslieferungsfahrer Pakete (m/w/d)",
+    "Auslieferungsfahrer PKW (m/w/d)", "Auslieferungsfahrer / Berufskraftfahrer (m/w/d)",
+    "Fahrer im Nahverkehr (m/w/d)", "Kraftfahrer gesucht", "Fahrer Speisenversorgung",
+])
+def test_title_only_review_keeps_heavy_parcel_transfer_and_generic_titles_hidden(title):
+    assert evaluate(title)[1].hard_reject
+
+
+def test_description_without_goods_evidence_still_decides_for_goods_driver_title():
+    assert evaluate("Transportfahrer (m/w/d)", "Sie befördern Personen mit dem Kleinbus.")[1].hard_reject

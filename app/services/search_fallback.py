@@ -270,6 +270,20 @@ LIGHT_TRANSPORT_QUERIES = (
 )
 
 
+# Малые города получают по два запроса. Живая проверка 2026-10-11 (Rostock,
+# Neubrandenburg, Neustrelitz, BA + Careerjet): "Sprinterfahrer" — 0 записей,
+# "Fahrer Klasse B Transporter" — 0–2, "Fahrer bis 3,5 t" — 4–6,
+# "Auslieferungsfahrer" — 24–28. В Берлине прежний порядок не меняется.
+LIGHT_TRANSPORT_SMALL_CITY_QUERIES = ("Fahrer bis 3,5 t", "Auslieferungsfahrer")
+
+
+def get_light_transport_small_city_queries() -> tuple[str, ...]:
+    return (
+        *LIGHT_TRANSPORT_SMALL_CITY_QUERIES,
+        *(query for query in LIGHT_TRANSPORT_QUERIES if query not in LIGHT_TRANSPORT_SMALL_CITY_QUERIES),
+    )
+
+
 def get_light_transport_query_representatives(primary: str) -> tuple[str, ...]:
     normalized = normalize_text_for_fingerprint(primary).replace(" ", "")
     for representative in LIGHT_TRANSPORT_QUERIES:

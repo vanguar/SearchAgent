@@ -47,8 +47,9 @@ def synthetic():
         "Paketzusteller Amazon", "Selbständiger Transporterfahrer mit Gewerbeschein",
         "Fahrzeugüberführer Klasse B",
     ]
-    ambig = ["Servicefahrer", "Shuttlefahrer", "Auslieferungsfahrer", "Fahrer im Regionalverkehr"]
-    cases = [(label, title, "") for label, titles in [("GOOD", good), ("BAD", bad), ("AMBIG", ambig)] for title in titles]
+    ambig = ["Servicefahrer", "Shuttlefahrer", "Fahrer im Regionalverkehr"]
+    review = ["Auslieferungsfahrer"]
+    cases = [(label, title, "") for label, titles in [("GOOD", good), ("BAD", bad), ("AMBIG", ambig), ("REVIEW", review)] for title in titles]
     cases += [
         ("BAD", "Lagermitarbeiter", "Gelegentlich fahren Sie einen Transporter. Waren im Lager kommissionieren."),
         ("GOOD", "Mitarbeiter Logistik", "Sie transportieren täglich Waren mit einem Sprinter zwischen unseren drei Standorten."),

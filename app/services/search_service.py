@@ -38,6 +38,7 @@ from app.services.search_fallback import (
     get_fallback_keywords,
     get_intent_fallback_keywords,
     get_light_transport_query_representatives,
+    get_light_transport_small_city_queries,
     get_profile_fallback_keywords,
     get_vehicle_query_representatives,
     is_low_language_profile,
@@ -500,11 +501,11 @@ class SearchService:
             # The largest requested city (GeoNames postal-code count, form order on ties)
             # gets every query family first; the smaller cities share what budget remains.
             anchor = max(cities, key=place_weight)
-            secondary_queries = get_light_transport_query_representatives("Sprinterfahrer") if light_transport else queries
+            secondary_queries = get_light_transport_small_city_queries() if light_transport else queries
             legs = tuple((query, anchor) for query in queries) + tuple(
                 (query, city) for query in secondary_queries for city in cities if city != anchor
             )
-            # Cover the anchor, then one transfer query or two light-goods queries per other city.
+            # Cover the anchor, then one transfer query or the two small-city light-goods queries per other city.
             # The shared call budget remains the upper bound for unusually large city lists.
             vehicle_min_legs = len(queries) + (2 if light_transport else 1) * (len(cities) - 1)
             fallback_keywords = tuple(query for query, _ in legs[1:])

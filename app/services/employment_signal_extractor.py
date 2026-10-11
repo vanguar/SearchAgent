@@ -63,13 +63,28 @@ _EMPLOYMENT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 
 # Самозанятость. Каждая форма — про то, что договор будет не трудовым.
 _SELF_EMPLOYMENT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    # "selbstständig" после свёртывания умлаутов даёт "selbststandig" — с двумя
-    # "st" подряд. Опциональная "s" покрывает и правильное написание, и частую
-    # опечатку "selbstandig".
-    ("selbstständige Basis", re.compile(r"\bselbst(?:st)?andig\w*\b|\bfreiberuflich\w*\b")),
+    # "selbstständig" само по себе чаще описывает стиль работы («selbstständig
+    # planen», «selbstständiges Be- und Entladen», «Selbstständigkeit, Sorgfalt»).
+    # О договоре говорит только связка: «auf selbstständiger Basis», «als
+    # Selbstständiger», «selbstständige Fahrer/Kurierfahrer/Lieferpartner».
+    # После свёртывания умлаутов получается "selbststandig"; опциональные "st" и
+    # "e" покрывают опечатку "selbstandig" и транслитерацию "selbstaendig".
+    # "b" — остаток подсветки <b> в сниппетах Careerjet («selbstständige <b>Fahrer</b>»).
+    (
+        "selbstständige Basis",
+        re.compile(
+            r"\b(?:auf|in)\s+selbst(?:st)?a(?:e)?ndig\w*\s+basis\b"
+            r"|\bals\s+selbst(?:st)?a(?:e)?ndige?r?\b(?!\s+arbeitend)"
+            r"|\bselbst(?:st)?a(?:e)?ndige[nr]?\s+(?:(?:und|b|unabhangige[nr]?|zuverlassige[nr]?)\s+){0,3}"
+            r"(?:\w*fahrer\w*|\w*kurier\w*|\w*partner\w*|\w*unternehmer\w*|dienstleister\w*)"
+            r"|\bselbst(?:st)?a(?:e)?ndig\s+(?:tatig\w*|mit\s+(?:\w+\s+)?gewerbe)\b"
+            r"|\bin\s+(?:die\s+)?selbst(?:st)?a(?:e)?ndig(?:keit)?\b"
+            r"|\bfreiberuflich\w*\b"
+        ),
+    ),
     ("Gewerbeschein", re.compile(r"\bgewerbeschein\w*\b|\bgewerbeanmeldung\b|\beigenes\s+gewerbe\b")),
     ("Subunternehmer", re.compile(r"\bsubunternehmer\w*\b|\bsub\s+unternehmer\b|\bnachunternehmer\w*\b")),
-    ("Honorarbasis", re.compile(r"\bhonorarbasis\b|\bauf\s+honorarbasis\b|\bhonorarvertrag\w*\b")),
+    ("Honorarbasis", re.compile(r"\bhonorarbasis\b|\bauf\s+honorarbasis\b|\bhonorarvertrag\w*\b|\bauf\s+auftragsbasis\b")),
     ("Werkvertrag", re.compile(r"\bwerkvertrag\w*\b|\bdienstvertrag\s+statt\s+arbeitsvertrag\b")),
     ("freelance", re.compile(r"\bfreelanc\w*\b|\bindependent contractor\b|\bself employed\b|\b1099\b")),
 )

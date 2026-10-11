@@ -44,12 +44,23 @@ def freeze_scoring_date(monkeypatch):
     monkeypatch.setattr("app.services.scorer.utc_now", lambda: datetime.fromisoformat(CAPTURE["timestamp"]))
 
 
+# BA без описания: заголовок называет развоз, тип машины не проверить —
+# такие идут на проверку, а не скрываются (решение пользователя 2026-10-11).
+_TITLE_ONLY_REVIEW = {
+    "transportfahrer transportfahrerin i festanstellung",
+    "botenfahrer fahrer",
+    "lieferfahrer spedition jugendbucher",
+}
+
+
 def test_target_recall_and_noise_protection_on_captured_api_records():
     for labels, group in _aligned(LABELS):
         label = labels[0]
         decision = explain_filter_decision(group, PROFILE)["final_decision"]
         if label["label"] == "TARGET":
             assert decision in {"hot", "maybe"}, group.normalized_title
+        elif label["label"] == "UNKNOWN" and group.normalized_title in _TITLE_ONLY_REVIEW:
+            assert decision == "maybe", group.normalized_title
         elif label["label"] in {"NOISE", "UNKNOWN"}:
             assert decision == "hard_hidden", group.normalized_title
         else:
@@ -76,18 +87,32 @@ _DRIVING_BASICS_HIDDEN_TITLE = "berufskraftfahrer im werksverkehr fernverkehr"
 _SCHOOL_TRANSPORT_TITLE = "fahrer schulerbeforderung potsdam und umland"
 # Transgourmet из BA (без текста) и та же вакансия Careerjet склеены в одну.
 _MERGED_TRANSGOURMET_TITLE = "kraftfahrer im lagerverkehr"
+# «selbstständige und sorgfältige Arbeitsweise», «arbeitest selbstständig»,
+# «Touren selbstständig planen» — стиль работы, а не самозанятость. Раньше эти
+# вакансии с обычным трудовым договором скрывались как Gewerbe.
+_WORK_STYLE_NOT_SELF_EMPLOYMENT = {
+    "auslieferungsfahrer fahrer klasse b tagestouren friesack bei berlin": ("hot", 88),
+    "fahrer driver kuhltransport 16 h good bank": ("hot", 85),
+    "fahrer fur baustellenlogistik transporter berlin": ("maybe", 67),
+    "kurier paketfahrer ab wustermark": ("maybe", 67),
+}
 _INTENDED_CHANGES = {
     "courier": {
         **_INTENDED_COURIER_NOISE_FIX, _UNCONFIRMED_RELIEF_TITLE: ("maybe", 77), _DRIVING_BASICS_TITLE: ("hot", 79),
         _DRIVING_BASICS_HIDDEN_TITLE: ("hard_hidden", 10),
         _SCHOOL_TRANSPORT_TITLE: ("hard_hidden", 35),
+        **_WORK_STYLE_NOT_SELF_EMPLOYMENT,
     },
     "fahrer_b": {
         **_INTENDED_COURIER_NOISE_FIX, _UNCONFIRMED_RELIEF_TITLE: ("maybe", 77), _DRIVING_BASICS_TITLE: ("hot", 79),
         _DRIVING_BASICS_HIDDEN_TITLE: ("hard_hidden", 10),
         _SCHOOL_TRANSPORT_TITLE: ("hard_hidden", 35),
+        **_WORK_STYLE_NOT_SELF_EMPLOYMENT,
     },
-    "vehicle_logistics": {_UNCONFIRMED_RELIEF_TITLE: ("hard_hidden", 27), _MERGED_TRANSGOURMET_TITLE: ("hard_hidden", 13)},
+    "vehicle_logistics": {
+        _UNCONFIRMED_RELIEF_TITLE: ("hard_hidden", 27), _MERGED_TRANSGOURMET_TITLE: ("hard_hidden", 13),
+        "werkstudent uberfuhrungsfahrer": ("maybe", 64),
+    },
     "warehouse": {_UNCONFIRMED_RELIEF_TITLE: ("hard_hidden", 4)},
 }
 

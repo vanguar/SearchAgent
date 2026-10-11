@@ -5,7 +5,11 @@ from unittest.mock import Mock
 
 import pytest
 from app.core.config import Settings
-from app.services.search_fallback import LIGHT_TRANSPORT_QUERIES, get_light_transport_query_representatives
+from app.services.search_fallback import (
+    LIGHT_TRANSPORT_QUERIES,
+    LIGHT_TRANSPORT_SMALL_CITY_QUERIES,
+    get_light_transport_query_representatives,
+)
 from app.services.search_service import SearchService, _FetchBudget
 from app.services.source_adapters.base import BaseSourceAdapter
 from app.services.source_adapters.models import AdapterSearchResponse, SourceRecordPreview, SourceSearchInput
@@ -54,7 +58,8 @@ def test_full_anchor_diversity_and_two_productive_queries_per_other_city(cities,
             (q, anchor) for q in get_light_transport_query_representatives(primary)
         ]
         for city in cities.split(", "):
-            assert {q.query for q in legs if q.location == city} >= set(LIGHT_TRANSPORT_QUERIES[:2])
+            if city != anchor:
+                assert {q.query for q in legs if q.location == city} >= set(LIGHT_TRANSPORT_SMALL_CITY_QUERIES)
     assert len(calls) <= 48
     assert max(Counter(s for s, _ in calls).values()) <= 24
     assert all(q.page == 1 and q.page_size == 25 for _, q in calls)
