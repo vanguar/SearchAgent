@@ -283,6 +283,15 @@ class RelevanceConfig:
     # Филиал в названии работодателя («Niederlassung Betrieb Ravensburg») дальше
     # этого расстояния от указанного места работы — место указано недостоверно.
     branch_city_conflict_km: float = 150.0
+    # Город работы, названный в тексте («für einen Kunden … in Güstrow»), дальше этого
+    # от места источника — работа там, а не в указанном городе.
+    text_workplace_conflict_km: float = 25.0
+    # Формулировки, которыми текст называет место работы; группа place — сам город.
+    # Ищутся по исходному тексту (с заглавными буквами): город — слово с заглавной.
+    text_workplace_patterns: tuple[str, ...] = (
+        r"\b(?:für|bei)\s+(?:einen|einem|unseren|unserem)\s+(?:\w+\s+){0,2}Kunden?\b[^.;!?]{0,80}?\bin\s+{place}",
+        r"\b(?:Einsatzort|Arbeitsort)\s*:?\s*(?:\d{5}\s+)?{place}",
+    )
     # «Дом с даты»: «2026-11-01=Neustrelitz; 2027-03-01=Rostock».
     home_city_schedule: str = ""
 
@@ -382,6 +391,7 @@ _ENV_NUMBERS: dict[str, str] = {
     "salary_yearly_max": "RELEVANCE_SALARY_YEARLY_MAX",
     "commute_average_speed_kmh": "RELEVANCE_COMMUTE_SPEED_KMH",
     "branch_city_conflict_km": "RELEVANCE_BRANCH_CITY_CONFLICT_KM",
+    "text_workplace_conflict_km": "RELEVANCE_TEXT_WORKPLACE_CONFLICT_KM",
     "commute_max_minutes_for_early_shift": "RELEVANCE_COMMUTE_MAX_MINUTES_EARLY_SHIFT",
     "early_shift_latest_hour": "RELEVANCE_EARLY_SHIFT_LATEST_HOUR",
     "staffing_agency_body_min_markers": "RELEVANCE_STAFFING_AGENCY_BODY_MIN_MARKERS",

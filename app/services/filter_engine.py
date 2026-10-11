@@ -14,6 +14,7 @@ from app.services.ai_tools_profile import (
 from app.services.commute_signals import commute_minutes
 from app.services.driver_license_signal_extractor import extract_profile_driver_license_categories
 from app.services.employment_signal_extractor import EMPLOYMENT_TYPE_LABELS_RU
+from app.services.geo_distance import distance_km, location_matches_city, resolve_point
 from app.services.hashers import normalize_text_for_fingerprint
 from app.services.it_candidate_eligibility import inspect_it_eligibility, is_it_candidate_profile
 from app.services.license_requirement_signals import covered_license_classes, has_truck_class, missing_truck_classes
@@ -329,6 +330,15 @@ class FilterEngine:
             # Заказаны конкретные города, а работа, судя по филиалу, далеко от них.
             target = rejection_hits if profile.search_cities else risk_hits
             target.append(RuleHit(code="employer_branch_location_conflict", label_ru=label))
+        elif resolved_signals.text_workplace_conflict is not None and not worldwide_search:
+            place, distance = resolved_signals.text_workplace_conflict
+            if not _place_within_requested_cities(place, profile):
+                label = (
+                    f"место работы по тексту объявления — {place}, "
+                    f"в {distance:.0f} км от места, указанного источником"
+                )
+                target = rejection_hits if profile.search_cities else risk_hits
+                target.append(RuleHit(code="text_workplace_location_conflict", label_ru=label))
 
         self_employment_hit = _self_employment_hit(resolved_signals, profile)
         if self_employment_hit is not None:
@@ -434,6 +444,22 @@ def _employment_type_hit(
     return RuleHit(
         code="employment_type_review",
         label_ru=f"занятость в вакансии — {vacancy_labels}, а в профиле выбрано: {profile_labels}",
+    )
+
+
+def _place_within_requested_cities(place: str, profile: SearchProfileContext) -> bool:
+    """Город из текста — один из заказанных (или в пределах радиуса вокруг них)."""
+    if not profile.search_cities:
+        return False
+    if any(location_matches_city(place, city) for city in profile.search_cities):
+        return True
+    radius_km = profile.search_radius_km or 0
+    if radius_km <= 0:
+        return False
+    place_point = resolve_point(city=place)
+    return any(
+        (distance := distance_km(place_point, resolve_point(city=city))) is not None and distance <= radius_km
+        for city in profile.search_cities
     )
 
 

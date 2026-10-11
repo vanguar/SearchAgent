@@ -1,4 +1,4 @@
-"""Складской прогон, второй заход: агентства по городам, признаки агентства в
+"""Складской прогон, второй и третий заходы: агентства по городам, признаки агентства в
 тексте, устаревшие объявления, отказы модели в сводке, «Kraftfahrer», расстояние
 до выбранного города и ограничения горячей категории."""
 from __future__ import annotations
@@ -9,6 +9,7 @@ from datetime import date
 import pytest
 from app.core.relevance_config import RelevanceConfig
 from app.services.employer_identity import employer_key
+from app.services.filter_engine import FilterEngine
 from app.services.posting_staleness import stale_posting_hit
 from app.services.rule_catalog import HOT_BUCKET_MIN_SCORE, inspect_vacancy
 from app.services.scorer import VacancyScorer
@@ -16,6 +17,7 @@ from app.services.search_models import FilterResult, ScoreResult, SearchResultIt
 from app.services.source_adapters.careerjet_adapter import _effective_company
 from app.services.staffing_agency import agency_brand_key, demote_staffing_agencies, staffing_agency_evidence
 from app.services.translation_quality import is_valid_summary
+from app.services.workplace_text import text_workplace_conflict
 from tests.services.relevance_support import build_canonical
 from tests.services.test_relevance_warehouse_run import _risk_codes, _warehouse_profile
 
@@ -165,3 +167,83 @@ def test_feedback_penalty_keeps_vacancy_out_of_hot() -> None:
 
     assert result.score < HOT_BUCKET_MIN_SCORE
     assert "feedback_penalty_review" in {hit.code for hit in result.negative_hits}
+
+
+# --- Третий заход: порядок агентств по баллу и место работы из текста ---
+
+def test_agency_tail_is_ordered_by_score_not_by_date() -> None:
+    low_fresh = dataclasses.replace(
+        _agency_item(1, "Randstad", city="berlin", posted=date(2026, 10, 9)),
+        score_result=ScoreResult(score=70),
+    )
+    high_old = dataclasses.replace(
+        _agency_item(2, "Tempton", city="berlin", posted=date(2026, 9, 1)),
+        score_result=ScoreResult(score=90),
+    )
+
+    ordered, _ = demote_staffing_agencies([low_fresh, high_old], config=RelevanceConfig(staffing_agency_policy="demote"))
+
+    assert [item.canonical_group.canonical_key for item in ordered] == ["canonical-a-2", "canonical-a-1"]
+
+
+_GUSTROW_TEXT = (
+    "Wir suchen eine/n Gabelstaplerfahrer/in (m/w/d) für einen Kunden in der Logistik- und "
+    "Materialwirtschaft in Güstrow, Mecklenburg-Vorpommern."
+)
+
+
+@pytest.mark.parametrize(
+    ("body", "location", "postal_code", "expected_place"),
+    [
+        (_GUSTROW_TEXT, "Kassebohm, Rostock", None, "Güstrow"),
+        ("Einsatzort: Hamburg Einsatzzeit: 10:00 - 20:00 Uhr", "Wedding, Berlin", None, "Hamburg"),
+        # Точный адрес источника надёжнее текста.
+        (_GUSTROW_TEXT, "18055 Rostock", "18055", None),
+        # Город из текста уже назван в локации («Britz, Berlin» — район Берлина).
+        ("Für unseren Kunden in Berlin suchen wir Lagerhelfer.", "Britz, Berlin", None, None),
+        # Рядом с указанным местом — противоречия нет.
+        ("Für unseren Kunden in Rostock suchen wir Lagerhelfer.", "Kassebohm, Rostock", None, None),
+        # Регион — не место работы.
+        ("Für einen Kunden in Mecklenburg-Vorpommern suchen wir.", "Rostock", None, None),
+    ],
+)
+def test_text_workplace_conflict(body: str, location: str, postal_code: str | None, expected_place: str | None) -> None:
+    city = location.split(",")[0].split()[-1]
+    conflict = text_workplace_conflict(body, city=city, postal_code=postal_code, location_text=location)
+    assert (conflict[0] if conflict else None) == expected_place
+
+
+def test_text_workplace_outside_requested_cities_is_hidden() -> None:
+    profile = _warehouse_profile(search_cities=("Rostock", "Berlin"))
+    canonical = build_canonical(
+        title="Gabelstaplerfahrer/-in für Schubmaststapler (m/w/d)", body=_GUSTROW_TEXT,
+        location="Kassebohm, Rostock", source_id="adzuna",
+    )
+    verdict = FilterEngine().evaluate(canonical, profile)
+
+    assert "text_workplace_location_conflict" in {hit.code for hit in verdict.rejection_hits}
+
+
+def test_text_workplace_inside_requested_cities_stays() -> None:
+    profile = _warehouse_profile(search_cities=("Rostock", "Güstrow"))
+    canonical = build_canonical(
+        title="Gabelstaplerfahrer/-in für Schubmaststapler (m/w/d)", body=_GUSTROW_TEXT,
+        location="Kassebohm, Rostock", source_id="adzuna",
+    )
+    verdict = FilterEngine().evaluate(canonical, profile)
+
+    assert "text_workplace_location_conflict" not in {hit.code for hit in verdict.rejection_hits}
+
+
+@pytest.mark.parametrize(
+    ("body", "location", "expected_place"),
+    [
+        # Текст называет и место источника — мест работы несколько, а не другое место.
+        ("Einsatzort: Hamburg Einsatzzeit: 10 Uhr. Medienabholung: 08.10.2026 in Berlin", "Wedding, Berlin", None),
+        # Земля в локации и в тексте — не город источника.
+        (_GUSTROW_TEXT, "Rostock, Mecklenburg-Vorpommern", "Güstrow"),
+    ],
+)
+def test_text_workplace_source_place_mentions(body: str, location: str, expected_place: str | None) -> None:
+    conflict = text_workplace_conflict(body, city=location.split(",")[0], postal_code=None, location_text=location)
+    assert (conflict[0] if conflict else None) == expected_place

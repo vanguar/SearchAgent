@@ -140,7 +140,13 @@ def demote_staffing_agencies(
         current = best_by_agency.get(key)
         if current is None or _freshness_rank(item) > _freshness_rank(current):
             best_by_agency[key] = item
-    kept = sorted(best_by_agency.values(), key=_freshness_rank, reverse=True)
+    # Какая вакансия остаётся от агентства, решает свежесть; порядок оставшихся в
+    # хвосте — балл, как и во всей выдаче: иначе 90 стояло после 79.
+    kept = sorted(
+        best_by_agency.values(),
+        key=lambda item: (item.score_result.score, _freshness_rank(item)),
+        reverse=True,
+    )
     kept_keys = {item.canonical_group.canonical_key for item in kept}
     dropped = tuple(item for item in agency_items if item.canonical_group.canonical_key not in kept_keys)
 

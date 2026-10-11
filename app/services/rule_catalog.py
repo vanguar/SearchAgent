@@ -8,6 +8,7 @@ from app.services.ai_tools_profile import is_ai_tools_profile
 from app.services.commute_signals import has_early_shift
 from app.services.driver_license_signal_extractor import extract_driver_license_requirements
 from app.services.employer_branch import branch_location_conflict
+from app.services.workplace_text import text_workplace_conflict
 from app.services.employment_signal_extractor import extract_employment_signals
 from app.services.geo_distance import (
     GeoPoint,
@@ -888,6 +889,7 @@ def inspect_vacancy(canonical: CanonicalVacancyGroup, profile: SearchProfileCont
         role_confirmed=role_confirmed,
         early_shift_signal=has_early_shift(raw_text),
         employer_branch_conflict=_employer_branch_conflict(canonical),
+        text_workplace_conflict=_text_workplace_conflict(canonical),
         apprenticeship_signal=_is_apprenticeship_title(title_text),
         light_goods_transport_match=light_match,
         combined_text=combined_text,
@@ -1241,6 +1243,20 @@ def _employer_branch_conflict(canonical: CanonicalVacancyGroup) -> tuple[str, fl
     for record in canonical.source_records:
         conflict = branch_location_conflict(
             record.original_company or record.normalized_company,
+            city=record.normalized_location.city,
+            postal_code=record.normalized_location.postal_code,
+            location_text=record.normalized_location.raw_text or record.original_location,
+        )
+        if conflict is not None:
+            return conflict
+    return None
+
+
+def _text_workplace_conflict(canonical: CanonicalVacancyGroup) -> tuple[str, float] | None:
+    """Текст называет место работы далеко от места источника (см. workplace_text)."""
+    for record in canonical.source_records:
+        conflict = text_workplace_conflict(
+            record.body_text,
             city=record.normalized_location.city,
             postal_code=record.normalized_location.postal_code,
             location_text=record.normalized_location.raw_text or record.original_location,

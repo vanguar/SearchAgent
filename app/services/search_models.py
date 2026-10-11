@@ -319,6 +319,8 @@ class VacancySignalSnapshot:
     # Филиал из названия работодателя далеко от указанного места работы:
     # (город филиала, расстояние в км). Источник, скорее всего, ошибся с местом.
     employer_branch_conflict: tuple[str, float] | None = None
+    # Город работы из текста («für einen Kunden … in Güstrow») далеко от места источника: (город, км).
+    text_workplace_conflict: tuple[str, float] | None = None
 
 
 @dataclass(frozen=True, slots=True)
