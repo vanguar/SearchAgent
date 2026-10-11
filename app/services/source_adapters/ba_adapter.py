@@ -216,16 +216,21 @@ def _extract_location(raw_item: Mapping[str, Any]) -> str | None:
 
 
 def _extract_publication_date(raw_item: Mapping[str, Any]) -> str | None:
-    direct = (
-        _to_text(raw_item.get("aktuelleVeroeffentlichungsdatum"))
-        or _to_text(raw_item.get("datumErsteVeroeffentlichung"))
-    )
-    if direct:
-        return direct
+    current = _to_text(raw_item.get("aktuelleVeroeffentlichungsdatum"))
+    if current:
+        return current
     publication_range = raw_item.get("veroeffentlichungszeitraum")
-    if isinstance(publication_range, Mapping):
-        return _to_text(publication_range.get("von"))
-    return None
+    first = _to_text(raw_item.get("datumErsteVeroeffentlichung")) or (
+        _to_text(publication_range.get("von")) if isinstance(publication_range, Mapping) else None
+    )
+    # BA отдаёт только открытые вакансии. Объявление 2025 года, изменённое
+    # работодателем вчера, живое, и по первой публикации его нельзя считать
+    # устаревшим. Берётся более поздняя из двух дат (обе в ISO, сравнимы строкой).
+    changed = _to_text(raw_item.get("aenderungsdatum"))
+    changed_day = changed[:10] if changed else None
+    if first and changed_day:
+        return max(first[:10], changed_day)
+    return first or changed_day
 
 
 def _format_location(raw_location: Any) -> str | None:

@@ -6,7 +6,7 @@ import pytest
 from app.core.config import Settings
 from app.services.search_models import SearchProfileContext
 from app.services.search_service import SearchService
-from app.services.source_adapters.ba_adapter import BAAdapter
+from app.services.source_adapters.ba_adapter import BAAdapter, _extract_publication_date
 from app.services.source_adapters.errors import (
     AdapterRequestError,
     AdapterResponseError,
@@ -336,3 +336,18 @@ def test_ba_adapter_reports_malformed_json_as_response_error() -> None:
         adapter.search(SourceSearchInput(query="Fahrer Klasse B"))
 
     assert "некорректный JSON" in exc_info.value.message
+
+
+@pytest.mark.parametrize(
+    ("raw_item", "expected"),
+    [
+        # Открытое объявление 2025 года, изменённое недавно, — живое.
+        ({"datumErsteVeroeffentlichung": "2025-09-08", "aenderungsdatum": "2026-09-28T07:57:26.892"}, "2026-09-28"),
+        ({"datumErsteVeroeffentlichung": "2026-10-01", "aenderungsdatum": "2026-09-30T10:00:00"}, "2026-10-01"),
+        ({"veroeffentlichungszeitraum": {"von": "2025-04-04"}, "aenderungsdatum": "2025-08-14T14:05:21"}, "2025-08-14"),
+        ({"aktuelleVeroeffentlichungsdatum": "2026-10-05", "aenderungsdatum": "2026-10-09T08:00:00"}, "2026-10-05"),
+        ({"datumErsteVeroeffentlichung": "2026-10-02"}, "2026-10-02"),
+    ],
+)
+def test_ba_publication_date_uses_latest_activity(raw_item: dict[str, Any], expected: str) -> None:
+    assert _extract_publication_date(raw_item) == expected
