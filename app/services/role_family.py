@@ -194,6 +194,9 @@ _TITLE_DE_TOKENS: list[tuple[RoleFamily, tuple[str, ...]]] = [
         "sicherheitsmitarbeiter", "sicherheitsdienst", "security", "wachschutz", "bewachung",
     )),
     (RoleFamily.OFFICE, (
+        # Диспетчер планирует рейсы за столом: «Disponent Fahrdienst» — офис, а
+        # не вождение. Решает позиция: «Fahrer / Disponent» остаётся водительской.
+        "disponent", "dispatcher",
         "buchhalter", "buchhaltung", "sachbearbeiter", "assistenz", "verwaltung", "kaufm", "controlling",
         "customer support", "customer service", "support specialist", "kundenservice", "kundenbetreuung",
     )),

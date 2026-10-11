@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import pytest
+from app.services.hashers import normalize_text_for_fingerprint
 from app.services.role_family import (
     RoleFamily,
     classify_desired_roles,
@@ -456,3 +457,12 @@ def test_earliest_word_in_the_title_decides_the_family() -> None:
 def test_equal_position_falls_back_to_list_order() -> None:
     """В "Staplerfahrer" оба слова начинаются с нуля — решает порядок списка."""
     assert classify_vacancy_de("staplerfahrer") is RoleFamily.WAREHOUSE
+
+
+@pytest.mark.parametrize(("title", "family"), [
+    ("Disponent (m/w/d) Fahrdienst", RoleFamily.OFFICE),
+    ("Disponent Nahverkehr (m/w/d)", RoleFamily.OFFICE),
+    ("Fahrer / Disponent (m/w/d)", RoleFamily.DRIVING),
+])
+def test_dispatcher_is_office_unless_driving_comes_first(title: str, family: RoleFamily) -> None:
+    assert classify_vacancy_de(normalize_text_for_fingerprint(title)) == family
