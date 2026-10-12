@@ -62,7 +62,7 @@
     <dt>Немецкий в профиле</dt>
     <dd>
       {{ p.german_level or "не указан" }}
-      {%- if p.strict_match_mode != 'off' %}, строгий отбор: {{ 'до A1' if p.strict_match_mode == 'a1' else 'без немецкого' }}; неподтверждённые условия скрываются{% endif %}
+      {%- if p.strict_match_mode != 'off' %}, строгий отбор: {{ 'до A1' if p.strict_match_mode == 'a1' else 'без немецкого' }}; неясные условия — на проверку{% endif %}
       {%- if p.no_german_required %}, вакансии с обязательным немецким скрываются{% endif %}
     </dd>
 

@@ -106,12 +106,13 @@ _DISPLAYED_BUCKETS: frozenset[SearchBucket] = frozenset({"hot", "maybe"})
 class _FetchBudget:
     """Per-run request bound and circuit breaker, shared by fallback attempts."""
 
-    def __init__(self, *, vehicle_diversity: bool = False, diversity_queries: tuple[str, ...] = ()) -> None:
+    def __init__(self, *, vehicle_diversity: bool = False, diversity_queries: tuple[str, ...] = (), first_page_only: bool = False) -> None:
         self._lock = threading.Lock()
         self._total = 0
         self._counts: Counter[str] = Counter()
         self._blocked: set[str] = set()
         self.vehicle_diversity = vehicle_diversity
+        self.first_page_only = first_page_only
         self._vehicle_families: set[str] = set()
         self._empty_arbeitnow_queries: set[str] = set()
         self._required_queries = frozenset(normalize_text_for_fingerprint(q) for q in diversity_queries)
@@ -232,7 +233,7 @@ class SearchService:
             )
         else:
             repeated_source_ids = ()
-        fetch_budget = fetch_budget or _FetchBudget()
+        fetch_budget = fetch_budget or _FetchBudget(first_page_only=resolved_profile.strict_match_mode != "off")
         outcomes: dict[str, tuple[AdapterSearchResponse | None, SearchSourceState | None]] = {}
         if active_source_ids and fetch_budget.vehicle_diversity:
             # Stable priority matters when the last few budget slots are contested.
@@ -532,6 +533,7 @@ class SearchService:
         fetch_budget = _FetchBudget(
             vehicle_diversity=vehicle_diversity,
             diversity_queries=queries if vehicle_diversity and light_transport else (),
+            first_page_only=resolved_profile.strict_match_mode != "off",
         )
 
         def _merge_attempts(results: list[SearchRunResult]) -> SearchRunResult:
@@ -1226,7 +1228,7 @@ class SearchService:
         seen: set[str] = set()
         warnings: list[str] = []
         first: AdapterSearchResponse | None = None
-        page_limit = 1 if budget.vehicle_diversity else min(4, max(1, self._max_pages))
+        page_limit = 1 if budget.vehicle_diversity or budget.first_page_only else min(4, max(1, self._max_pages))
         for offset in range(page_limit):
             if stop_event is not None and stop_event.is_set():
                 break
