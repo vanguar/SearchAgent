@@ -5,6 +5,9 @@
   <div class="pcard__main">
     <div class="pcard__titlerow">
       <h3 class="pcard__title">{{ entry.profile.name }}</h3>
+      {% if entry.profile.strict_match_mode and entry.profile.strict_match_mode != 'off' %}
+      <span class="pcard-badge">Строгий отбор · {{ 'до A1' if entry.profile.strict_match_mode == 'a1' else 'без немецкого' }}</span>
+      {% endif %}
       {% if entry.is_default %}
       <span class="pcard-badge pcard-badge--default">По умолчанию</span>
       {% endif %}

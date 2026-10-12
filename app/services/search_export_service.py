@@ -127,6 +127,7 @@ def _profile_section(profile: SearchProfileContext) -> dict[str, Any]:
         "german_level": profile.german_level,
         "english_level": profile.english_level,
         "no_german_required": profile.no_german_required,
+        "strict_match_mode": profile.strict_match_mode,
         "section24_interpreted": profile.section24_interpreted,
         "desired_roles": list(profile.desired_roles),
         "excluded_roles": list(profile.excluded_roles),

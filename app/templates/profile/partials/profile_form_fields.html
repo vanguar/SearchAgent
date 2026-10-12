@@ -123,6 +123,28 @@
 
 <div class="pf-sections">
 
+<fieldset class="pf-section" id="pf-sec-matching">
+  <legend class="pf-sr">Точность подбора</legend>
+  <div class="pf-section__head">
+    <h3 class="pf-section__title">Точность подбора</h3>
+    <p class="pf-section__note">Настройка действует только для этого профиля поиска.</p>
+  </div>
+  {% set mode = p.strict_match_mode if p is not none else 'off' %}
+  <div class="pf-grid">
+    {# A default search policy is not a filled-in personal criterion. #}
+    <div class="pf-field pf-field--wide">
+      <div class="pf-field__head"><span class="pf-label" id="pf-strict-match-label">Режим отбора</span></div>
+      <div class="pf-chips" role="radiogroup" aria-labelledby="pf-strict-match-label">
+        {% for value, label in strict_match_choices %}
+        <label class="pf-chip"><input type="radio" name="strict_match_mode" value="{{ value }}" {% if mode == value %}checked{% endif %} /><span>{{ label }}</span></label>
+        {% endfor %}
+      </div>
+      <p class="pf-hint">В строгом режиме нужны полное описание, подтверждённые город, профессия и допустимый язык. Для работы водителем проверяются категории прав. Неясные условия скрываются; результатов может не быть. «Базовый немецкий» без уточнения A1 недостаточен.</p>
+      <p class="pf-hint">Заполните профессии и города ниже. Для поиска только в городах выберите радиус «Только эти города». Уровни языка и статус в общей анкете не меняются. Отбор по объявлению не гарантирует трудоустройство.</p>
+    </div>
+  </div>
+</fieldset>
+
 <fieldset class="pf-section" id="pf-sec-basic">
   <legend class="pf-sr">Основное</legend>
   <div class="pf-section__head">

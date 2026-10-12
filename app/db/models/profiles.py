@@ -39,6 +39,7 @@ class SearchProfile(TimestampMixin, Base):
     driver_license: Mapped[str | None] = mapped_column(String(32))
     car_available: Mapped[bool | None] = mapped_column(Boolean)
     no_german_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    strict_match_mode: Mapped[str] = mapped_column(String(32), nullable=False, default="off", server_default="off")
     notes: Mapped[str | None] = mapped_column(Text)
     search_query_de: Mapped[str | None] = mapped_column(String(512))
     search_location_de: Mapped[str | None] = mapped_column(String(255))

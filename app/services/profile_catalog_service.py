@@ -36,6 +36,7 @@ class SearchProfileCreateSpec:
     driver_license: str | None = None
     car_available: bool | None = None
     no_german_required: bool = False
+    strict_match_mode: str = "off"
     notes: str | None = None
     search_query_de: str | None = None
     search_location_de: str | None = None
@@ -119,6 +120,7 @@ class ProfileCatalogService:
                 driver_license=spec.driver_license,
                 car_available=spec.car_available,
                 no_german_required=spec.no_german_required,
+                strict_match_mode=spec.strict_match_mode,
                 notes=spec.notes,
                 search_query_de=(spec.search_query_de or spec.search_query_terms[0]).strip(),
                 search_location_de=spec.search_location_de,
@@ -186,6 +188,7 @@ class ProfileCatalogService:
                 driver_license=source.driver_license,
                 car_available=source.car_available,
                 no_german_required=source.no_german_required,
+                strict_match_mode=source.strict_match_mode,
                 notes=source.notes,
                 search_query_terms=list(source.search_query_terms) if source.search_query_terms else None,
                 search_query_de=source.search_query_de,
@@ -296,6 +299,7 @@ class ProfileCatalogService:
                 # становится им, потому что иначе поиск не знал бы, что открывать.
                 is_default=not self._has_any_profile(db),
                 no_german_required=fields.no_german_required,
+                strict_match_mode=fields.strict_match_mode,
             )
             db.add(profile)
             db.flush()
@@ -409,6 +413,8 @@ class ProfileCatalogService:
             target.housing_needed = fields.housing_needed
         if fields.was_submitted("start_availability_text"):
             target.start_availability_text = fields.start_availability_text
+        if fields.was_submitted("strict_match_mode"):
+            target.strict_match_mode = fields.strict_match_mode
         if fields.was_submitted("no_german_required"):
             target.no_german_required = fields.no_german_required
         if fields.was_submitted("notes"):

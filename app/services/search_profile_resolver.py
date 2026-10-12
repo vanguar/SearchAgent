@@ -133,6 +133,7 @@ class DatabaseSearchProfileResolver:
                 notes=getattr(search_profile, "notes", None),
                 driver_license=getattr(search_profile, "driver_license", None),
                 no_german_required=bool(search_profile.no_german_required),
+                strict_match_mode=getattr(search_profile, "strict_match_mode", "off"),
                 section24_interpreted=legal_status.section24,
                 search_query_terms=tuple(search_profile.search_query_terms or ()),
                 additional_search_terms=tuple(getattr(search_profile, "additional_search_terms", None) or ()),

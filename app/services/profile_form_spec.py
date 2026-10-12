@@ -17,6 +17,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from app.services.employment_signal_extractor import EMPLOYMENT_TYPE_LABELS_RU, EMPLOYMENT_TYPE_ORDER
+from app.services.strict_match_policy import validate_strict_match_mode
 
 # Разделители, которыми человек перечисляет несколько значений в одном поле.
 _LIST_SPLIT_RE = re.compile(r"[,;\n]+")
@@ -80,6 +81,7 @@ class ProfileFormFields:
     housing_needed: bool | None = None
     start_availability_text: str | None = None
     no_german_required: bool = False
+    strict_match_mode: str = "off"
     notes: str | None = None
     # Поля, реально присутствовавшие в форме. Нужны обновлению: отсутствующее поле
     # не трогается, а присутствующее и пустое — очищается. Без этого различия
@@ -119,6 +121,7 @@ def parse_profile_form(form_data: Mapping[str, object]) -> ProfileFormFields:
         housing_needed=_tristate(form_data, "housing_needed"),
         start_availability_text=_text(form_data, "start_availability_text"),
         no_german_required=_checkbox(form_data, "no_german_required"),
+        strict_match_mode=validate_strict_match_mode(form_data.get("strict_match_mode", "off")),
         notes=_text(form_data, "notes"),
         present_fields=frozenset(present),
     )
@@ -149,6 +152,7 @@ _FIELD_NAMES: frozenset[str] = frozenset({
     "housing_needed",
     "start_availability_text",
     "no_german_required",
+    "strict_match_mode",
     "notes",
 })
 _CHECKBOX_MARKERS: dict[str, str] = {

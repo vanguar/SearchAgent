@@ -44,6 +44,7 @@ from app.services.search_models import (
     profile_role_texts,
 )
 from app.services.search_normalizer import is_remote_worldwide_location
+from app.services.strict_matching import strict_matching_rejections
 from app.services.transport_mode_signals import (
     TRANSPORT_MODE_LABELS_RU,
     TransportModeSignals,
@@ -367,6 +368,12 @@ class FilterEngine:
             build_raw_analysis_text(canonical), profile,
             immediate_start=resolved_signals.immediate_start_signal,
         ))
+
+        if profile.strict_match_mode != "off":
+            rejection_hits.extend(strict_matching_rejections(
+                canonical, profile, resolved_signals, review_hits=tuple(review_hits),
+                worldwide_search=worldwide_search,
+            ))
 
         decision = "allow"
         if rejection_hits:

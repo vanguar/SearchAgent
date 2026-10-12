@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from app.schemas.base import ORMBaseSchema
 
@@ -35,6 +36,7 @@ class SearchProfileSchema(ORMBaseSchema):
     driver_license: str | None = None
     car_available: bool | None = None
     no_german_required: bool = False
+    strict_match_mode: Literal["off", "no_german", "a1"] = "off"
     notes: str | None = None
     created_at: datetime
     updated_at: datetime

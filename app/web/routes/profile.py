@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 from starlette.datastructures import FormData
@@ -17,6 +17,7 @@ from app.services.profile_form_spec import (
     TRANSPORT_MODE_CHOICES,
     parse_profile_form,
 )
+from app.services.strict_match_policy import STRICT_MATCH_CHOICES
 from app.web.deps import get_profile_catalog_service
 from app.web.form_utils import read_form_data
 from app.web.profile_labels import LEGAL_STATUS_LABELS, legal_status_label
@@ -31,6 +32,7 @@ router = APIRouter(tags=["web-profile"])
 def _form_context(profile: object | None) -> dict[str, object]:
     return {
         "profile": profile,
+        "strict_match_choices": STRICT_MATCH_CHOICES,
         "radius_options": SEARCH_RADIUS_OPTIONS,
         "employment_choices": EMPLOYMENT_TYPE_CHOICES,
         "driver_license_options": DRIVER_LICENSE_OPTIONS,
@@ -109,7 +111,10 @@ async def profile_new_submit(
     catalog_service: ProfileCatalogService = Depends(get_profile_catalog_service),
 ) -> Response:
     form_data: FormData = await read_form_data(request)
-    fields = parse_profile_form(form_data)
+    try:
+        fields = parse_profile_form(form_data)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     created = catalog_service.create_profile_from_form(db, fields=fields)
     if created is None:
         # Форма возвращается заполненной: у разобранных полей те же имена, что у
@@ -196,7 +201,10 @@ async def profile_edit_submit(
     catalog_service: ProfileCatalogService = Depends(get_profile_catalog_service),
 ) -> RedirectResponse:
     form_data: FormData = await read_form_data(request)
-    fields = parse_profile_form(form_data)
+    try:
+        fields = parse_profile_form(form_data)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     existing = catalog_service.get_profile(db, profile_id=profile_id)
     if existing is not None and form_data.get("driver_license") == existing.driver_license:
         fields = replace(fields, driver_license=existing.driver_license)

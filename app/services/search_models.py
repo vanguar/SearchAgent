@@ -75,6 +75,7 @@ class SearchProfileContext:
     start_availability_text: str | None = None
     notes: str | None = None
     no_german_required: bool = False
+    strict_match_mode: str = "off"
     section24_interpreted: bool = False
     search_query_terms: tuple[str, ...] = ()
     # Ключевые слова, которые пробуются ПОСЛЕ основных: человек дописал их сам,
