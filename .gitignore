@@ -18,6 +18,7 @@ venv/
 *.egg-info/
 
 # Local data
+logs/
 *.sqlite3
 *.db
 

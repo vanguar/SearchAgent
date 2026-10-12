@@ -3,6 +3,7 @@ from __future__ import annotations
 import dataclasses
 import re
 import threading
+import time
 from collections import Counter
 from collections.abc import Callable, Iterator, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -211,6 +212,7 @@ class SearchService:
             profile or self.get_profile_context(profile_id=profile_id), search_input
         )
         resolved_source_ids = self._resolve_source_ids(source_ids)
+        started = time.perf_counter()
 
         fetched_records: list[SourceRecordPreview] = []
         successful_responses: list[AdapterSearchResponse] = []
@@ -256,6 +258,7 @@ class SearchService:
                         running_total += len(response.records)
                         progress_callback("fetch", running_total, response.source_name, search_input.query)
 
+        fetch_ms = _elapsed_ms(started)
         for source_id in active_source_ids:
             response, failed = outcomes.get(source_id, (None, None))
             if response is not None:
@@ -298,6 +301,7 @@ class SearchService:
         if progress_callback is not None:
             progress_callback("postprocess", len(fetched_records), None, search_input.query)
 
+        processing_started = time.perf_counter()
         aggregated_response = AdapterSearchResponse(
             source_id="phase7",
             source_name="PHASE 7 Search Orchestration",
@@ -363,6 +367,20 @@ class SearchService:
             normalized_records=processed.normalized_records,
             canonical_groups=processed.canonical_groups,
         )
+        logger.info(
+            "search_timing query=%r location=%r fetch_ms=%d processing_ms=%d raw=%d canonical=%d "
+            "visible=%d hidden=%d sources_ok=%d sources_failed=%d",
+            search_input.query,
+            search_input.location,
+            fetch_ms,
+            _elapsed_ms(processing_started),
+            len(fetched_records),
+            len(processed.canonical_groups),
+            len(ordered_results),
+            len(hidden_filtered_items),
+            len(successful_responses),
+            len(failed_states),
+        )
 
         return SearchRunResult(
             profile=resolved_profile,
@@ -398,6 +416,7 @@ class SearchService:
         feedback_memory: ProfileFeedbackMemory | None = None,
     ) -> SearchRunResult:
         """Run explicit terms and optional expansion; merge results with attempt metadata."""
+        run_started = time.perf_counter()
         # Города заказа: поле формы читается один раз, дальше и веер, и фильтр,
         # и разбивка выдачи опираются на один и тот же разобранный список.
         search_cities = parse_search_cities(search_input.location)
@@ -634,12 +653,26 @@ class SearchService:
             )
             partial_result_callback(dataclasses.replace(partial_result, attempt_summary=partial_summary))
 
+        def _run_timed(query: str) -> SearchRunResult:
+            # Одна попытка — это один поисковый запрос по всем городам заказа.
+            attempt_started = time.perf_counter()
+            result = _run(query)
+            logger.info(
+                "search_attempt_timing query=%r cities=%d elapsed_ms=%d raw=%d canonical=%d",
+                query,
+                len(search_cities) or 1,
+                _elapsed_ms(attempt_started),
+                result.total_raw_records,
+                result.total_canonical_results,
+            )
+            return result
+
         # --- Primary attempt ---
         logger.info(
             "search_orchestrator stage=primary query=%r effective=%r location=%r source_ids=%s profile_id=%s",
             primary_query, effective_primary_query, search_input.location, resolved_source_ids, profile_id,
         )
-        r0 = _run(effective_primary_query)
+        r0 = _run_timed(effective_primary_query)
         attempt_results.append(r0)
         accumulated = r0
         primary_sufficient = _is_enough(r0)
@@ -688,7 +721,7 @@ class SearchService:
                 "search_orchestrator stage=%s query=%r location=%r lang_relax=%s source_ids=%s profile_id=%s",
                 stage, kw, search_input.location, lang_relax, resolved_source_ids, profile_id,
             )
-            r = _run(kw)
+            r = _run_timed(kw)
             attempt_results.append(r)
             accumulated = _merge_attempts(attempt_results)
             rec = _record(
@@ -738,7 +771,7 @@ class SearchService:
                     "search_orchestrator stage=llm_1 query=%r location=%r lang_relax=%s source_ids=%s profile_id=%s",
                     llm_kw, search_input.location, lang_relax, resolved_source_ids, profile_id,
                 )
-                r = _run(llm_kw)
+                r = _run_timed(llm_kw)
                 attempt_results.append(r)
                 accumulated = _merge_attempts(attempt_results)
                 rec = _record(r, "llm_1", llm_kw, lang_relax, None, attempt_num, primary_query)
@@ -758,7 +791,9 @@ class SearchService:
         result_for_summary = accumulated
         # Enrich once: only the merged displayed (hot+maybe) results get LLM
         # translation/summaries. Everything above ran deterministically for speed.
+        enrich_started = time.perf_counter()
         result_for_summary = self._enrich_run_result(result_for_summary)
+        enrich_ms = _elapsed_ms(enrich_started)
         executed_queries = {attempt.query_used.strip().casefold() for attempt in attempt_records}
         query_label = (
             "all profile queries" if profile_terms and not vehicle_diversity and explicit_keywords <= executed_queries
@@ -793,6 +828,17 @@ class SearchService:
                     best_result=result_for_summary,
                 )
             ),
+        )
+        logger.info(
+            "search_run_timing total_ms=%d attempts=%d llm_enrichment_ms=%d stop_reason=%s "
+            "hot=%d review=%d profile_id=%s",
+            _elapsed_ms(run_started),
+            len(attempt_records),
+            enrich_ms,
+            stop_reason,
+            len(result_for_summary.hot_results),
+            len(result_for_summary.maybe_results),
+            profile_id,
         )
         return dataclasses.replace(
             result_for_summary,
@@ -979,6 +1025,7 @@ class SearchService:
             return result
 
         enriched_by_key: dict[str, SearchResultItem] = {}
+        started = time.perf_counter()
         max_workers = min(len(display_items), _MAX_ENRICH_WORKERS)
         with ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="llm-enrich") as pool:
             future_to_key = {
@@ -992,6 +1039,13 @@ class SearchService:
                 except Exception:
                     # A single enrichment failure must not drop the card — keep it deterministic.
                     logger.warning("llm_enrichment_failed canonical_key=%s", key)
+        logger.info(
+            "llm_enrichment_done cards=%d enriched=%d workers=%d elapsed_ms=%d",
+            len(display_items),
+            len(enriched_by_key),
+            max_workers,
+            _elapsed_ms(started),
+        )
 
         if not enriched_by_key:
             return result
@@ -1085,6 +1139,7 @@ class SearchService:
         Safe to run from a worker thread: adapters are stateless and share no mutable state.
         """
         descriptor: SourceAdapterDescriptor | None = None
+        started = time.perf_counter()
         try:
             adapter = self.registry.get(source_id)
             descriptor = adapter.describe()
@@ -1103,9 +1158,13 @@ class SearchService:
             response = self._fetch_source_pages(adapter, search_input, stop_event, fetch_budget)
         except SourceAdapterError as exc:
             logger.warning(
-                "source_adapter_error source_id=%s source_name=%r code=%s retryable=%s message=%r",
+                "source_adapter_error source_id=%s source_name=%r query=%r location=%r elapsed_ms=%d "
+                "code=%s retryable=%s message=%r",
                 exc.source_id,
                 exc.source_name,
+                search_input.query,
+                search_input.location,
+                _elapsed_ms(started),
                 exc.code,
                 exc.retryable,
                 exc.message,
@@ -1119,7 +1178,9 @@ class SearchService:
             )
         except Exception:
             source_name = descriptor.display_name if descriptor is not None else source_id.upper()
-            logger.exception("search_service_unexpected_error source_id=%s", source_id)
+            logger.exception(
+                "search_service_unexpected_error source_id=%s elapsed_ms=%d", source_id, _elapsed_ms(started)
+            )
             return None, SearchSourceState(
                 source_id=source_id,
                 source_name=source_name,
@@ -1129,10 +1190,13 @@ class SearchService:
             )
 
         logger.info(
-            "source_adapter_success source_id=%s source_name=%r raw=%d total=%s "
-            "page=%d page_size=%d warnings=%d raw_payload=%s",
+            "source_adapter_success source_id=%s source_name=%r query=%r location=%r elapsed_ms=%d "
+            "raw=%d total=%s page=%d page_size=%d warnings=%d raw_payload=%s",
             response.source_id,
             response.source_name,
+            search_input.query,
+            search_input.location,
+            _elapsed_ms(started),
             len(response.records),
             response.total_count,
             response.page,
@@ -1397,6 +1461,11 @@ class SearchService:
             )
 
         return tuple(sorted(states, key=lambda state: (state.error_message is not None, state.source_id)))
+
+
+def _elapsed_ms(started: float) -> int:
+    """Миллисекунды с момента started (time.perf_counter) — для строк лога о времени."""
+    return int((time.perf_counter() - started) * 1000)
 
 
 def _log_attempt_result(

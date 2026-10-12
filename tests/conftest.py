@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import tempfile
 from collections.abc import Generator
 from datetime import UTC, datetime
 
@@ -20,6 +21,8 @@ from sqlalchemy.pool import StaticPool
 # (расписание переезда, переопределения RELEVANCE_*) не должен менять результат.
 # Конфиг читается лениво при первом обращении, поэтому сбросить можно после импортов.
 os.environ["HOME_CITY_SCHEDULE"] = ""
+# Тестовые приложения пишут лог во временную папку, а не в logs/ проекта.
+os.environ["SMARTJOB_LOG_DIR"] = tempfile.mkdtemp(prefix="smartjob-test-logs-")
 os.environ.pop("RELEVANCE_CONFIG_FILE", None)
 for _name in [name for name in os.environ if name.startswith("RELEVANCE_")]:
     del os.environ[_name]
