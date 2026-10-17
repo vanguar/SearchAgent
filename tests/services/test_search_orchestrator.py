@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import itertools
+import threading
 from dataclasses import replace
 from unittest.mock import MagicMock
 
@@ -102,6 +103,28 @@ def _make_service(search_side_effect: list[SearchRunResult], llm_client=None) ->
         effect = iter(())
     svc.search = MagicMock(side_effect=effect)
     return svc
+
+
+def test_stop_returns_collected_results_without_llm_or_more_queries() -> None:
+    collected = _make_result(hot=1, maybe=1)
+    stop_event = threading.Event()
+    llm = MagicMock()
+    service = _make_service([collected], llm_client=llm)
+    service._enrich_item = MagicMock(side_effect=lambda item, **kwargs: item)
+
+    result = service.orchestrated_search(
+        search_input=_make_search_input(),
+        stop_event=stop_event,
+        partial_result_callback=lambda result: stop_event.set(),
+    )
+
+    assert [item.canonical_group.canonical_key for item in result.results] == [
+        item.canonical_group.canonical_key for item in collected.results
+    ]
+    assert result.attempt_summary.stop_reason == "cancelled"
+    assert service.search.call_count == 1
+    service._enrich_item.assert_not_called()
+    llm.suggest_fallback_keywords.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

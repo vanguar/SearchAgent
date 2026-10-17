@@ -6,7 +6,7 @@ import threading
 import time
 from collections import Counter
 from collections.abc import Callable, Iterator, Sequence
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, as_completed, wait
 from typing import TYPE_CHECKING
 
 from app.core.config import Settings
@@ -640,11 +640,9 @@ class SearchService:
         def _publish_partial() -> None:
             if partial_result_callback is None or not attempt_results:
                 return
-            partial_result = (
-                _merge_attempts(attempt_results)
-                if len(attempt_results) > 1
-                else attempt_results[0]
-            )
+            # The accumulated result has already been merged and rescored. Publishing
+            # it must not repeat that expensive pass while the user waits to stop.
+            partial_result = accumulated
             partial_summary = SearchAttemptSummary(
                 primary_query=primary_query,
                 final_query_used="in progress",
@@ -794,7 +792,7 @@ class SearchService:
         # Enrich once: only the merged displayed (hot+maybe) results get LLM
         # translation/summaries. Everything above ran deterministically for speed.
         enrich_started = time.perf_counter()
-        result_for_summary = self._enrich_run_result(result_for_summary)
+        result_for_summary = self._enrich_run_result(result_for_summary, stop_event=stop_event)
         enrich_ms = _elapsed_ms(enrich_started)
         executed_queries = {attempt.query_used.strip().casefold() for attempt in attempt_records}
         query_label = (
@@ -1013,14 +1011,16 @@ class SearchService:
             )
         )
 
-    def _enrich_run_result(self, result: SearchRunResult) -> SearchRunResult:
+    def _enrich_run_result(
+        self, result: SearchRunResult, *, stop_event: threading.Event | None = None,
+    ) -> SearchRunResult:
         """Apply LLM translation/summaries to the displayed (hot+maybe) results only, once.
 
         Scoring/bucketing already happened deterministically. Here we replace just the
         translated_title_ru/summary_ru of the cards the user will actually see, in parallel.
         No-op when there is no LLM client or nothing to display.
         """
-        if self._llm_client is None:
+        if self._llm_client is None or (stop_event is not None and stop_event.is_set()):
             return result
         display_items = [item for item in result.results if item.bucket in _DISPLAYED_BUCKETS]
         if not display_items:
@@ -1029,18 +1029,29 @@ class SearchService:
         enriched_by_key: dict[str, SearchResultItem] = {}
         started = time.perf_counter()
         max_workers = min(len(display_items), _MAX_ENRICH_WORKERS)
-        with ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="llm-enrich") as pool:
+        pool = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="llm-enrich")
+        try:
             future_to_key = {
-                pool.submit(self._enrich_item, item): item.canonical_group.canonical_key
+                pool.submit(self._enrich_item, item, stop_event=stop_event): item.canonical_group.canonical_key
                 for item in display_items
             }
-            for future in as_completed(future_to_key):
-                key = future_to_key[future]
-                try:
-                    enriched_by_key[key] = future.result()
-                except Exception:
-                    # A single enrichment failure must not drop the card — keep it deterministic.
-                    logger.warning("llm_enrichment_failed canonical_key=%s", key)
+            pending = set(future_to_key)
+            while pending:
+                done, pending = wait(pending, timeout=0.1, return_when=FIRST_COMPLETED)
+                for future in done:
+                    key = future_to_key[future]
+                    try:
+                        enriched_by_key[key] = future.result()
+                    except Exception:
+                        # A single enrichment failure must not drop the deterministic card.
+                        logger.warning("llm_enrichment_failed canonical_key=%s", key)
+                if stop_event is not None and stop_event.is_set():
+                    break
+        finally:
+            # A context manager would wait for every queued/running LLM call on exit.
+            # In-flight requests may finish, but cannot hold the result or start more work.
+            cancelled = stop_event is not None and stop_event.is_set()
+            pool.shutdown(wait=not cancelled, cancel_futures=cancelled)
         logger.info(
             "llm_enrichment_done cards=%d enriched=%d workers=%d elapsed_ms=%d",
             len(display_items),
@@ -1073,18 +1084,26 @@ class SearchService:
             query_result_groups=new_groups,
         )
 
-    def _enrich_item(self, item: SearchResultItem) -> SearchResultItem:
+    def _enrich_item(
+        self, item: SearchResultItem, *, stop_event: threading.Event | None = None,
+    ) -> SearchResultItem:
         """Recompute the LLM-backed title/summary for a single displayed result."""
+        if stop_event is not None and stop_event.is_set():
+            return item
         translated_title_ru = self.translation_service.translate_title(
             normalized_title=item.canonical_group.normalized_title,
             original_title=item.primary_record.original_title,
             use_llm=True,
+            stop_event=stop_event,
         )
+        if stop_event is not None and stop_event.is_set():
+            return item
         summary_ru = self.summary_service.build_summary(
             item.canonical_group,
             item.signals,
             translated_title_ru=translated_title_ru,
             use_llm=True,
+            stop_event=stop_event,
         )
         return dataclasses.replace(
             item,

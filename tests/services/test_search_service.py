@@ -1,6 +1,9 @@
 import logging
+import threading
+from dataclasses import replace
 from types import SimpleNamespace
 
+import pytest
 from app.services.normalization_models import CanonicalVacancyGroup
 from app.services.normalizer import VacancyNormalizer
 from app.services.relevance_feedback_service import RelevanceFeedbackService
@@ -476,6 +479,106 @@ def test_enrich_run_result_is_noop_without_llm_client() -> None:
     base = service.search(search_input=SourceSearchInput(query="lager", page=1, page_size=5))
 
     assert service._enrich_run_result(base) is base
+
+
+@pytest.mark.parametrize("blocked_phase", ["title", "summary"])
+def test_enrichment_stop_returns_without_waiting_for_inflight_llm(monkeypatch, blocked_phase) -> None:
+    """A blocked request cannot hold the results or start queued cards/retries."""
+    monkeypatch.setattr("app.services.search_service._MAX_ENRICH_WORKERS", 1)
+    stop_event = threading.Event()
+    started = threading.Event()
+    release = threading.Event()
+    worker_finished = threading.Event()
+    search_finished = threading.Event()
+    calls = []
+
+    class BlockingHelper:
+        def translate_title(self, text):
+            calls.append("title")
+            if blocked_phase != "title":
+                return "Сотрудник склада"
+            started.set()
+            assert release.wait(5)
+            return "invalid translation 999999"  # would normally trigger retries
+
+        def summarize(self, text):
+            calls.append("summary")
+            started.set()
+            assert release.wait(5)
+            return "Описание 999999"  # would normally trigger retries
+
+    service = _enrichment_service(BlockingHelper())
+    base = service.search(
+        search_input=SourceSearchInput(query="lager", page=1, page_size=5),
+        enrich_with_llm=False,
+    )
+    original = (base.hot_results + base.maybe_results)[0]
+    items = tuple(replace(original, canonical_group=replace(
+        original.canonical_group, canonical_key=f"card-{index}"
+    )) for index in range(10))
+    base = replace(base, results=items,
+                   hot_results=tuple(i for i in items if i.bucket == "hot"),
+                   maybe_results=tuple(i for i in items if i.bucket == "maybe"),
+                   rejected_results=())
+    enrich_item = service._enrich_item
+
+    def observed_item(*args, **kwargs):
+        try:
+            return enrich_item(*args, **kwargs)
+        finally:
+            worker_finished.set()
+
+    monkeypatch.setattr(service, "_enrich_item", observed_item)
+    results = []
+    errors = []
+
+    def run():
+        try:
+            results.append(service._enrich_run_result(base, stop_event=stop_event))
+        except Exception as exc:
+            errors.append(exc)
+        finally:
+            search_finished.set()
+
+    thread = threading.Thread(target=run)
+    thread.start()
+    try:
+        assert started.wait(2), errors
+        stop_event.set()
+        assert search_finished.wait(2), "Stop waited for the blocked LLM request"
+        assert not errors
+        assert results[0] == base
+    finally:
+        stop_event.set()
+        release.set()
+        thread.join(5)
+    assert worker_finished.wait(2)
+    assert calls == (["title"] if blocked_phase == "title" else ["title", "summary"])
+
+
+def test_stop_after_source_page_preserves_records_and_skips_next_page() -> None:
+    stop_event = threading.Event()
+    calls = []
+
+    class StoppingAdapter(BAAdapter):
+        def search(self, search_input):
+            calls.append(search_input.page)
+            response = super().search(search_input)
+            stop_event.set()
+            return replace(response, total_count=100)
+
+    service = SearchService(
+        registry=SourceAdapterRegistry(adapters=(StoppingAdapter(),)),
+        profile_resolver=StubProfileResolver(),
+    )
+    service._max_pages = 4
+    result = service.search(
+        search_input=SourceSearchInput(query="lager", page=1, page_size=2),
+        stop_event=stop_event, enrich_with_llm=False,
+    )
+    assert calls == [1]
+    assert result.total_raw_records == 2
+    assert result.has_results
 
 
 def test_search_service_orchestrates_dedup_filtering_scoring_and_bucketing() -> None:

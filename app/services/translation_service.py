@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import threading
 from typing import Protocol
 
 from app.core.relevance_config import get_relevance_config
@@ -51,7 +52,7 @@ _TOKEN_TRANSLATIONS = {
 class TranslationService:
     """Local-safe translation fallback for short vacancy labels."""
 
-    def _checked_llm_title(self, title: str) -> str | None:
+    def _checked_llm_title(self, title: str, *, stop_event: threading.Event | None = None) -> str | None:
         """Перевод модели, прошедший проверку, иначе исходный заголовок.
 
         В модель уходит ИСХОДНЫЙ заголовок, а не нормализованный: в
@@ -64,6 +65,8 @@ class TranslationService:
         source = " ".join(source.split())
         answered = False
         for _ in range(1 + max(0, get_relevance_config().translation_retries)):
+            if stop_event is not None and stop_event.is_set():
+                break
             translated = self.helper.translate_title(source)
             normalized_translated = translated.strip() if translated else None
             if normalized_translated is None:
@@ -87,6 +90,7 @@ class TranslationService:
         normalized_title: str,
         original_title: str | None = None,
         use_llm: bool = True,
+        stop_event: threading.Event | None = None,
     ) -> str | None:
         candidate = normalize_text_for_fingerprint(normalized_title or original_title)
         if not candidate:
@@ -94,7 +98,9 @@ class TranslationService:
 
         if use_llm and self.helper is not None:
             if candidate not in self._llm_cache:
-                self._llm_cache[candidate] = self._checked_llm_title(original_title or normalized_title)
+                self._llm_cache[candidate] = self._checked_llm_title(
+                    original_title or normalized_title, stop_event=stop_event,
+                )
             cached = self._llm_cache[candidate]
             if cached:
                 return cached

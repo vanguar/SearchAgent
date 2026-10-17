@@ -1,13 +1,14 @@
 <div id="search-progress-panel"
      hx-get="/jobs/search/progress/{{ task_id }}"
      hx-trigger="every 1s"
+     hx-sync="#jobs-results-panel:drop"
      hx-swap="outerHTML"
      hx-target="this">
   <article class="panel">
     <div class="search-progress">
       <p class="search-progress__status">
         {% if stopping %}
-          Завершаем текущую попытку, формируем результаты...
+          Формируем выдачу из уже найденных вакансий...
         {% else %}
           {{ phase_label }}
           <span class="search-progress__dots">
@@ -19,6 +20,7 @@
       <div class="notice warning search-progress__stop-notice" role="status" aria-live="polite">
         <strong>Остановка принята.</strong>
         Дождитесь завершения обработки уже найденных вакансий: система доделывает дедупликацию, фильтрацию и подготовку промежуточной выдачи.
+        Новые поисковые запросы и переводы не запускаются; уже отправленный запрос к источнику может завершиться.
       </div>
       {% endif %}
       {% set progress_pct = 96 if stopping else ({"attempt": 18, "fetch": 55, "postprocess": 85}.get(phase_code, 10)) %}
@@ -65,6 +67,7 @@
       {% if show_stop_button and not stopping %}
       <form
         hx-post="/jobs/search/stop/{{ task_id }}"
+        hx-sync="#jobs-results-panel:replace"
         hx-target="#jobs-results-panel"
         hx-swap="innerHTML"
         style="margin-top: 0.75rem;">
@@ -79,8 +82,13 @@
   {% if partial_result and partial_result.has_results %}
   <article class="panel">
     <div class="notice info">
+      {% if stopping %}
+      <strong>Остановка принята. Уже обработанные вакансии доступны ниже.</strong>
+      Завершаем обработку собранных данных.
+      {% else %}
       <strong>Промежуточная выдача, поиск ещё продолжается.</strong>
       Ниже показан лучший уже обработанный результат; итоговая выдача может измениться после следующих запросов.
+      {% endif %}
     </div>
   </article>
   {% set search_result = partial_result %}

@@ -1174,6 +1174,46 @@ def test_jobs_search_progress_confirms_stop_request_while_processing() -> None:
     assert "Остановить и показать лучший промежуточный результат" not in response.text
 
 
+def test_stop_endpoint_sets_event_and_keeps_partial_cards() -> None:
+    from app.web.routes.jobs import _register_task
+
+    task = _SearchTask(task_id="stop-partial", profile_id=None)
+    task.mark_partial(_build_result())
+    _register_task(task)
+    response = TestClient(create_app()).post("/jobs/search/stop/stop-partial")
+
+    assert response.status_code == 200
+    assert task.stop_event.is_set()
+    assert task.snapshot()["status"] == "stopping"
+    assert "Остановка принята" in response.text
+    assert "Горячие вакансии" in response.text
+    assert "поиск ещё продолжается" not in response.text
+
+
+def test_stop_of_completed_task_returns_final_results() -> None:
+    from dataclasses import replace
+
+    from app.services.search_models import SearchAttemptSummary
+    from app.web.routes.jobs import _register_task
+
+    task = _SearchTask(task_id="stop-done", profile_id=None)
+    result = replace(_build_result(), attempt_summary=SearchAttemptSummary(
+        primary_query="lager", final_query_used="lager", fallback_used=False,
+        language_relaxation_used=False, attempts=(), user_message_ru=None, stop_reason="cancelled",
+    ))
+    task.mark_done(result)
+    _register_task(task)
+    response = TestClient(create_app()).post("/jobs/search/stop/stop-done")
+
+    assert response.status_code == 200
+    assert "search-progress-panel" not in response.text
+    assert "Поиск остановлен" in response.text
+    assert "Горячие вакансии" in response.text
+    assert "/jobs/export/stop-done.json" in response.text
+    assert task.snapshot()["status"] == "done"
+    assert not task.stop_event.is_set()
+
+
 def test_jobs_legacy_source_preview_route_is_not_exposed_anymore() -> None:
     service = FakeSearchService()
     app = create_app()

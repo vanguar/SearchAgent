@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from typing import Protocol
 
 from app.core.relevance_config import get_relevance_config
@@ -19,7 +20,7 @@ class SummaryHelper(Protocol):
 class SummaryService:
     """Short Russian summaries with a deterministic local fallback."""
 
-    def _checked_llm_summary(self, body_text: str) -> str | None:
+    def _checked_llm_summary(self, body_text: str, *, stop_event: threading.Event | None = None) -> str | None:
         """Пересказ модели без иероглифов и без чисел, которых нет в тексте.
 
         Не прошедший проверку ответ повторяется; после повторов используется
@@ -27,6 +28,8 @@ class SummaryService:
         """
         assert self.helper is not None
         for _ in range(1 + max(0, get_relevance_config().translation_retries)):
+            if stop_event is not None and stop_event.is_set():
+                return None
             helper_summary = self.helper.summarize(body_text)
             normalized_summary = helper_summary.strip() if helper_summary else None
             if normalized_summary is None:
@@ -53,6 +56,7 @@ class SummaryService:
         *,
         translated_title_ru: str | None = None,
         use_llm: bool = True,
+        stop_event: threading.Event | None = None,
     ) -> str | None:
         # A body-only LLM summary (including a cached one) cannot resolve contradictory
         # salary fields. Report the evidence and the same rate that scoring actually uses.
@@ -65,7 +69,7 @@ class SummaryService:
                 if cached:
                     return cached
             else:
-                normalized_summary = self._checked_llm_summary(body_text)
+                normalized_summary = self._checked_llm_summary(body_text, stop_event=stop_event)
                 self._llm_cache[body_text] = normalized_summary
                 if normalized_summary:
                     return normalized_summary
@@ -74,6 +78,7 @@ class SummaryService:
             normalized_title=canonical.normalized_title,
             original_title=canonical.source_records[0].original_title if canonical.source_records else None,
             use_llm=use_llm,
+            stop_event=stop_event,
         )
         if translated_title is None and canonical.source_records:
             translated_title = canonical.source_records[0].original_title

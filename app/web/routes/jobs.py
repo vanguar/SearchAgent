@@ -132,10 +132,11 @@ class _SearchTask:
             self.status = "error"
 
     def request_stop(self) -> None:
-        self.stop_event.set()
         with self._lock:
             if self.status == "running":
+                self.stop_event.set()
                 self.status = "stopping"
+                logger.info("jobs_search_stop_requested task_id=%s phase=%s", self.task_id, self.phase_code)
 
     def snapshot(self) -> dict:
         with self._lock:
@@ -757,13 +758,13 @@ def jobs_search_stop(
     task_id: str,
     request: Request,
 ) -> HTMLResponse:
-    """Устанавливает флаг остановки; поиск завершится после текущего источника."""
+    """Останавливает новые запросы и LLM-обработку, сохраняя собранную выдачу."""
     task = _get_task(task_id)
     if task is None:
         return _render_results(request, None, None, form_error="Задача поиска не найдена.")
 
     task.request_stop()
-    return _render_progress(request, task)
+    return jobs_search_progress(task_id, request)
 
 
 @router.post("/jobs/search-results", response_class=HTMLResponse)

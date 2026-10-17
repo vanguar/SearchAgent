@@ -179,6 +179,12 @@
   <div class="notice warning">{{ form_error }}</div>
 </article>
 {% elif search_result %}
+{% if search_result.attempt_summary and search_result.attempt_summary.stop_reason == "cancelled" %}
+<article class="panel">
+  <div class="notice info" role="status">Поиск остановлен. Показаны уже найденные вакансии.</div>
+</article>
+{% endif %}
+
 {% if search_result.attempt_summary and search_result.attempt_summary.user_message_ru %}
 <article class="panel">
   <div class="notice {% if search_result.has_results %}info{% else %}warning{% endif %}">
